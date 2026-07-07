@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Echo Cartographer — Deep Caves</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --echo-cyan: #06b6d4; --echo-amber: #f59e0b; --echo-red: #ef4444;
+            --echo-green: #22c55e; --echo-purple: #a855f7; --echo-dark: #020617;
+            --echo-mid: #0f172a; --echo-glass: rgba(15,23,42,0.9);
+        }
+        html, body {
+            background: var(--echo-dark); color: #e2e8f0;
+            font-family: 'Rajdhani', sans-serif; height: 100vh; width: 100vw;
+            overflow: hidden; touch-action: none;
+        }
+        header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: var(--echo-glass); border-bottom: 1px solid rgba(6,182,212,0.25);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        }
+        h1 {
+            font-family: 'Orbitron', sans-serif; font-size: clamp(1rem, 3vw, 1.5rem);
+            color: var(--echo-cyan); letter-spacing: 3px;
+            text-shadow: 0 0 15px rgba(6,182,212,0.4);
+        }
+        .back-btn {
+            position: absolute; left: 12px; padding: 6px 14px;
+            background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3);
+            color: var(--echo-cyan); text-decoration: none; border-radius: 6px;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; transition: all 0.3s;
+        }
+        .back-btn:hover { background: rgba(6,182,212,0.2); box-shadow: 0 0 12px rgba(6,182,212,0.2); }
+        .header-stats {
+            position: absolute; right: 12px; display: flex; gap: 12px;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.75rem;
+        }
+        .header-stat { color: var(--echo-amber); }
+        .header-stat span { color: #64748b; }
+
+        .hud {
+            position: fixed; top: 56px; left: 0; width: 260px; bottom: 0;
+            background: var(--echo-glass); border-right: 1px solid rgba(6,182,212,0.12);
+            padding: 16px; z-index: 900; overflow-y: auto;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hud.collapsed { transform: translateX(-100%); }
+        .hud-toggle {
+            position: fixed; top: 64px; left: 8px; z-index: 901; width: 36px; height: 36px;
+            background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 8px; color: var(--echo-cyan); display: none;
+            align-items: center; justify-content: center; cursor: pointer;
+            font-size: 1.2rem; backdrop-filter: blur(4px);
+        }
+        .hud-section { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .hud-title {
+            font-family: 'Orbitron', sans-serif; color: var(--echo-cyan); font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 3px; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .sonar-display {
+            width: 100%; aspect-ratio: 1; border: 2px solid rgba(6,182,212,0.25);
+            border-radius: 50%; position: relative;
+            background: radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%);
+            overflow: hidden;
+        }
+        .sonar-grid {
+            position: absolute; top: 10%; left: 10%; right: 10%; bottom: 10%;
+            border: 1px solid rgba(6,182,212,0.1); border-radius: 50%;
+        }
+        .sonar-grid::before, .sonar-grid::after {
+            content: ''; position: absolute; border: 1px solid rgba(6,182,212,0.08); border-radius: 50%;
+        }
+        .sonar-grid::before { top: 25%; left: 25%; right: 25%; bottom: 25%; }
+        .sonar-grid::after { top: 45%; left: 45%; right: 45%; bottom: 45%; }
+        .sonar-sweep {
+            position: absolute; top: 50%; left: 50%; width: 50%; height: 2px;
+            background: linear-gradient(90deg, var(--echo-cyan), transparent);
+            transform-origin: left center; animation: sonarSweep 3s linear infinite;
+            box-shadow: 0 0 8px rgba(6,182,212,0.5);
+        }
+        .sonar-sweep::after {
+            content: ''; position: absolute; right: 0; top: -3px;
+            width: 8px; height: 8px; background: var(--echo-cyan); border-radius: 50%;
+            box-shadow: 0 0 10px var(--echo-cyan);
+        }
+        @keyframes sonarSweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .sonar-blip {
+            position: absolute; width: 6px; height: 6px; background: var(--echo-amber);
+            border-radius: 50%; box-shadow: 0 0 8px var(--echo-amber);
+            animation: blipPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes blipPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.6); } }
+
+        .audio-visualizer {
+            display: flex; align-items: flex-end; gap: 2px; height: 36px; margin-top: 8px;
+        }
+        .viz-bar {
+            flex: 1; background: linear-gradient(to top, var(--echo-cyan), rgba(6,182,212,0.3));
+            border-radius: 1px; transition: height 0.08s ease; min-height: 2px;
+        }
+
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem; }
+        .stat-label { color: #64748b; }
+        .stat-value { font-family: 'Share Tech Mono', monospace; color: var(--echo-cyan); }
+        .echo-bar {
+            height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px;
+            overflow: hidden; margin-top: 4px;
+        }
+        .echo-fill {
+            height: 100%; background: linear-gradient(90deg, var(--echo-cyan), var(--echo-amber));
+            border-radius: 3px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .minimap-container {
+            width: 100%; aspect-ratio: 1; background: rgba(0,0,0,0.4);
+            border-radius: 10px; border: 1px solid rgba(6,182,212,0.15);
+            position: relative; overflow: hidden;
+        }
+        .minimap-cell { position: absolute; border-radius: 1px; transition: all 0.3s; }
+        .mm-wall { background: #334155; }
+        .mm-floor { background: rgba(6,182,212,0.15); }
+        .mm-player { background: var(--echo-cyan); box-shadow: 0 0 6px var(--echo-cyan); border-radius: 50%; z-index: 10; }
+        .mm-exit { background: var(--echo-amber); box-shadow: 0 0 6px var(--echo-amber); border-radius: 50%; z-index: 10; }
+        .mm-treasure { background: var(--echo-purple); box-shadow: 0 0 4px var(--echo-purple); border-radius: 50%; }
+        .mm-enemy { background: var(--echo-red); box-shadow: 0 0 4px var(--echo-red); border-radius: 50%; }
+        .mm-visited { background: rgba(34,197,94,0.3); }
+
+        .log-panel {
+            max-height: 160px; overflow-y: auto; font-size: 0.78rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: #94a3b8; line-height: 1.4; }
+        .log-time { color: var(--echo-cyan); font-size: 0.7rem; }
+        .log-warn { color: var(--echo-amber); }
+        .log-danger { color: var(--echo-red); }
+        .log-success { color: var(--echo-green); }
+
+        .map-container {
+            position: fixed; top: 56px; left: 260px; right: 0; bottom: 0;
+            background: var(--echo-dark); cursor: crosshair; overflow: hidden;
+        }
+        #gameCanvas { display: block; }
+
+        .mobile-controls {
+            position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%); z-index: 800; display: none;
+            gap: 8px; align-items: center;
+        }
+        .d-pad {
+            display: grid; grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(3, 50px); gap: 4px;
+        }
+        .dpad-btn {
+            background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 10px; color: var(--echo-cyan); font-size: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
+            user-select: none; -webkit-user-select: none; touch-action: manipulation;
+        }
+        .dpad-btn:active { background: rgba(6,182,212,0.3); }
+        .dpad-empty { visibility: hidden; }
+        .action-pad { display: flex; flex-direction: column; gap: 8px; }
+        .action-btn-m {
+            width: 60px; height: 60px; background: rgba(245,158,11,0.15);
+            border: 1px solid rgba(245,158,11,0.4); border-radius: 50%;
+            color: var(--echo-amber); font-size: 1.5rem;
+            display: flex; align-items: center; justify-content: center;
+            user-select: none; -webkit-user-select: none;
+        }
+        .action-btn-m:active { background: rgba(245,158,11,0.3); }
+
+        .controls-hint {
+            position: fixed; bottom: 16px; right: 16px;
+            background: var(--echo-glass); border: 1px solid rgba(6,182,212,0.15);
+            border-radius: 10px; padding: 12px 16px;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.7rem;
+            color: #64748b; z-index: 700; backdrop-filter: blur(8px); line-height: 1.6;
+        }
+        .controls-hint span { color: var(--echo-cyan); }
+        .controls-hint kbd {
+            background: rgba(255,255,255,0.08); padding: 2px 6px;
+            border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-size: 0.65rem;
+        }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; align-items: center; justify-content: center;
+            z-index: 2000; backdrop-filter: blur(8px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--echo-dark); border: 2px solid var(--echo-cyan);
+            border-radius: 20px; padding: 40px 50px; max-width: 480px; width: 90%;
+            text-align: center;
+            animation: modalIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 40px rgba(6,182,212,0.1);
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.85) translateY(20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .modal h2 {
+            font-family: 'Orbitron', sans-serif; color: var(--echo-cyan);
+            font-size: 1.6rem; margin-bottom: 12px;
+        }
+        .modal p { color: #94a3b8; line-height: 1.7; margin-bottom: 8px; font-size: 0.95rem; }
+        .modal-stats {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0;
+        }
+        .modal-stat { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; }
+        .modal-stat-value {
+            font-family: 'Orbitron', sans-serif; font-size: 1.4rem; color: var(--echo-amber);
+        }
+        .modal-stat-label {
+            font-size: 0.7rem; color: #64748b; margin-top: 4px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-next {
+            padding: 14px 36px;
+            background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(168,85,247,0.2));
+            border: 1px solid var(--echo-cyan); color: var(--echo-cyan);
+            border-radius: 10px; font-family: 'Orbitron', sans-serif;
+            font-weight: 700; cursor: pointer; font-size: 0.9rem;
+            letter-spacing: 2px; transition: all 0.3s; margin-top: 10px;
+        }
+        .btn-next:hover { box-shadow: 0 0 30px rgba(6,182,212,0.3); transform: translateY(-2px); }
+
+        .start-screen {
+            position: fixed; inset: 0; background: var(--echo-dark);
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 3000; transition: opacity 0.8s;
+        }
+        .start-screen.hidden { opacity: 0; pointer-events: none; }
+        .start-title {
+            font-family: 'Orbitron', sans-serif; font-size: clamp(2rem, 5vw, 3.5rem);
+            color: var(--echo-cyan); letter-spacing: 6px; margin-bottom: 20px;
+            text-shadow: 0 0 40px rgba(6,182,212,0.3);
+        }
+        .start-subtitle {
+            color: #94a3b8; font-size: 1.1rem; margin-bottom: 40px;
+            text-align: center; max-width: 500px; line-height: 1.6;
+        }
+        .start-btn {
+            padding: 16px 48px;
+            background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(168,85,247,0.15));
+            border: 2px solid var(--echo-cyan); color: var(--echo-cyan);
+            border-radius: 12px; font-family: 'Orbitron', sans-serif;
+            font-size: 1rem; letter-spacing: 4px; cursor: pointer; transition: all 0.3s;
+        }
+        .start-btn:hover { box-shadow: 0 0 40px rgba(6,182,212,0.3); transform: scale(1.05); }
+        .start-canvas { position: absolute; inset: 0; opacity: 0.3; pointer-events: none; }
+
+        @media (max-width: 768px) {
+            .hud { width: 220px; }
+            .map-container { left: 0; }
+            .hud-toggle { display: flex; }
+            .controls-hint { display: none; }
+            .mobile-controls { display: flex; }
+            .header-stats { display: none; }
+        }
+        @media (max-width: 480px) {
+            .hud { width: 200px; padding: 12px; }
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(6,182,212,0.3); border-radius: 2px; }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="start-screen" id="startScreen">
+        <canvas class="start-canvas" id="startCanvas"></canvas>
+        <div class="start-title">ECHO CARTOGRAPHER</div>
+        <div class="start-subtitle">Navigate pitch-black caverns using sound pulses.<br>Visual ripples reveal terrain. Find the exit.</div>
+        <button class="start-btn" onclick="startGame()">ENTER THE DARK</button>
+    </div>
+
+    <header>
+        <a href="index.html" class="back-btn">← MENU</a>
+        <h1>🔊 ECHO CARTOGRAPHER</h1>
+        <div class="header-stats">
+            <div class="header-stat">LVL <span id="headerLevel">1</span></div>
+            <div class="header-stat">PULSES <span id="headerPulses">0</span></div>
+        </div>
+    </header>
+
+    <div class="hud-toggle" id="hudToggle" onclick="toggleHud()">≡</div>
+
+    <div class="hud" id="hud">
+        <div class="hud-section">
+            <div class="hud-title">◉ Sonar Display</div>
+            <div class="sonar-display" id="sonarDisplay">
+                <div class="sonar-grid"></div>
+                <div class="sonar-sweep"></div>
+            </div>
+        </div>
+
+        <div class="hud-section">
+            <div class="hud-title">≡ Audio Spectrum</div>
+            <div class="audio-visualizer" id="audioViz"></div>
+        </div>
+
+        <div class="hud-section">
+            <div class="hud-title">◈ Navigation</div>
+            <div class="stat-row"><span class="stat-label">Cave Level</span><span class="stat-value" id="statLevel">1</span></div>
+            <div class="stat-row"><span class="stat-label">Echo Pulses</span><span class="stat-value" id="statPulses">0</span></div>
+            <div class="stat-row"><span class="stat-label">Map Revealed</span><span class="stat-value" id="statRevealed">0%</span></div>
+            <div class="stat-row"><span class="stat-label">Distance</span><span class="stat-value" id="statDistance">--</span></div>
+            <div class="stat-row"><span class="stat-label">Treasures</span><span class="stat-value" id="statTreasures">0</span></div>
+            <div style="margin-top:10px;">
+                <span class="stat-label">Echo Charge</span>
+                <div class="echo-bar"><div class="echo-fill" id="echoBar" style="width:100%"></div></div>
+            </div>
+            <div style="margin-top:8px;">
+                <span class="stat-label">Health</span>
+                <div class="echo-bar"><div class="echo-fill" id="healthBar" style="width:100%;background:linear-gradient(90deg,#22c55e,#16a34a)"></div></div>
+            </div>
+        </div>
+
+        <div class="hud-section">
+            <div class="hud-title">◉ Minimap</div>
+            <div class="minimap-container" id="minimap"></div>
+        </div>
+
+        <div class="hud-section" style="border:none;">
+            <div class="hud-title">◊ Cave Log</div>
+            <div class="log-panel" id="caveLog"></div>
+        </div>
+    </div>
+
+    <div class="map-container" id="mapContainer">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="mobile-controls" id="mobileControls">
+        <div class="d-pad">
+            <div class="dpad-empty"></div>
+            <div class="dpad-btn" ontouchstart="mobileMove(0,-1)" onmousedown="mobileMove(0,-1)">▲</div>
+            <div class="dpad-empty"></div>
+            <div class="dpad-btn" ontouchstart="mobileMove(-1,0)" onmousedown="mobileMove(-1,0)">◀</div>
+            <div class="dpad-empty"></div>
+            <div class="dpad-btn" ontouchstart="mobileMove(1,0)" onmousedown="mobileMove(1,0)">▶</div>
+            <div class="dpad-empty"></div>
+            <div class="dpad-btn" ontouchstart="mobileMove(0,1)" onmousedown="mobileMove(0,1)">▼</div>
+            <div class="dpad-empty"></div>
+        </div>
+        <div class="action-pad">
+            <div class="action-btn-m" ontouchstart="mobileEcho()" onmousedown="mobileEcho()">🔊</div>
+        </div>
+    </div>
+
+    <div class="controls-hint" id="controlsHint">
+        <span><kbd>WASD</kbd></span> Move &nbsp;|&nbsp; <span><kbd>SPACE</kbd></span> Echo &nbsp;|&nbsp; <span><kbd>SHIFT</kbd></span> Sprint &nbsp;|&nbsp; <span><kbd>CLICK</kbd></span> Echo at cursor
+    </div>
+
+    <div class="modal-overlay" id="levelComplete">
+        <div class="modal">
+            <h2>CAVE MAPPED</h2>
+            <p>Echo analysis complete. The exit has been located.</p>
+            <div class="modal-stats">
+                <div class="modal-stat"><div class="modal-stat-value" id="modalPulses">0</div><div class="modal-stat-label">Pulses</div></div>
+                <div class="modal-stat"><div class="modal-stat-value" id="modalRevealed">0%</div><div class="modal-stat-label">Revealed</div></div>
+                <div class="modal-stat"><div class="modal-stat-value" id="modalTime">0s</div><div class="modal-stat-label">Time</div></div>
+            </div>
+            <button class="btn-next" onclick="nextLevel()">DESCEND DEEPER →</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="gameOver">
+        <div class="modal">
+            <h2 style="color:var(--echo-red)">SIGNAL LOST</h2>
+            <p>Your health has been depleted. The caves have claimed another explorer.</p>
+            <div class="modal-stats">
+                <div class="modal-stat"><div class="modal-stat-value" id="modalDeathLevel">1</div><div class="modal-stat-label">Level Reached</div></div>
+                <div class="modal-stat"><div class="modal-stat-value" id="modalDeathPulses">0</div><div class="modal-stat-label">Total Pulses</div></div>
+                <div class="modal-stat"><div class="modal-stat-value" id="modalDeathTime">0s</div><div class="modal-stat-label">Survived</div></div>
+            </div>
+            <button class="btn-next" onclick="restartGame()" style="border-color:var(--echo-red);color:var(--echo-red)">TRY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+    // ==================== ECHO CARTOGRAPHER v2.0 ====================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('mapContainer');
+
+    // ===== AUDIO ENGINE =====
+    let audioCtx = null, masterGain = null, reverbNode = null;
+    function initAudio() {
+        if (audioCtx) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.4;
+            masterGain.connect(audioCtx.destination);
+            reverbNode = audioCtx.createConvolver();
+            const length = audioCtx.sampleRate * 1.5;
+            const impulse = audioCtx.createBuffer(2, length, audioCtx.sampleRate);
+            for (let c = 0; c < 2; c++) {
+                const ch = impulse.getChannelData(c);
+                for (let i = 0; i < length; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+            }
+            reverbNode.buffer = impulse;
+            const reverbGain = audioCtx.createGain();
+            reverbGain.gain.value = 0.3;
+            reverbNode.connect(reverbGain);
+            reverbGain.connect(masterGain);
+        } catch(e) {}
+    }
+
+    function playEchoSound(distance, wallType, intensity) {
+        if (!audioCtx) return;
+        try {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc.connect(filter); filter.connect(gain);
+            gain.connect(masterGain); gain.connect(reverbNode);
+            const baseFreq = 180 + (1 / (distance + 0.2)) * 400;
+            osc.type = wallType === 'wall' ? 'sawtooth' : 'sine';
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, now + 0.4);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1200, now);
+            filter.frequency.exponentialRampToValueAtTime(80, now + 0.6);
+            filter.Q.value = 5;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.25 * (intensity || 1), now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+            osc.start(now); osc.stop(now + 0.6);
+        } catch(e) {}
+    }
+
+    function playStepSound() {
+        if (!audioCtx) return;
+        try {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(60 + Math.random() * 30, now);
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.start(now); osc.stop(now + 0.12);
+        } catch(e) {}
+    }
+
+    function playTreasureSound() {
+        if (!audioCtx) return;
+        try {
+            const now = audioCtx.currentTime;
+            [523, 659, 784].forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(masterGain);
+                osc.frequency.setValueAtTime(freq, now + i * 0.1);
+                gain.gain.setValueAtTime(0, now + i * 0.1);
+                gain.gain.linearRampToValueAtTime(0.15, now + i * 0.1 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+                osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.3);
+            });
+        } catch(e) {}
+    }
+
+    function playDamageSound() {
+        if (!audioCtx) return;
+        try {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(masterGain);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } catch(e) {}
+    }
+
+    // ===== GAME STATE =====
+    let level = 1, mapWidth = 40, mapHeight = 30, tileSize = 32;
+    let map = [], revealed = [], visited = [];
+    let player = { x: 1, y: 1 }, exit = { x: 0, y: 0 };
+    let treasures = [], enemies = [];
+    let pulses = 0, echoCharge = 100, maxEchoCharge = 100;
+    let health = 100, maxHealth = 100, score = 0, treasuresFound = 0;
+    let echoRipples = [], particles = [], keys = {};
+    let camera = { x: 0, y: 0 }, lastTime = 0, moveTimer = 0;
+    let sprinting = false, gameTime = 0, levelStartTime = 0;
+    let isGameOver = false, totalPulses = 0, totalGameTime = 0;
+    let screenShake = { x: 0, y: 0, intensity: 0 };
+
+    // ===== VISUALIZER =====
+    const vizContainer = document.getElementById('audioViz');
+    const vizBars = [];
+    for (let i = 0; i < 24; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'viz-bar'; bar.style.height = '3px';
+        vizContainer.appendChild(bar); vizBars.push(bar);
+    }
+
+    // ===== CAVE GENERATION =====
+    function generateCave() {
+        map = []; revealed = []; visited = []; treasures = []; enemies = [];
+        for (let y = 0; y < mapHeight; y++) {
+            map[y] = []; revealed[y] = []; visited[y] = [];
+            for (let x = 0; x < mapWidth; x++) {
+                map[y][x] = 1; revealed[y][x] = false; visited[y][x] = false;
+            }
+        }
+        for (let y = 2; y < mapHeight - 2; y++) {
+            for (let x = 2; x < mapWidth - 2; x++) {
+                map[y][x] = Math.random() < 0.42 ? 1 : 0;
+            }
+        }
+        for (let iter = 0; iter < 6; iter++) {
+            const newMap = map.map(row => [...row]);
+            for (let y = 1; y < mapHeight - 1; y++) {
+                for (let x = 1; x < mapWidth - 1; x++) {
+                    let neighbors = 0;
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            if (map[y + dy][x + dx] === 1) neighbors++;
+                        }
+                    }
+                    if (neighbors > 4) newMap[y][x] = 1;
+                    else if (neighbors < 4) newMap[y][x] = 0;
+                }
+            }
+            map = newMap;
+        }
+        player = { x: 2, y: 2 };
+        map[2][2] = 0; map[2][3] = 0; map[3][2] = 0; map[3][3] = 0;
+        let maxDist = 0;
+        for (let y = 3; y < mapHeight - 3; y++) {
+            for (let x = 3; x < mapWidth - 3; x++) {
+                if (map[y][x] === 0) {
+                    const dist = Math.abs(x - 2) + Math.abs(y - 2);
+                    if (dist > maxDist) { maxDist = dist; exit = { x, y }; }
+                }
+            }
+        }
+        map[exit.y][exit.x] = 0;
+        carvePath(player.x, player.y, exit.x, exit.y);
+
+        const treasureCount = 2 + Math.floor(level / 2);
+        for (let i = 0; i < treasureCount; i++) {
+            let tx, ty, attempts = 0;
+            do {
+                tx = Math.floor(Math.random() * (mapWidth - 4)) + 2;
+                ty = Math.floor(Math.random() * (mapHeight - 4)) + 2;
+                attempts++;
+            } while ((map[ty][tx] !== 0 || (tx === exit.x && ty === exit.y) || (tx === player.x && ty === player.y)) && attempts < 100);
+            if (attempts < 100) treasures.push({ x: tx, y: ty, collected: false, glow: 0 });
+        }
+
+        const enemyCount = Math.min(3, Math.floor(level / 2));
+        for (let i = 0; i < enemyCount; i++) {
+            let ex, ey, attempts = 0;
+            do {
+                ex = Math.floor(Math.random() * (mapWidth - 4)) + 2;
+                ey = Math.floor(Math.random() * (mapHeight - 4)) + 2;
+                attempts++;
+            } while ((map[ey][ex] !== 0 || Math.abs(ex - player.x) < 8 || Math.abs(ey - player.y) < 8) && attempts < 100);
+            if (attempts < 100) enemies.push({ x: ex, y: ey, vx: 0, vy: 0, hp: 1, stunned: 0 });
+        }
+        revealArea(player.x, player.y, 3);
+        updateMinimap();
+        levelStartTime = gameTime;
+    }
+
+    function carvePath(x1, y1, x2, y2) {
+        let cx = x1, cy = y1;
+        while (cx !== x2 || cy !== y2) {
+            map[cy][cx] = 0;
+            if (Math.random() < 0.5) { if (cx !== x2) cx += Math.sign(x2 - cx); }
+            else { if (cy !== y2) cy += Math.sign(y2 - cy); }
+        }
+        map[y2][x2] = 0;
+    }
+
+    function revealArea(cx, cy, radius) {
+        for (let y = Math.max(0, cy - radius); y < Math.min(mapHeight, cy + radius + 1); y++) {
+            for (let x = Math.max(0, cx - radius); x < Math.min(mapWidth, cx + radius + 1); x++) {
+                if (Math.abs(x - cx) + Math.abs(y - cy) <= radius) revealed[y][x] = true;
+            }
+        }
+    }
+
+    // ===== ECHO SYSTEM =====
+    function emitEcho() {
+        if (echoCharge < 15) { addLog('Echo charge too low!', 'warn'); return; }
+        initAudio();
+        echoCharge -= 15; pulses++; totalPulses++;
+        const px = player.x * tileSize + tileSize / 2;
+        const py = player.y * tileSize + tileSize / 2;
+        echoRipples.push({ x: px, y: py, radius: 0, maxRadius: 500, opacity: 1, speed: 5, intensity: 1 });
+        setTimeout(() => {
+            echoRipples.push({ x: px, y: py, radius: 0, maxRadius: 400, opacity: 0.6, speed: 4, intensity: 0.5 });
+        }, 150);
+
+        let wallHits = 0;
+        for (let i = 0; i < 120; i++) {
+            const angle = (i / 120) * Math.PI * 2;
+            for (let dist = 1; dist < 18; dist++) {
+                const tx = Math.round(player.x + Math.cos(angle) * dist);
+                const ty = Math.round(player.y + Math.sin(angle) * dist);
+                if (tx >= 0 && tx < mapWidth && ty >= 0 && ty < mapHeight) {
+                    revealed[ty][tx] = true;
+                    if (map[ty][tx] === 1) {
+                        wallHits++;
+                        playEchoSound(dist, 'wall', 1 / (dist * 0.3));
+                        for (let p = 0; p < 2; p++) {
+                            particles.push({
+                                x: tx * tileSize + tileSize / 2, y: ty * tileSize + tileSize / 2,
+                                vx: Math.cos(angle) * (2 + Math.random()), vy: Math.sin(angle) * (2 + Math.random()),
+                                life: 0.8 + Math.random() * 0.4, color: '#06b6d4', size: 2 + Math.random() * 2
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        addLog('🔊 Echo pulse emitted. ' + wallHits + ' wall contacts.');
+        updateStats(); updateMinimap();
+    }
+
+    // ===== MOVEMENT =====
+    function movePlayer(dx, dy) {
+        if (isGameOver) return;
+        const nx = player.x + dx, ny = player.y + dy;
+        if (nx >= 0 && nx < mapWidth && ny >= 0 && ny < mapHeight && map[ny][nx] === 0) {
+            player.x = nx; player.y = ny;
+            visited[ny][nx] = true;
+            revealArea(nx, ny, 2);
+            playStepSound();
+            for (let i = 0; i < 3; i++) {
+                particles.push({
+                    x: nx * tileSize + tileSize / 2 + (Math.random() - 0.5) * 10,
+                    y: ny * tileSize + tileSize / 2 + (Math.random() - 0.5) * 10,
+                    vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8,
+                    life: 0.4 + Math.random() * 0.3, color: '#64748b', size: 1.5
+                });
+            }
+            treasures.forEach(t => {
+                if (!t.collected && t.x === nx && t.y === ny) {
+                    t.collected = true; treasuresFound++;
+                    score += 50 * level;
+                    echoCharge = Math.min(maxEchoCharge, echoCharge + 25);
+                    health = Math.min(maxHealth, health + 10);
+                    playTreasureSound();
+                    addLog('💎 Treasure found! Energy restored.', 'success');
+                    for (let i = 0; i < 20; i++) {
+                        particles.push({
+                            x: nx * tileSize + tileSize / 2, y: ny * tileSize + tileSize / 2,
+                            vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+                            life: 1.2, color: '#a855f7', size: 3
+                        });
+                    }
+                }
+            });
+            updateStats(); updateMinimap(); checkWin();
+        }
+    }
+
+    // ===== ENEMY SYSTEM =====
+    function updateEnemies(dt) {
+        enemies.forEach(enemy => {
+            if (enemy.stunned > 0) { enemy.stunned -= dt; return; }
+            const distToPlayer = Math.sqrt(Math.pow(enemy.x - player.x, 2) + Math.pow(enemy.y - player.y, 2));
+            const ey = Math.floor(enemy.y);
+            const ex = Math.floor(enemy.x);
+            if (distToPlayer < 8 && revealed[ey] && revealed[ey][ex]) {
+                enemy.vx += Math.sign(player.x - enemy.x) * 0.03 * dt;
+                enemy.vy += Math.sign(player.y - enemy.y) * 0.03 * dt;
+            } else {
+                enemy.vx += (Math.random() - 0.5) * 0.02;
+                enemy.vy += (Math.random() - 0.5) * 0.02;
+            }
+            enemy.vx *= 0.98; enemy.vy *= 0.98;
+            const newX = enemy.x + enemy.vx;
+            const newY = enemy.y + enemy.vy;
+            if (newX >= 1 && newX < mapWidth - 1 && newY >= 1 && newY < mapHeight - 1 && map[Math.floor(newY)][Math.floor(newX)] === 0) {
+                enemy.x = newX; enemy.y = newY;
+            } else { enemy.vx *= -0.5; enemy.vy *= -0.5; }
+
+            if (Math.abs(enemy.x - player.x) < 0.8 && Math.abs(enemy.y - player.y) < 0.8) {
+                health -= 15; enemy.stunned = 2;
+                playDamageSound();
+                screenShake.intensity = 8;
+                addLog('⚠️ Cave creature attacked!', 'danger');
+                const knockX = Math.sign(player.x - enemy.x);
+                const knockY = Math.sign(player.y - enemy.y);
+                const kx = player.x + knockX, ky = player.y + knockY;
+                if (kx >= 0 && kx < mapWidth && ky >= 0 && ky < mapHeight && map[ky][kx] === 0) {
+                    player.x = kx; player.y = ky;
+                }
+                if (health <= 0) { health = 0; triggerGameOver(); }
+                updateStats();
+            }
+            echoRipples.forEach(ripple => {
+                const rdx = ripple.x - enemy.x * tileSize;
+                const rdy = ripple.y - enemy.y * tileSize;
+                const rdist = Math.sqrt(rdx * rdx + rdy * rdy);
+                if (Math.abs(rdist - ripple.radius) < tileSize * 2) {
+                    enemy.stunned = 3;
+                    enemy.vx = (enemy.x - player.x) * 2;
+                    enemy.vy = (enemy.y - player.y) * 2;
+                }
+            });
+        });
+    }
+
+    // ===== WIN/LOSE =====
+    function checkWin() {
+        if (player.x === exit.x && player.y === exit.y) {
+            const timeTaken = Math.round(gameTime - levelStartTime);
+            document.getElementById('modalPulses').textContent = pulses;
+            document.getElementById('modalRevealed').textContent = document.getElementById('statRevealed').textContent;
+            document.getElementById('modalTime').textContent = timeTaken + 's';
+            document.getElementById('levelComplete').classList.add('active');
+            score += 100 * level;
+        }
+    }
+
+    function triggerGameOver() {
+        isGameOver = true;
+        document.getElementById('modalDeathLevel').textContent = level;
+        document.getElementById('modalDeathPulses').textContent = totalPulses;
+        document.getElementById('modalDeathTime').textContent = Math.round(totalGameTime) + 's';
+        document.getElementById('gameOver').classList.add('active');
+    }
+
+    function nextLevel() {
+        level++;
+        mapWidth = Math.min(80, 40 + level * 6);
+        mapHeight = Math.min(60, 30 + level * 4);
+        tileSize = Math.max(18, 32 - level * 1.5);
+        pulses = 0; echoCharge = maxEchoCharge;
+        health = Math.min(maxHealth, health + 30);
+        echoRipples = []; particles = [];
+        document.getElementById('levelComplete').classList.remove('active');
+        generateCave(); resizeCanvas();
+        addLog('Descending to Level ' + level + '. Cave complexity increased.');
+        updateStats();
+    }
+
+    function restartGame() {
+        level = 1; score = 0; totalPulses = 0; totalGameTime = 0;
+        treasuresFound = 0; health = maxHealth; echoCharge = maxEchoCharge;
+        isGameOver = false; mapWidth = 40; mapHeight = 30; tileSize = 32;
+        document.getElementById('gameOver').classList.remove('active');
+        generateCave(); resizeCanvas();
+        addLog('New expedition started.');
+        updateStats();
+    }
+
+    // ===== UI UPDATES =====
+    function updateStats() {
+        document.getElementById('statLevel').textContent = level;
+        document.getElementById('headerLevel').textContent = level;
+        document.getElementById('statPulses').textContent = pulses;
+        document.getElementById('headerPulses').textContent = totalPulses;
+        document.getElementById('echoBar').style.width = (echoCharge / maxEchoCharge * 100) + '%';
+        document.getElementById('healthBar').style.width = (health / maxHealth * 100) + '%';
+        document.getElementById('healthBar').style.background = health > 60 ? 'linear-gradient(90deg,#22c55e,#16a34a)' : health > 30 ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#ef4444,#dc2626)';
+        document.getElementById('statTreasures').textContent = treasuresFound;
+        let revealedCount = 0, totalFloor = 0;
+        for (let y = 0; y < mapHeight; y++) {
+            for (let x = 0; x < mapWidth; x++) {
+                if (map[y][x] === 0) { totalFloor++; if (revealed[y][x]) revealedCount++; }
+            }
+        }
+        const pct = totalFloor > 0 ? Math.round((revealedCount / totalFloor) * 100) : 0;
+        document.getElementById('statRevealed').textContent = pct + '%';
+        const dist = Math.abs(player.x - exit.x) + Math.abs(player.y - exit.y);
+        document.getElementById('statDistance').textContent = dist + 'm';
+    }
+
+    function updateMinimap() {
+        const mm = document.getElementById('minimap');
+        mm.innerHTML = '';
+        const scale = mm.clientWidth / mapWidth;
+        for (let y = 0; y < mapHeight; y++) {
+            for (let x = 0; x < mapWidth; x++) {
+                if (!revealed[y][x]) continue;
+                const cell = document.createElement('div');
+                cell.className = 'minimap-cell';
+                cell.style.left = (x * scale) + 'px';
+                cell.style.top = (y * scale) + 'px';
+                cell.style.width = Math.max(1, scale) + 'px';
+                cell.style.height = Math.max(1, scale) + 'px';
+                if (x === player.x && y === player.y) cell.classList.add('mm-player');
+                else if (x === exit.x && y === exit.y) cell.classList.add('mm-exit');
+                else if (treasures.some(t => t.x === x && t.y === y && !t.collected)) cell.classList.add('mm-treasure');
+                else if (enemies.some(e => Math.floor(e.x) === x && Math.floor(e.y) === y)) cell.classList.add('mm-enemy');
+                else if (visited[y][x]) cell.classList.add('mm-visited');
+                else if (map[y][x] === 1) cell.classList.add('mm-wall');
+                else cell.classList.add('mm-floor');
+                mm.appendChild(cell);
+            }
+        }
+    }
+
+    function addLog(text, type) {
+        const log = document.getElementById('caveLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry' + (type && type !== 'normal' ? ' log-' + type : '');
+        const time = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        entry.innerHTML = '<span class="log-time">[' + time + ']</span> ' + text;
+        log.insertBefore(entry, log.firstChild);
+        while (log.children.length > 20) log.removeChild(log.lastChild);
+    }
+
+    // ===== RENDERING =====
+    function resizeCanvas() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+
+    function gameLoop(timestamp) {
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+        lastTime = timestamp;
+        gameTime += dt; totalGameTime += dt;
+
+        if (isGameOver) {
+            ctx.fillStyle = 'rgba(2,6,23,0.9)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        if (screenShake.intensity > 0) {
+            screenShake.x = (Math.random() - 0.5) * screenShake.intensity;
+            screenShake.y = (Math.random() - 0.5) * screenShake.intensity;
+            screenShake.intensity *= 0.9;
+            if (screenShake.intensity < 0.5) screenShake.intensity = 0;
+        }
+
+        const targetCamX = player.x * tileSize - canvas.width / 2 + tileSize / 2 + screenShake.x;
+        const targetCamY = player.y * tileSize - canvas.height / 2 + tileSize / 2 + screenShake.y;
+        camera.x += (targetCamX - camera.x) * 0.08;
+        camera.y += (targetCamY - camera.y) * 0.08;
+
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const vignette = ctx.createRadialGradient(
+            canvas.width / 2, canvas.height / 2, canvas.height * 0.3,
+            canvas.width / 2, canvas.height / 2, canvas.height * 0.8
+        );
+        vignette.addColorStop(0, 'rgba(6,182,212,0.02)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = 'rgba(6,182,212,0.025)';
+        ctx.lineWidth = 0.5;
+        const startX = Math.floor(camera.x / tileSize) * tileSize - camera.x;
+        const startY = Math.floor(camera.y / tileSize) * tileSize - camera.y;
+        for (let x = startX; x < canvas.width; x += tileSize) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = startY; y < canvas.height; y += tileSize) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+
+        const startCol = Math.max(0, Math.floor(camera.x / tileSize) - 1);
+        const endCol = Math.min(mapWidth, Math.ceil((camera.x + canvas.width) / tileSize) + 1);
+        const startRow = Math.max(0, Math.floor(camera.y / tileSize) - 1);
+        const endRow = Math.min(mapHeight, Math.ceil((camera.y + canvas.height) / tileSize) + 1);
+
+        for (let y = startRow; y < endRow; y++) {
+            for (let x = startCol; x < endCol; x++) {
+                const px = x * tileSize - camera.x;
+                const py = y * tileSize - camera.y;
+                if (!revealed[y][x]) {
+                    ctx.fillStyle = '#020617';
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                    continue;
+                }
+                if (map[y][x] === 1) {
+                    const depth = 1 - (y / mapHeight) * 0.3;
+                    ctx.fillStyle = 'rgba(' + Math.round(51 * depth) + ',' + Math.round(65 * depth) + ',' + Math.round(85 * depth) + ',1)';
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                    ctx.strokeStyle = 'rgba(6,182,212,0.08)';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeRect(px + 0.5, py + 0.5, tileSize - 1, tileSize - 1);
+                    if ((x + y) % 3 === 0) {
+                        ctx.fillStyle = 'rgba(6,182,212,0.04)';
+                        ctx.fillRect(px + tileSize * 0.3, py + tileSize * 0.3, 2, 2);
+                    }
+                } else {
+                    const visitedGlow = visited[y][x] ? 0.06 : 0.03;
+                    ctx.fillStyle = 'rgba(6,182,212,' + visitedGlow + ')';
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                }
+                if (x === exit.x && y === exit.y) {
+                    const pulse = Math.sin(gameTime * 3) * 0.2 + 0.3;
+                    ctx.fillStyle = 'rgba(245,158,11,' + pulse + ')';
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.font = (tileSize * 0.55) + 'px sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('🚪', px + tileSize / 2, py + tileSize / 2);
+                }
+            }
+        }
+
+        treasures.forEach(t => {
+            if (t.collected) return;
+            const px = t.x * tileSize - camera.x;
+            const py = t.y * tileSize - camera.y;
+            if (px < -tileSize || px > canvas.width || py < -tileSize || py > canvas.height) return;
+            t.glow += dt * 3;
+            const glowSize = 3 + Math.sin(t.glow) * 2;
+            ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 15;
+            ctx.fillStyle = '#a855f7';
+            ctx.beginPath();
+            ctx.arc(px + tileSize / 2, py + tileSize / 2, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.font = (tileSize * 0.5) + 'px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('💎', px + tileSize / 2, py + tileSize / 2);
+        });
+
+        enemies.forEach(enemy => {
+            const px = enemy.x * tileSize - camera.x;
+            const py = enemy.y * tileSize - camera.y;
+            if (px < -tileSize * 2 || px > canvas.width || py < -tileSize * 2 || py > canvas.height) return;
+            if (enemy.stunned > 0) ctx.globalAlpha = 0.4 + Math.sin(gameTime * 15) * 0.2;
+            ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12;
+            ctx.fillStyle = enemy.stunned > 0 ? '#f59e0b' : '#ef4444';
+            ctx.beginPath();
+            ctx.arc(px + tileSize / 2, py + tileSize / 2, tileSize * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+            ctx.font = (tileSize * 0.45) + 'px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('🦇', px + tileSize / 2, py + tileSize / 2);
+        });
+
+        echoRipples = echoRipples.filter(r => r.opacity > 0);
+        echoRipples.forEach(r => {
+            r.radius += r.speed; r.opacity -= 0.006;
+            const px = r.x - camera.x; const py = r.y - camera.y;
+            ctx.beginPath();
+            ctx.arc(px, py, r.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(6,182,212,' + (r.opacity * r.intensity) + ')';
+            ctx.lineWidth = 2; ctx.stroke();
+            if (r.radius > 50) {
+                ctx.beginPath();
+                ctx.arc(px, py, r.radius - 40, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(6,182,212,' + (r.opacity * r.intensity * 0.5) + ')';
+                ctx.lineWidth = 1; ctx.stroke();
+            }
+        });
+
+        particles = particles.filter(p => p.life > 0);
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.life -= dt * 2;
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        });
+        ctx.globalAlpha = 1;
+
+        const ppx = player.x * tileSize - camera.x + tileSize / 2;
+        const ppy = player.y * tileSize - camera.y + tileSize / 2;
+        ctx.fillStyle = '#06b6d4';
+        ctx.shadowColor = '#06b6d4'; ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, tileSize / 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, tileSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(6,182,212,0.1)';
+        ctx.fill();
+
+        vizBars.forEach((bar, i) => {
+            const height = echoRipples.length > 0 ? 5 + Math.random() * 35 : 5 + Math.random() * 5;
+            bar.style.height = height + 'px';
+            bar.style.opacity = echoRipples.length > 0 ? 1 : 0.3;
+        });
+
+        if (echoCharge < 100) {
+            echoCharge = Math.min(100, echoCharge + dt * 5);
+            document.getElementById('echoBar').style.width = (echoCharge / maxEchoCharge * 100) + '%';
+        }
+
+        moveTimer += dt;
+        const moveInterval = sprinting ? 0.08 : 0.15;
+        if (moveTimer > moveInterval) {
+            if (keys['w'] || keys['arrowup']) movePlayer(0, -1);
+            if (keys['s'] || keys['arrowdown']) movePlayer(0, 1);
+            if (keys['a'] || keys['arrowleft']) movePlayer(-1, 0);
+            if (keys['d'] || keys['arrowright']) movePlayer(1, 0);
+            moveTimer = 0;
+        }
+
+        updateEnemies(dt);
+        requestAnimationFrame(gameLoop);
+    }
+
+    // ===== INPUT =====
+    window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if (e.key === ' ') { e.preventDefault(); emitEcho(); }
+        if (e.key === 'Shift') sprinting = true;
+    });
+    window.addEventListener('keyup', e => {
+        keys[e.key.toLowerCase()] = false;
+        if (e.key === 'Shift') sprinting = false;
+    });
+
+    canvas.addEventListener('click', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left + camera.x;
+        const my = e.clientY - rect.top + camera.y;
+        const tx = Math.floor(mx / tileSize);
+        const ty = Math.floor(my / tileSize);
+        if (tx >= 0 && tx < mapWidth && ty >= 0 && ty < mapHeight) emitEcho();
+    });
+
+    // Mobile controls
+    function mobileMove(dx, dy) {
+        movePlayer(dx, dy);
+    }
+    function mobileEcho() {
+        emitEcho();
+    }
+
+    // Touch support for canvas (merged swipe + double-tap)
+    let touchStartX = 0, touchStartY = 0;
+    let lastTap = 0;
+    canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }
+    });
+    canvas.addEventListener('touchend', e => {
+        if (e.changedTouches.length === 1) {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                emitEcho();
+            } else {
+                const dx = e.changedTouches[0].clientX - touchStartX;
+                const dy = e.changedTouches[0].clientY - touchStartY;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (Math.abs(dx) > 20) movePlayer(dx > 0 ? 1 : -1, 0);
+                } else {
+                    if (Math.abs(dy) > 20) movePlayer(0, dy > 0 ? 1 : -1);
+                }
+            }
+            lastTap = now;
+        }
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // HUD toggle
+    function toggleHud() {
+        document.getElementById('hud').classList.toggle('collapsed');
+    }
+
+    // Start screen
+    function startGame() {
+        initAudio();
+        document.getElementById('startScreen').classList.add('hidden');
+        generateCave();
+        resizeCanvas();
+        addLog('Echo Cartographer initialized.');
+        addLog('You are in complete darkness. Use echolocation to navigate.');
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Start screen animation
+    const startCanvas = document.getElementById('startCanvas');
+    const startCtx = startCanvas.getContext('2d');
+    function animateStartScreen() {
+        startCanvas.width = window.innerWidth;
+        startCanvas.height = window.innerHeight;
+        startCtx.clearRect(0, 0, startCanvas.width, startCanvas.height);
+        const time = Date.now() * 0.001;
+        for (let i = 0; i < 50; i++) {
+            const x = (Math.sin(i * 137.5 + time) * 0.5 + 0.5) * startCanvas.width;
+            const y = (Math.cos(i * 137.5 + time * 0.7) * 0.5 + 0.5) * startCanvas.height;
+            const size = 1 + Math.sin(time + i) * 1;
+            startCtx.fillStyle = 'rgba(6,182,212,' + (0.1 + Math.sin(time + i * 0.5) * 0.05) + ')';
+            startCtx.fillRect(x, y, size, size);
+        }
+        for (let i = 0; i < 3; i++) {
+            const radius = ((time * 30 + i * 100) % 300);
+            startCtx.beginPath();
+            startCtx.arc(startCanvas.width / 2, startCanvas.height / 2, radius, 0, Math.PI * 2);
+            startCtx.strokeStyle = 'rgba(6,182,212,' + (1 - radius / 300) * 0.1 + ')';
+            startCtx.lineWidth = 1;
+            startCtx.stroke();
+        }
+        if (!document.getElementById('startScreen').classList.contains('hidden')) {
+            requestAnimationFrame(animateStartScreen);
+        }
+    }
+    animateStartScreen();
+    </script>
+</body>
+</html>
