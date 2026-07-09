@@ -33,13 +33,17 @@
         .overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.87); backdrop-filter:blur(10px); z-index:50; display:none; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; }
         .overlay.show { display:flex; }
         .overlay h2 { color:#e0d0ff; font-size:22px; text-shadow:0 0 20px #a080f088; }
-        .choice-btn { width:100%; max-width:320px; padding:12px 16px; background:#1a1a2e; border:2px solid #3a3a55; border-radius:14px; color:#ddd; cursor:pointer; text-align:right; font-size:13px; transition:all 0.15s; }
+        #levelup-choices,#chest-choices { display:flex; flex-direction:column; align-items:stretch; gap:8px; width:100%; max-width:320px; max-height:60vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        .choice-btn { width:100%; max-width:320px; flex:0 0 auto; padding:12px 16px; background:#1a1a2e; border:2px solid #3a3a55; border-radius:14px; color:#ddd; cursor:pointer; text-align:right; font-size:13px; transition:all 0.15s; }
         .choice-btn:hover { border-color:#a080f0; background:#222245; color:#fff; transform:translateY(-1px); box-shadow:0 4px 16px #a080f044; }
         .choice-title { font-weight:bold; font-size:15px; color:#e0c0ff; display:block; }
         .choice-desc { font-size:11px; color:#aaa; margin-top:3px; }
         .choice-rarity { font-size:10px; color:#e0a020; margin-top:2px; display:block; }
         .rarity-legendary { color:#ff9000 !important; }
         .rarity-awakening { color:#ff40ff !important; }
+        #chest-overlay { align-items:flex-start; padding:20px 12px; }
+        #chest-overlay .side-panel { background:rgba(16,16,26,0.94); border:1.5px solid #3a3a55; border-radius:16px; padding:16px 14px; width:80%; max-width:270px; box-shadow:0 8px 30px rgba(0,0,0,0.6); display:flex; flex-direction:column; align-items:center; gap:10px; }
+        #chest-overlay h2 { font-size:17px; }
         .action-btn { padding:10px 24px; background:#2a1a30; border:2px solid #a080f0; border-radius:20px; color:#e0d0ff; cursor:pointer; font-size:14px; transition:all 0.15s; }
         .action-btn:hover { background:#3a2a40; box-shadow:0 0 16px #a080f066; }
         #reroll-count { color:#faa; font-size:11px; }
@@ -281,7 +285,7 @@
             <button class="joy-close" onclick="document.getElementById('joy-panel').classList.remove('open')">✕ إغلاق</button>
         </div>
         <div class="overlay" id="levelup-overlay"><h2>🎯 اختر تطويراً</h2><div id="levelup-choices"></div><span id="reroll-count">إعادة المحاولة: 2</span><button class="action-btn" id="reroll-btn">🔄 أعد المحاولة</button></div>
-        <div class="overlay" id="chest-overlay"><h2>📦 صندوق كنز!</h2><div id="chest-choices"></div></div>
+        <div class="overlay" id="chest-overlay"><div class="side-panel"><h2>📦 صندوق كنز!</h2><div id="chest-choices"></div></div></div>
         <div class="overlay" id="game-over-overlay"><h2>💀 انتهت اللعبة</h2><div id="gameover-stats"></div><button class="action-btn" id="restart-btn">🔁 حاول مجدداً</button></div>
         <div id="start-screen">
             <div id="menu-hero">
@@ -640,6 +644,12 @@
         {icon:'💠',name:'لغز متفجر',color:'#40a0ff',tags:['dmg'],desc:'لغز ينفجر عندما يدوس عليه العدو'},
         {icon:'💢',name:'موجة صدمة',color:'#ffe060',tags:['ctrl','aoe'],desc:'حلقة متوسعة ترتد وتصعق الأعداء'},
         {icon:'🌋',name:'الجحيم',color:'#ff4010',tags:['dmg','aoe'],desc:'عمود ناري مستمر يحرق كل شيء أمامك'},
+        {icon:'☀️',name:'توهج شمسي',color:'#ffcc00',tags:['dmg','aoe'],desc:'انفجار شمسي ساخن يحرق كل من حولك'},
+        {icon:'🌠',name:'شظايا النجوم',color:'#80ffee',tags:['dmg'],desc:'شظايا نجمية سريعة تنطلق نحو الأعداء'},
+        {icon:'🦟',name:'سرب سام',color:'#8ecf40',tags:['dmg','aoe'],desc:'سحابة حشرات سامة تلاحقك وتلسع الأعداء'},
+        {icon:'🪓',name:'فؤوس الرمي',color:'#c0c0c0',tags:['dmg'],desc:'فأس دوّار يخترق كل من يعترض طريقه'},
+        {icon:'🔨',name:'مطرقة الحرب',color:'#e0a040',tags:['orbit'],desc:'مطرقة ثقيلة تدور حولك وتسحق كل من يقترب'},
+        {icon:'📍',name:'فخ الأشواك',color:'#909090',tags:['dmg'],desc:'فخ شائك ينفجر شظايا حادة عند الدوس عليه'},
     ];
     const ARC_ENEMIES=[
         {icon:'👻',name:'شبح',color:'#e06060',tags:['dmg'],desc:'يطارد بلا كلل، سرعة متوسطة'},
@@ -692,6 +702,20 @@
 
     const GAME_STATES = {START:'start',PLAYING:'playing',PAUSED:'paused',LEVELUP:'levelup',CHEST:'chest',GAMEOVER:'gameover'};
     let state = GAME_STATES.START, gameTime=0, totalKills=0, goldEarned=0, killStreak=0, streakTimer=0, streakDispTimer=0, bossKills=0;
+    // ── رتب تسلسل القتل (10 رتب، 7 جديدة) ──
+    const STREAK_RANKS=[
+        {streak:5,   name:'تتالي',        icon:'🗡️', color:'#ff8040'},
+        {streak:10,  name:'سلسلة',        icon:'⚡',  color:'#ffcc40'},
+        {streak:20,  name:'محموم',        icon:'🔥',  color:'#ff6020'},
+        {streak:35,  name:'مذبحة',        icon:'💢',  color:'#ff4060'},
+        {streak:50,  name:'إبادة',        icon:'☠️',  color:'#c040ff'},
+        {streak:75,  name:'عاصفة الموت',  icon:'🌪️', color:'#a040ff'},
+        {streak:100, name:'لا يُقهر',      icon:'👑',  color:'#40e0ff'},
+        {streak:150, name:'أسطورة حية',   icon:'🌟',  color:'#ffd700'},
+        {streak:200, name:'عدو غوكو',     icon:'🐉',  color:'#ff40ff'},
+        {streak:300, name:'طاغية الحرب',  icon:'🔱',  color:'#ff2020'},
+    ];
+    function getStreakRank(k){ let r=null; for(let i=0;i<STREAK_RANKS.length;i++){ if(k>=STREAK_RANKS[i].streak) r=STREAK_RANKS[i]; else break; } return r; }
     let currentWave = 1;
     let permGold = parseInt(localStorage.getItem('surv_gold')||'0');
     let permUp = JSON.parse(localStorage.getItem('surv_up')||'{"attack":0,"hp":0,"cdr":0,"speed":0,"crit":0,"xpboost":0,"dashcd":0,"rerolls":0}');
@@ -731,7 +755,8 @@
             spells:[],passives:{},artifacts:[],invTimer:0,targetX:WORLD/2,targetY:WORLD/2,moving:false,
             dashCD:3,dashTimer:0,dashActive:false,dashSpd:600,_phoenix:false,_regen:false,_nearDeath:0,
             _vampiric:false,_berserker:false,_mirror:false,_thundercloak:false,
-            _xpBonus:1,_goldBonus:1,_chainReact:false,glowAngle:0};
+            _xpBonus:1,_goldBonus:1,_chainReact:false,glowAngle:0,
+            _shadowPendant:false,_vengeance:false,_vengeanceCD:0};
         player.maxHp=80+(permUp.hp||0)*4; player.hp=player.maxHp;
         player.speed=170+(permUp.speed||0)*1.5;
         if(selectedClass==='wizard'){  player.cdr+=8; player.attack+=10; player.spells.push(makeSpell('magic_bolt')); }
@@ -767,6 +792,14 @@
         rune_mine:{id:'rune_mine',name:'لغز متفجر',icon:'💠',desc:'يزرع لغماً يتفجر عند الدوس عليه',maxLvl:7,baseDmg:110,cd:4,size:130,dur:30,type:'mine',color:'#40a0ff'},
         shockwave:{id:'shockwave',name:'موجة صدمة',icon:'💢',desc:'حلقة متوسعة تصعق الأعداء',maxLvl:7,baseDmg:35,cd:3.5,size:240,dur:0.5,type:'shockwave',color:'#ffe060'},
         inferno:{id:'inferno',name:'الجحيم',icon:'🌋',desc:'عمود ناري يحرق أمامك',maxLvl:7,baseDmg:28,cd:7,size:180,dur:3,type:'inferno',color:'#ff4010'},
+        // ── 3 تعاويذ جديدة ──
+        solar_flare:{id:'solar_flare',name:'توهج شمسي',icon:'☀️',desc:'انفجار شمسي ساخن يحرق كل من حولك',maxLvl:10,baseDmg:50,cd:5,size:220,dur:0.6,type:'nova',color:'#ffcc00'},
+        star_shard:{id:'star_shard',name:'شظايا النجوم',icon:'🌠',desc:'شظايا نجمية سريعة تنطلق نحو الأعداء',maxLvl:10,baseDmg:24,cd:1.6,count:2,speed:420,size:85,type:'projectile',color:'#80ffee'},
+        toxic_swarm:{id:'toxic_swarm',name:'سرب سام',icon:'🦟',desc:'سحابة حشرات سامة تلاحقك وتلسع الأعداء المحيطين',maxLvl:10,baseDmg:14,cd:9,size:240,dur:4.5,type:'sustained_aoe',color:'#8ecf40'},
+        // ── 3 أسلحة جديدة ──
+        throwing_axes:{id:'throwing_axes',name:'فؤوس الرمي',icon:'🪓',desc:'فأس دوّار يخترق كل من يعترض طريقه',maxLvl:10,baseDmg:48,cd:3.4,count:1,speed:520,size:65,type:'beam',color:'#c0c0c0'},
+        war_hammer:{id:'war_hammer',name:'مطرقة الحرب',icon:'🔨',desc:'مطرقة ثقيلة تدور حولك وتسحق كل من يقترب',maxLvl:10,baseDmg:30,cd:0.05,count:1,size:110,type:'orbit',color:'#e0a040'},
+        spike_trap:{id:'spike_trap',name:'فخ الأشواك',icon:'📍',desc:'فخ شائك ينفجر شظايا حادة عند الدوس عليه',maxLvl:8,baseDmg:95,cd:5,size:120,dur:25,type:'mine',color:'#909090'},
     };
 
     // ── نظام التآزر ──
@@ -848,6 +881,10 @@
         {id:'ironheart',name:'القلب الحديدي',rarity:'Rare',desc:'تقليل الضرر +15%',eff:()=>player.dmgRed=Math.min(70,player.dmgRed+15)},
         {id:'soulharvest',name:'حصاد الأرواح',rarity:'Epic',desc:'خبرة القتل +50%، ذهب +30%',eff:()=>{player._xpBonus=1.5;player._goldBonus=1.3;}},
         {id:'chainreact',name:'مفاعل التسلسل',rarity:'Legendary',desc:'القتل خلال 2 ثانية يصعق الأعداء القريبين',eff:()=>{player._chainReact=true;}},
+        // ── 3 قوى جديدة ──
+        {id:'fusioncore',name:'نواة الانصهار',rarity:'Legendary',desc:'حجم كل التعاويذ +25%، ضررها +20%',eff:()=>player.spells.forEach(s=>{s.size=Math.round(s.size*1.25);s.baseDmg=Math.round(s.baseDmg*1.2);})},
+        {id:'shadowpendant',name:'قلادة الظل',rarity:'Epic',desc:'فرصة 20% لتجميد الأعداء القريبين عند القتل',eff:()=>{player._shadowPendant=true;}},
+        {id:'vengeanceplate',name:'درع الانتقام',rarity:'Legendary',desc:'عند تلقي الضرر، موجة انتقام تضرب الأعداء القريبين (كل 3 ثوانٍ)',eff:()=>{player._vengeance=true;}},
     ];
 
     let waveTimer=0,bossFlags=[false,false,false,false,false],warningActive=false;
@@ -1048,6 +1085,7 @@
         addFloat(e.x, e.y-e.radius-14, '+'+pts, '#ffe080', 10);
         if(player._vampiric) player.hp=Math.min(player.maxHp,player.hp+3);
         if(player._chainReact && killStreak>1){ for(let en of enemies){ if(Math.hypot(en.x-e.x,en.y-e.y)<120){ en.stun=Math.max(en.stun,1.2); spawnParticles(en.x,en.y,'#ffe080',3,80,0.3); } } }
+        if(player._shadowPendant && Math.random()<0.2){ for(let en of enemies){ if(Math.hypot(en.x-e.x,en.y-e.y)<160){ en.stun=Math.max(en.stun,1.5); spawnParticles(en.x,en.y,'#6000ff',3,70,0.3); } } addFloat(e.x,e.y-e.radius-24,'❄️ تجميد!','#a060ff',11); }
         if(e.isMini && e.loot){ for(let l=0;l<e.loot;l++) chests.push({x:e.x+(Math.random()-0.5)*60,y:e.y+(Math.random()-0.5)*60,radius:18,age:0,life:50,color:'#ffd040'}); }
         if(e.beh==='bomber'){aoes.push({x:e.x,y:e.y,spell:{id:'bomb',size:e.explodeRange*1.7,color:'#ff6020'},dmg:e.dmg*1.5,age:0,dur:0.35,hit:new Set()});spawnParticles(e.x,e.y,'#ff6020',20,280,0.6);}
         spawnParticles(e.x,e.y,e.color,8,160,0.45);
@@ -1058,7 +1096,14 @@
     }
     function updateStreakUI(){
         const el=document.getElementById('kill-streak');
-        if(killStreak>=5){el.textContent=(killStreak>=20?"🔥 عدو غوكو ×":killStreak>=10?'⚡ تسلسل ×':'🗡 تتالي ×')+killStreak;el.classList.add('show');streakDispTimer=2.5;}
+        const rank=getStreakRank(killStreak);
+        if(rank){
+            el.textContent=rank.icon+' '+rank.name+' ×'+killStreak;
+            el.style.color=rank.color;
+            el.style.textShadow='0 0 10px '+rank.color+'99';
+            el.classList.add('show');streakDispTimer=2.5;
+            if(killStreak===rank.streak){ addFloat(player.x,player.y-70,rank.icon+' '+rank.name+'!',rank.color,15); }
+        }
     }
 
     function spawnXPOrb(x,y){let r=Math.random(),t=0;if(r<0.05)t=2;else if(r<0.2)t=1;const s=[{r:5,xp:6,col:'#80d0ff'},{r:8,xp:16,col:'#50b0f0'},{r:11,xp:40,col:'#3090e0'}];xpOrbs.push({x,y,radius:s[t].r,xp:s[t].xp,color:s[t].col,age:0});}
@@ -1093,6 +1138,7 @@
         camera.x=Math.max(0,Math.min(WORLD-W,player.x-W/2));
         camera.y=Math.max(0,Math.min(WORLD-H,player.y-H/2));
         if(!player.dashActive&&player.dashTimer>0)player.dashTimer-=dt;
+        if(player._vengeanceCD>0)player._vengeanceCD-=dt;
         autoCast(dt);
         if(streakTimer>0){streakTimer-=dt;if(streakTimer<=0)killStreak=0;}
         if(streakDispTimer>0){streakDispTimer-=dt;if(streakDispTimer<=0)document.getElementById('kill-streak').classList.remove('show');}
@@ -1143,7 +1189,9 @@
             if(ed<player.radius+e.radius&&player.invTimer<=0&&e.beh!=='ranged'&&e.beh!=='necro'&&e.beh!=='bomber'){
                 let d=Math.round(e.dmg*(1-player.dmgRed/100)*(berserk?0.8:1));
                 if(player._mirror&&Math.random()<0.1){dealDmg(e,d*2);}
-                else{player.hp-=d;damageTaken+=d;player.invTimer=0.3;playSFX('player_hit');}
+                else{player.hp-=d;damageTaken+=d;player.invTimer=0.3;playSFX('player_hit');
+                    if(player._vengeance&&player._vengeanceCD<=0){ player._vengeanceCD=3; for(let en of enemies){ if(Math.hypot(en.x-player.x,en.y-player.y)<150){ dealDmg(en,Math.round(player.attack*1.5)); } } spawnParticles(player.x,player.y,'#ff2040',22,240,0.5); addFloat(player.x,player.y-40,'💢 انتقام!','#ff4060',13); }
+                }
                 if(player.hp<=0)handleDeath();
             }
         }
@@ -1192,6 +1240,8 @@
         if(player._berserker&&player.hp/player.maxHp<0.3){let b=document.createElement('div');b.className='status-badge';b.style.color='#ff6040';b.style.borderColor='#ff6040';b.textContent='🔴 بربري';se.appendChild(b);}
         if(player._regen){let b=document.createElement('div');b.className='status-badge';b.style.color='#40ff80';b.textContent='💚 تجديد';se.appendChild(b);}
         if(player._chainReact){let b=document.createElement('div');b.className='status-badge';b.style.color='#80ffff';b.textContent='⚡ تسلسل';se.appendChild(b);}
+        if(player._shadowPendant){let b=document.createElement('div');b.className='status-badge';b.style.color='#a060ff';b.textContent='🌑 ظل';se.appendChild(b);}
+        if(player._vengeance){let b=document.createElement('div');b.className='status-badge';b.style.color='#ff4060';b.textContent='💢 انتقام';se.appendChild(b);}
         const activeBoss=enemies.find(e=>e.beh==='boss'||e.isMini);
         const bbar=document.getElementById('boss-healthbar');
         if(activeBoss){bbar.style.display='block';document.getElementById('boss-hp-name').textContent=(activeBoss.isMini?'⚠️ زعيم صغير: ':' 👑 زعيم: ')+activeBoss.name;document.getElementById('boss-hp-fill').style.width=Math.max(0,activeBoss.hp/activeBoss.maxHp*100)+'%';}
