@@ -314,6 +314,7 @@
                         <div class="class-card" data-class="summoner"><span class="emoji">👻</span><div class="class-name">مستدعي</div><div class="class-desc">أرواح مدارية · ضرر مستمر</div></div>
                         <div class="class-card" data-class="necro"><span class="emoji">💀</span><div class="class-name">نكرومانسر</div><div class="class-desc">أموات · استدعاء</div></div>
                         <div class="class-card" data-class="berserker"><span class="emoji">⚔️</span><div class="class-name">بربري</div><div class="class-desc">عاصفة نصل · غضب</div></div>
+                        <div class="class-card" data-class="ranger"><span class="emoji">🧊</span><div class="class-name">قناص الجليد</div><div class="class-desc">رمح جليدي · ضربات حاسمة</div></div>
                     </div>
                     <div class="section-label">الصعوبة</div>
                     <div class="diff-row">
@@ -382,6 +383,13 @@
                             <button class="set-toggle-btn" id="set-music-off">🔇 إيقاف</button>
                         </div>
                     </div>
+                    <div class="section-label">🎨 المظهر</div>
+                    <div class="settings-row"><span class="joy-label">إيموجي الأسلحة</span>
+                        <div class="joy-toggle-row">
+                            <button class="set-toggle-btn" id="set-emoji-on">😄 تفعيل</button>
+                            <button class="set-toggle-btn active" id="set-emoji-off">⬤ أشكال</button>
+                        </div>
+                    </div>
                     <div class="section-label">🕹️ عصا التحكم</div>
                     <div class="settings-row"><span class="joy-label">الحجم</span><input class="joy-slider" type="range" id="set-joy-size" min="60" max="220" value="100" step="4"><span class="joy-val" id="set-joy-size-val">100</span></div>
                     <div class="settings-hint">خيارات إضافية لعصا التحكم (اللون، الموضع، الحساسية...) متاحة عبر زر ⚙️ أثناء اللعب.</div>
@@ -403,6 +411,8 @@
 (function() {
     // ── الموسيقى والصوت ──
     let musicEnabled = true, audioCtx = null, musicNodes = [];
+    let weaponEmojis = (localStorage.getItem('surv_emoji_weapons')||'0')==='1';
+    const ORBIT_EMOJI={spirit_orbits:'👻',blade_storm:'🗡️',war_hammer:'🔨'};
     let masterVolume = parseFloat(localStorage.getItem('surv_volume')||'0.7'); if(isNaN(masterVolume)) masterVolume=0.7;
     let musicMasterGain = null;
     function initAudio() { if(!audioCtx) { try { audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e) { musicEnabled=false; } } if(audioCtx?.state==='suspended') audioCtx.resume(); }
@@ -479,7 +489,7 @@
         {id:'streak5',cat:'🔥 التسلسلات',name:'سلسلة ساخنة',desc:'تسلسل 20 قتلة',icon:'🔥',check:()=>killStreak>=20},
         {id:'streak10',cat:'🔥 التسلسلات',name:'مشتعل',desc:'تسلسل 60 قتلة',icon:'🔥',check:()=>killStreak>=60},
         {id:'streak20',cat:'🔥 التسلسلات',name:'لا يُوقف',desc:'تسلسل 100 قتلة',icon:'⚡',check:()=>killStreak>=100},
-        {id:'streak50',cat:'🔥 التسلسلات',name:'عدو غوكو',desc:'تسلسل 200 قتلة',icon:'🌟',check:()=>killStreak>=200},
+        {id:'streak50',cat:'🔥 التسلسلات',name:'قاتل التنانين',desc:'تسلسل 200 قتلة',icon:'🌟',check:()=>killStreak>=200},
         {id:'near_death',cat:'❤️ الصحة',name:'حافة الموت',desc:'النجاة 5 ثوانٍ بصحة منخفضة',icon:'💔',check:()=>player._nearDeath>=5},
         {id:'near_death2',cat:'❤️ الصحة',name:'التشبث بالحياة',desc:'النجاة 15 ثانية بصحة منخفضة',icon:'💔',check:()=>player._nearDeath>=15},
         {id:'phoenix',cat:'❤️ الصحة',name:'العنقاء',desc:'تفعيل إحياء العنقاء',icon:'🔥',check:()=>typeof _phoenixTriggered!=='undefined'&&_phoenixTriggered},
@@ -650,6 +660,8 @@
         {icon:'🪓',name:'فؤوس الرمي',color:'#c0c0c0',tags:['dmg'],desc:'فأس دوّار يخترق كل من يعترض طريقه'},
         {icon:'🔨',name:'مطرقة الحرب',color:'#e0a040',tags:['orbit'],desc:'مطرقة ثقيلة تدور حولك وتسحق كل من يقترب'},
         {icon:'📍',name:'فخ الأشواك',color:'#909090',tags:['dmg'],desc:'فخ شائك ينفجر شظايا حادة عند الدوس عليه'},
+        {icon:'🧊',name:'رمح جليدي',color:'#60d0ff',tags:['dmg','aoe'],desc:'رمح جليدي ثاقب ينفجر ببرودة قارصة'},
+        {icon:'🗡️',name:'شفرات شبحية',color:'#d0a0ff',tags:['dmg'],desc:'شفرة شبحية ترتد بين 4 أعداء'},
     ];
     const ARC_ENEMIES=[
         {icon:'👻',name:'شبح',color:'#e06060',tags:['dmg'],desc:'يطارد بلا كلل، سرعة متوسطة'},
@@ -667,6 +679,8 @@
         {icon:'👑',name:'ملك الليتش',color:'#cc00ff',tags:['mini'],desc:'زعيم صغير، يطلق 5 طلقات ويستدعي'},
         {icon:'🪨',name:'عملاق الحجر',color:'#8080a0',tags:['mini'],desc:'زعيم صغير، درع 200HP يتجدد'},
         {icon:'🌑',name:'ملك الظل',color:'#4000a0',tags:['mini'],desc:'زعيم صغير، سرعة وضرر نخبة'},
+        {icon:'💜',name:'ظل سريع',color:'#7040c0',tags:['dmg'],desc:'أسرع من الذئب، يظهر في الأوقات المتأخرة'},
+        {icon:'🏹',name:'رامي الجليد',color:'#60d0ff',tags:['ctrl'],desc:'يطلق سهاماً جليدية من مسافة بعيدة'},
     ];
     const ARC_SYNERGIES=[
         {icon:'💨',name:'انفجار البخار',color:'#ff8040',needs:'🔥+❄️',desc:'مضاعفة حجم وضرر منطقة التأثير'},
@@ -712,7 +726,7 @@
         {streak:75,  name:'عاصفة الموت',  icon:'🌪️', color:'#a040ff'},
         {streak:100, name:'لا يُقهر',      icon:'👑',  color:'#40e0ff'},
         {streak:150, name:'أسطورة حية',   icon:'🌟',  color:'#ffd700'},
-        {streak:200, name:'عدو غوكو',     icon:'🐉',  color:'#ff40ff'},
+        {streak:200, name:'قاتل التنانين', icon:'🐉',  color:'#ff40ff'},
         {streak:300, name:'طاغية الحرب',  icon:'🔱',  color:'#ff2020'},
     ];
     function getStreakRank(k){ let r=null; for(let i=0;i<STREAK_RANKS.length;i++){ if(k>=STREAK_RANKS[i].streak) r=STREAK_RANKS[i]; else break; } return r; }
@@ -765,6 +779,7 @@
         if(selectedClass==='summoner'){ player.pickup+=30; player.speed+=15; player.spells.push(makeSpell('spirit_orbits')); }
         if(selectedClass==='necro'){   player.attack+=15; player.spells.push(makeSpell('poison_cloud')); player.spells.push(makeSpell('chain_lightning')); }
         if(selectedClass==='berserker'){ player.attack+=25; player.speed+=20; player.critRate+=8; player._berserker=true; player.spells.push(makeSpell('blade_storm')); }
+        if(selectedClass==='ranger'){ player.critRate+=10; player.critDmg+=15; player.spells.push(makeSpell('ice_lance')); }
         const dm = DIFF_MODS[difficulty]||DIFF_MODS.normal;
         player._xpBonus = (player._xpBonus||1) * dm.xpMult;
         player._goldBonus = (player._goldBonus||1) * dm.goldMult;
@@ -800,6 +815,9 @@
         throwing_axes:{id:'throwing_axes',name:'فؤوس الرمي',icon:'🪓',desc:'فأس دوّار يخترق كل من يعترض طريقه',maxLvl:10,baseDmg:48,cd:3.4,count:1,speed:520,size:65,type:'beam',color:'#c0c0c0'},
         war_hammer:{id:'war_hammer',name:'مطرقة الحرب',icon:'🔨',desc:'مطرقة ثقيلة تدور حولك وتسحق كل من يقترب',maxLvl:10,baseDmg:30,cd:0.05,count:1,size:110,type:'orbit',color:'#e0a040'},
         spike_trap:{id:'spike_trap',name:'فخ الأشواك',icon:'📍',desc:'فخ شائك ينفجر شظايا حادة عند الدوس عليه',maxLvl:8,baseDmg:95,cd:5,size:120,dur:25,type:'mine',color:'#909090'},
+        // ── تعويذتان جديدتان ──
+        ice_lance:{id:'ice_lance',name:'رمح جليدي',icon:'🧊',desc:'رمح جليدي ثاقب ينفجر ببرودة قارصة',maxLvl:10,baseDmg:42,cd:2.6,count:1,speed:340,size:120,type:'projectile_aoe',color:'#60d0ff'},
+        phantom_blades:{id:'phantom_blades',name:'شفرات شبحية',icon:'🗡️',desc:'شفرة شبحية ترتد بين 4 أعداء',maxLvl:10,baseDmg:34,cd:2.1,size:55,type:'chain',color:'#d0a0ff'},
     };
 
     // ── نظام التآزر ──
@@ -844,6 +862,8 @@
         mb_lich_king:{name:'ملك الليتش',r:26,spd:60,hp:600,dmg:28,xp:55,color:'#cc00ff',beh:'necro',range:500,shootCD:0.8,multiShot:5,summonCD:3,imgKey:'lich',isMini:true,loot:2},
         mb_titan:{name:'عملاق الحجر',r:32,spd:45,hp:900,dmg:45,xp:60,color:'#8080a0',beh:'sentinel',shieldHP:200,imgKey:'golem',isMini:true,loot:2},
         mb_shadow:{name:'ملك الظل',r:22,spd:200,hp:500,dmg:25,xp:55,color:'#4000a0',beh:'chase',elite:true,imgKey:'vampire',isMini:true,loot:2},
+        shade:{name:'ظل سريع',r:9,spd:250,hp:26,dmg:14,xp:9,color:'#7040c0',beh:'chase',imgKey:'wolf'},
+        frost_archer:{name:'رامي الجليد',r:13,spd:55,hp:75,dmg:18,xp:16,color:'#60d0ff',beh:'ranged',range:420,shootCD:1.7,imgKey:'archer'},
     };
     let miniBossTimer=120, miniBossCount=0;
     const MINI_BOSS_POOL=['mb_warlord','mb_lich_king','mb_titan','mb_shadow'];
@@ -885,6 +905,10 @@
         {id:'fusioncore',name:'نواة الانصهار',rarity:'Legendary',desc:'حجم كل التعاويذ +25%، ضررها +20%',eff:()=>player.spells.forEach(s=>{s.size=Math.round(s.size*1.25);s.baseDmg=Math.round(s.baseDmg*1.2);})},
         {id:'shadowpendant',name:'قلادة الظل',rarity:'Epic',desc:'فرصة 20% لتجميد الأعداء القريبين عند القتل',eff:()=>{player._shadowPendant=true;}},
         {id:'vengeanceplate',name:'درع الانتقام',rarity:'Legendary',desc:'عند تلقي الضرر، موجة انتقام تضرب الأعداء القريبين (كل 3 ثوانٍ)',eff:()=>{player._vengeance=true;}},
+        // ── 3 قطع أثرية جديدة ──
+        {id:'steelhelm',name:'خوذة الفولاذ',rarity:'Rare',desc:'الصحة القصوى +15%، تقليل الضرر +5%',eff:()=>{player.maxHp=Math.round(player.maxHp*1.15);player.hp=Math.round(player.hp*1.15);player.dmgRed=Math.min(70,player.dmgRed+5);}},
+        {id:'speedgem',name:'جوهرة السرعة',rarity:'Rare',desc:'سرعة الحركة +15%',eff:()=>{player.speed=Math.round(player.speed*1.15);}},
+        {id:'fatecharm',name:'تعويذة القدر',rarity:'Epic',desc:'فرصة الضربة الحاسمة +8%، ضرر حاسم +20%',eff:()=>{player.critRate+=8;player.critDmg+=20;}},
     ];
 
     let waveTimer=0,bossFlags=[false,false,false,false,false],warningActive=false;
@@ -911,6 +935,8 @@
             if(gameTime>420&&r<0.06) t='bomber';
             if(gameTime>480&&r<0.05) t='sentinel';
             if(gameTime>540&&r<0.04) t='necromancer';
+            if(gameTime>600&&r<0.05) t='shade';
+            if(gameTime>660&&r<0.045) t='frost_archer';
             if(gameTime>450&&Math.random()<0.22) t='elite';
             spawnNearEdge(t);
         }
@@ -1113,7 +1139,7 @@
         if(state!==GAME_STATES.PLAYING)return;
         player.spells.forEach(s=>{s.cdRem-=dt;if(s.cdRem<=0){s.cdRem=spellCD(s);cast(s);}if(s.type==='orbit')s.orbitAngle+=dt*2.6;});
         orbSpirits=[];
-        player.spells.forEach(s=>{if(s.type==='orbit'){let cnt=(s.count||2)+Math.floor((s.level-1)*0.4);for(let i=0;i<cnt;i++){let ang=s.orbitAngle+(i/cnt)*Math.PI*2,dist=s.size*0.65;orbSpirits.push({x:player.x+Math.cos(ang)*dist,y:player.y+Math.sin(ang)*dist,radius:s.size*0.22,dmg:spellDmg(s),color:s.color,hit:new Set()});}}});
+        player.spells.forEach(s=>{if(s.type==='orbit'){let cnt=(s.count||2)+Math.floor((s.level-1)*0.4);for(let i=0;i<cnt;i++){let ang=s.orbitAngle+(i/cnt)*Math.PI*2,dist=s.size*0.65;orbSpirits.push({x:player.x+Math.cos(ang)*dist,y:player.y+Math.sin(ang)*dist,radius:s.size*0.22,dmg:spellDmg(s),color:s.color,hit:new Set(),sid:s.id});}}});
     }
 
     let camera={x:0,y:0};
@@ -1282,8 +1308,12 @@
         chests.forEach(c=>{
             let pulse=0.8+0.2*Math.sin(t*4);
             let gr=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.radius*2);gr.addColorStop(0,'#e0c06055');gr.addColorStop(1,'transparent');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(c.x,c.y,c.radius*2,0,Math.PI*2);ctx.fill();
-            ctx.fillStyle=c.color;ctx.beginPath();ctx.arc(c.x,c.y,c.radius*pulse,0,Math.PI*2);ctx.fill();
-            ctx.strokeStyle='#e0d060';ctx.lineWidth=2;ctx.stroke();
+            if(weaponEmojis){
+                ctx.font=`${Math.round(c.radius*2.2*pulse)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('📦',c.x,c.y+1);
+            } else {
+                ctx.fillStyle=c.color;ctx.beginPath();ctx.arc(c.x,c.y,c.radius*pulse,0,Math.PI*2);ctx.fill();
+                ctx.strokeStyle='#e0d060';ctx.lineWidth=2;ctx.stroke();
+            }
         });
         aoes.forEach(a=>{
             let prog=1-a.age/a.dur,r=a.spell.size*0.55;
@@ -1343,13 +1373,23 @@
             let col=p.enemy?'#ff5050':(p.spell.color||'#fff'),r=p.spell.size*0.16;
             let gr=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*2.2);gr.addColorStop(0,col+'ff');gr.addColorStop(1,col+'00');
             ctx.fillStyle=gr;ctx.beginPath();ctx.arc(p.x,p.y,r*2.2,0,Math.PI*2);ctx.fill();
-            ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
+            if(weaponEmojis&&!p.enemy&&p.spell.icon){
+                ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(p.vy,p.vx));
+                ctx.font=`${Math.round(Math.max(14,r*2.6))}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.spell.icon,0,1);
+                ctx.restore();
+            } else {
+                ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
+            }
         });
         orbSpirits.forEach(o=>{
             let col=o.color||'#d0e0ff';
             let gr=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.radius*2);gr.addColorStop(0,col+'bb');gr.addColorStop(1,col+'00');
             ctx.fillStyle=gr;ctx.beginPath();ctx.arc(o.x,o.y,o.radius*2,0,Math.PI*2);ctx.fill();
-            ctx.globalAlpha=0.95;ctx.fillStyle=col;ctx.beginPath();ctx.arc(o.x,o.y,o.radius,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+            if(weaponEmojis&&ORBIT_EMOJI[o.sid]){
+                ctx.font=`${Math.round(Math.max(14,o.radius*2.4))}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ORBIT_EMOJI[o.sid],o.x,o.y+1);
+            } else {
+                ctx.globalAlpha=0.95;ctx.fillStyle=col;ctx.beginPath();ctx.arc(o.x,o.y,o.radius,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+            }
         });
         xpOrbs.forEach(o=>{
             let gr=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.radius*2);gr.addColorStop(0,o.color+'bb');gr.addColorStop(1,o.color+'00');
@@ -1483,6 +1523,8 @@
         if(son){ son.classList.toggle('active',musicEnabled); soff.classList.toggle('active',!musicEnabled); }
         const sjs=document.getElementById('set-joy-size'), sjsv=document.getElementById('set-joy-size-val');
         if(sjs){ sjs.value=joyPrefs.size; sjsv.textContent=joyPrefs.size; }
+        const seon=document.getElementById('set-emoji-on'), seoff=document.getElementById('set-emoji-off');
+        if(seon){ seon.classList.toggle('active',weaponEmojis); seoff.classList.toggle('active',!weaponEmojis); }
     }
     const setVolumeEl=document.getElementById('set-volume');
     if(setVolumeEl) setVolumeEl.addEventListener('input',function(){ masterVolume=parseInt(this.value)/100; document.getElementById('set-volume-val').textContent=this.value+'%'; localStorage.setItem('surv_volume',masterVolume); if(musicMasterGain) musicMasterGain.gain.value=0.04*masterVolume; if(masterVolume>0&&!audioCtx) initAudio(); });
@@ -1491,6 +1533,9 @@
     if(setMusicOffEl) setMusicOffEl.addEventListener('click',()=>{ if(musicEnabled) toggleMusic(); syncSettingsUI(); });
     const setJoySizeEl=document.getElementById('set-joy-size');
     if(setJoySizeEl) setJoySizeEl.addEventListener('input',function(){ joyPrefs.size=parseInt(this.value); document.getElementById('set-joy-size-val').textContent=this.value; if(joyPrefs.thumbSize>joyPrefs.size*0.55) joyPrefs.thumbSize=Math.round(joyPrefs.size*0.45); saveJoy(); });
+    const setEmojiOnEl=document.getElementById('set-emoji-on'), setEmojiOffEl=document.getElementById('set-emoji-off');
+    if(setEmojiOnEl) setEmojiOnEl.addEventListener('click',()=>{ weaponEmojis=true; localStorage.setItem('surv_emoji_weapons','1'); syncSettingsUI(); });
+    if(setEmojiOffEl) setEmojiOffEl.addEventListener('click',()=>{ weaponEmojis=false; localStorage.setItem('surv_emoji_weapons','0'); syncSettingsUI(); });
     syncSettingsUI();
 
     function inputPos(e){const r=canvas.getBoundingClientRect();let cx,cy;if(e.touches){cx=e.touches[0].clientX;cy=e.touches[0].clientY;}else{cx=e.clientX;cy=e.clientY;}return{x:(cx-r.left)/r.width*W+camera.x,y:(cy-r.top)/r.height*H+camera.y};}
