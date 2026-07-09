@@ -772,7 +772,7 @@
             _xpBonus:1,_goldBonus:1,_chainReact:false,glowAngle:0,
             _shadowPendant:false,_vengeance:false,_vengeanceCD:0};
         player.maxHp=80+(permUp.hp||0)*4; player.hp=player.maxHp;
-        player.speed=170+(permUp.speed||0)*1.5;
+        player.speed=230+(permUp.speed||0)*1.5;
         if(selectedClass==='wizard'){  player.cdr+=8; player.attack+=10; player.spells.push(makeSpell('magic_bolt')); }
         if(selectedClass==='pyromancer'){ player.attack+=20; player.critRate+=5; player.spells.push(makeSpell('fireball')); }
         if(selectedClass==='frost'){   player.maxHp+=30; player.hp+=30; player.dmgRed+=8; player.spells.push(makeSpell('frost_nova')); }
