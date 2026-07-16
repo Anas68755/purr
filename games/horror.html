@@ -229,7 +229,7 @@
     // ════════════════════════════════════════════════════════════════════
     //  AUDIO
     // ════════════════════════════════════════════════════════════════════
-    let audioCtx = null, masterGain, buzzGain, whisperGain, heartbeatGain;
+    let audioCtx = null, masterGain, whisperGain, heartbeatGain;
 
     function initAudio() {
       if (audioCtx) { audioCtx.resume(); return; }
@@ -238,14 +238,9 @@
       masterGain.gain.value = 0.55;
       masterGain.connect(audioCtx.destination);
 
-      const buzzOsc = audioCtx.createOscillator();
-      buzzOsc.type = 'square';
-      buzzOsc.frequency.value = 120;
-      buzzGain = audioCtx.createGain();
-      buzzGain.gain.value = 0.015;
-      buzzOsc.connect(buzzGain).connect(masterGain);
-      buzzOsc.start();
+      // The annoying continuous buzz has been completely removed.
 
+      // Ambient creepy whisper bed (fades in at low sanity)
       const whisperNoise = audioCtx.createBufferSource();
       const wlen = audioCtx.sampleRate * 2;
       const wbuf = audioCtx.createBuffer(1, wlen, audioCtx.sampleRate);
@@ -359,6 +354,106 @@
       noise.start();
     }
 
+    // ── NEW CREEPY SOUNDS ──
+    
+    // 1. Distant metallic clank/creak
+    function playMetalClank() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const len = audioCtx.sampleRate * 0.5;
+      const buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.1));
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 300 + Math.random() * 400;
+      filter.Q.value = 12;
+      
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.2, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      
+      noise.connect(filter).connect(g).connect(masterGain);
+      noise.start(now);
+
+      // Add a low metallic ringing
+      const osc = audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120 + Math.random() * 80, now);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.5);
+      const oscG = audioCtx.createGain();
+      oscG.gain.setValueAtTime(0.08, now);
+      oscG.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(oscG).connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    }
+
+    // 2. Eerie detuned cry/whimper
+    function playEerieCry() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const startFreq = 200 + Math.random() * 300;
+      
+      const osc1 = audioCtx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(startFreq, now);
+      osc1.frequency.exponentialRampToValueAtTime(startFreq * 1.5, now + 0.3);
+      osc1.frequency.exponentialRampToValueAtTime(startFreq * 0.7, now + 0.8);
+      
+      const osc2 = audioCtx.createOscillator();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(startFreq * 1.01, now); // slight detune for unsettling effect
+      osc2.frequency.exponentialRampToValueAtTime(startFreq * 1.5 * 1.01, now + 0.3);
+      osc2.frequency.exponentialRampToValueAtTime(startFreq * 0.7 * 1.01, now + 0.8);
+      
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.06, now + 0.1);
+      g.gain.linearRampToValueAtTime(0.06, now + 0.5);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1000;
+      
+      osc1.connect(filter);
+      osc2.connect(filter);
+      filter.connect(g).connect(masterGain);
+      
+      osc1.start(now); osc2.start(now);
+      osc1.stop(now + 1.0); osc2.stop(now + 1.0);
+    }
+
+    // 3. Deep low frequency rumble/groan
+    function playLowRumble() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const len = audioCtx.sampleRate * 3.0;
+      const buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        // Fade in and out
+        const env = Math.sin((i / len) * Math.PI);
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 80; // Very deep
+      
+      const g = audioCtx.createGain();
+      g.gain.value = 0.6;
+      
+      noise.connect(filter).connect(g).connect(masterGain);
+      noise.start(now);
+    }
+
     function playDistantSound() {
       if (!audioCtx) return;
       const now = audioCtx.currentTime;
@@ -403,7 +498,7 @@
     const TOTAL_LEN = SEG_LEN * SEG_COUNT;
 
     // Use ONLY the photo texture provided
-    const wallTextureUrl = 'bwall.jpg';
+    const wallTextureUrl = 'https://z-cdn-media.chatglm.cn/files/30baffde-92e5-41c7-9343-248816d76b95.jpg?auth_key=1884237634-462c903c33f34124a9aa24764c1d88da-0-d6f75ac04aa1a8540249744c36d18a1b';
     const textureLoader = new THREE.TextureLoader();
     const wallTex = textureLoader.load(wallTextureUrl);
     wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
@@ -1027,6 +1122,9 @@
     let heartbeatTimer = 0;
     let whisperTimer = 0;
     let distantSoundTimer = 4 + Math.random() * 6;
+    let metalClankTimer = 5 + Math.random() * 10;
+    let eerieCryTimer = 15 + Math.random() * 20;
+    let lowRumbleTimer = 10 + Math.random() * 15;
     let bobPhase = 0;
     let shakeAmount = 0;
     const baseFov = 76;
@@ -1119,10 +1217,6 @@
           fx.bulbMat.emissiveIntensity = Math.max(0.08, 0.6 * level * sanityFactor);
           if (level > 0.3) litCount++;
         }
-        if (buzzGain) {
-          const target = 0.008 + 0.03 * (litCount / Math.max(1, ceilingLights.length));
-          buzzGain.gain.value += (target - buzzGain.gain.value) * 0.1;
-        }
 
         // ── Monster logic ──
         if (!monsterState.active) {
@@ -1205,10 +1299,29 @@
           }
         }
 
+        // ── Random Creepy Ambient Sounds ──
         distantSoundTimer -= dt;
         if (distantSoundTimer <= 0) {
           playDistantSound();
           distantSoundTimer = 8 + Math.random() * 12;
+        }
+
+        metalClankTimer -= dt;
+        if (metalClankTimer <= 0) {
+          playMetalClank();
+          metalClankTimer = 6 + Math.random() * 15;
+        }
+
+        eerieCryTimer -= dt;
+        if (eerieCryTimer <= 0) {
+          playEerieCry();
+          eerieCryTimer = 18 + Math.random() * 35;
+        }
+
+        lowRumbleTimer -= dt;
+        if (lowRumbleTimer <= 0) {
+          playLowRumble();
+          lowRumbleTimer = 12 + Math.random() * 25;
         }
 
         scareTimer += dt;
