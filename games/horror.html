@@ -168,7 +168,7 @@
     <h1>◈ PSYCHOTIC CORRIDOR ◈</h1>
     <p>An endless hallway. Flickering lights. Something stalks the dark behind you — it moves when you're not watching.</p>
     <p style="font-size:0.8rem;">
-      <b>Desktop:</b> click to lock mouse · WASD to walk · mouse to look<br>
+      <b>Desktop:</b> click to lock mouse · WASD to walk · mouse to look · F to toggle flashlight<br>
       <b>Mobile:</b> left joystick to walk · drag right side to look<br>
       <b>Survive:</b> turn around to keep the monster at bay. Don't let your sanity hit zero.
     </p>
@@ -198,11 +198,12 @@
     //  SCENE / RENDERER / CAMERA
     // ════════════════════════════════════════════════════════════════════
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x1a0606, 0.022);
-    scene.background = new THREE.Color(0x0a0303);
+    scene.fog = new THREE.FogExp2(0x0a0303, 0.035); // Denser, darker fog
+    scene.background = new THREE.Color(0x050101);
 
     const camera = new THREE.PerspectiveCamera(76, window.innerWidth / window.innerHeight, 0.1, 300);
     camera.rotation.order = 'YXZ';
+    scene.add(camera); // Add camera to scene explicitly to attach flashlight
 
     const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -226,7 +227,7 @@
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  AUDIO (fully synthesized)
+    //  AUDIO
     // ════════════════════════════════════════════════════════════════════
     let audioCtx = null, masterGain, buzzGain, whisperGain, heartbeatGain;
 
@@ -237,8 +238,6 @@
       masterGain.gain.value = 0.55;
       masterGain.connect(audioCtx.destination);
 
-      // Removed the continuous annoying drone sound based on request.
-      // Keeping the subtle electrical buzz tied to ceiling lights.
       const buzzOsc = audioCtx.createOscillator();
       buzzOsc.type = 'square';
       buzzOsc.frequency.value = 120;
@@ -379,33 +378,37 @@
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  LIGHTING
+    //  LIGHTING (Creepier & Darker)
     // ════════════════════════════════════════════════════════════════════
-    scene.add(new THREE.AmbientLight(0x442222, 0.4));
-    scene.add(new THREE.HemisphereLight(0x553322, 0x0a0202, 0.35));
+    scene.add(new THREE.AmbientLight(0x110303, 0.15)); // Very low ambient
+    scene.add(new THREE.HemisphereLight(0x220808, 0x000000, 0.1)); // Dark red hemi
 
     const horrorLight = new THREE.PointLight(0xff2222, 4, 80);
     horrorLight.position.set(0, 8, 20);
     scene.add(horrorLight);
 
-    const followLight = new THREE.PointLight(0xffaa88, 2.4, 22);
-    scene.add(followLight);
+    // Flashlight (Spotlight attached to camera)
+    let flashlightOn = true;
+    const flashlight = new THREE.SpotLight(0xffeecc, 3.0, 30, Math.PI / 6, 0.5, 1.5);
+    flashlight.position.set(0.5, -0.5, 0); // Offset slightly like holding it
+    flashlight.target.position.set(0, 0, -1);
+    camera.add(flashlight);
+    camera.add(flashlight.target);
 
     // ════════════════════════════════════════════════════════════════════
-    //  PROCEDURAL TEXTURES & MATERIALS
+    //  TEXTURES & MATERIALS
     // ════════════════════════════════════════════════════════════════════
     const SEG_LEN = 40;
     const SEG_COUNT = 8;
     const TOTAL_LEN = SEG_LEN * SEG_COUNT;
 
-    // Load the provided red mottled texture for the walls
+    // Use ONLY the photo texture provided
     const wallTextureUrl = 'bwall.jpg';
     const textureLoader = new THREE.TextureLoader();
     const wallTex = textureLoader.load(wallTextureUrl);
     wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(SEG_LEN / 10, 3);
+    wallTex.repeat.set(1, 1); // UVs will be scaled manually per-mesh to prevent stretching
 
-    // Keeping canvas textures for floor and ceiling to match grit
     function makeFloorTexture() {
       const size = 256;
       const canvas = document.createElement('canvas');
@@ -576,13 +579,14 @@
       housing.position.set(0, 15.8, zPos);
       group.add(housing);
 
-      const bulbMat = new THREE.MeshStandardMaterial({ color: 0xfff2cc, emissive: 0xffcc88, emissiveIntensity: 1.4 });
+      const bulbMat = new THREE.MeshStandardMaterial({ color: 0x441111, emissive: 0xff1100, emissiveIntensity: 0.6 });
       const bulb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.7), bulbMat);
       bulb.rotation.x = Math.PI / 2;
       bulb.position.set(0, 15.68, zPos);
       group.add(bulb);
 
-      const light = new THREE.PointLight(0xffcc99, 1.6, 22);
+      // Dim, creepy red light
+      const light = new THREE.PointLight(0xff3322, 0.8, 18);
       light.position.set(0, 14.5, zPos);
       group.add(light);
 
@@ -621,22 +625,40 @@
       return g;
     }
 
+    // Helper to create wall pieces with properly scaled UVs so the texture doesn't stretch
+    function createWallPiece(length, x, z, rotY) {
+      const geo = new THREE.PlaneGeometry(length, 16);
+      // Modify UVs to repeat texture based on length
+      const uvX = length / 10;
+      const uvY = 16 / 10;
+      const uvs = geo.attributes.uv.array;
+      uvs[0] = 0; uvs[1] = uvY;
+      uvs[2] = uvX; uvs[3] = uvY;
+      uvs[4] = 0; uvs[5] = 0;
+      uvs[6] = uvX; uvs[7] = 0;
+      geo.attributes.uv.needsUpdate = true;
+
+      const mesh = new THREE.Mesh(geo, wallMat);
+      mesh.position.set(x, 8, z);
+      mesh.rotation.y = rotY;
+      return mesh;
+    }
+
     function createSegment(z) {
       const group = new THREE.Group();
       const zCenter = z - SEG_LEN / 2;
-      const wallGeo = new THREE.PlaneGeometry(1, 16);
+      
+      // Split walls to leave a gap for doors (so texture doesn't overlay them)
+      const wallPieceLen = (SEG_LEN / 2) - 2.0; // 18 units long
+      const offset = (SEG_LEN / 2) - (wallPieceLen / 2); // 11 units from center
 
-      const left = new THREE.Mesh(wallGeo, wallMat);
-      left.scale.x = SEG_LEN;
-      left.position.set(-10, 8, zCenter);
-      left.rotation.y = Math.PI / 2;
-      group.add(left);
+      // Left Wall (2 pieces)
+      group.add(createWallPiece(wallPieceLen, -10, zCenter - offset, Math.PI / 2));
+      group.add(createWallPiece(wallPieceLen, -10, zCenter + offset, Math.PI / 2));
 
-      const right = new THREE.Mesh(wallGeo, wallMat);
-      right.scale.x = SEG_LEN;
-      right.position.set(10, 8, zCenter);
-      right.rotation.y = -Math.PI / 2;
-      group.add(right);
+      // Right Wall (2 pieces)
+      group.add(createWallPiece(wallPieceLen, 10, zCenter - offset, -Math.PI / 2));
+      group.add(createWallPiece(wallPieceLen, 10, zCenter + offset, -Math.PI / 2));
 
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, SEG_LEN), floorMat);
       floor.rotation.x = Math.PI / 2;
@@ -741,6 +763,10 @@
       if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.back = true;
       if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
       if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+      if (e.code === 'KeyF') {
+        flashlightOn = !flashlightOn;
+        flashlight.intensity = flashlightOn ? 3.0 : 0;
+      }
     });
     window.addEventListener('keyup', (e) => {
       if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
@@ -894,7 +920,7 @@
       monsterState.attacking = false;
       monsterState.watchTime = 0;
       monsterState.respawnTimer = 6;
-      monsterState.attackId++; // Invalidate any ongoing attack animations
+      monsterState.attackId++; 
       monsterGroup.visible = false;
       monsterGroup.position.set(0, 0, 50);
       monsterGroup.scale.setScalar(1);
@@ -920,7 +946,7 @@
       const dist = _toMonster.length();
       if (dist > 60) return false;
       _toMonster.normalize();
-      return _camForward.dot(_toMonster) > 0.6; // ~53° cone
+      return _camForward.dot(_toMonster) > 0.6; 
     }
 
     function spawnMonster() {
@@ -944,7 +970,7 @@
       const myAttackId = monsterState.attackId;
       
       bloodFlash.classList.remove('fire');
-      void bloodFlash.offsetWidth; // Force reflow to restart animation
+      void bloodFlash.offsetWidth; 
       bloodFlash.classList.add('fire');
       
       playStinger();
@@ -1057,12 +1083,16 @@
           }
         }
 
-        // ── Follow light ──
-        followLight.position.set(camera.position.x, 6, camera.position.z - 3);
-
         // ── Horror light flicker ──
         if (horrorLight.intensity < 8) {
           horrorLight.intensity = 3.5 + Math.sin(time * 9) * 0.6 + (Math.random() - 0.5) * 0.6;
+        }
+
+        // ── Flashlight flicker (worse at low sanity) ──
+        if (flashlightOn) {
+          let flicker = 1.0;
+          if (sanity < 50) flicker = 0.8 + Math.random() * 0.4;
+          flashlight.intensity = 3.0 * flicker;
         }
 
         // ── Ceiling lights ──
@@ -1085,8 +1115,8 @@
             level = fx.isOn ? 1 : 0.04;
           }
           const sanityFactor = Math.max(0.3, sanity / 100);
-          fx.light.intensity = Math.max(0.05, 1.6 * level * sanityFactor);
-          fx.bulbMat.emissiveIntensity = Math.max(0.08, 1.4 * level * sanityFactor);
+          fx.light.intensity = Math.max(0.05, 0.8 * level * sanityFactor);
+          fx.bulbMat.emissiveIntensity = Math.max(0.08, 0.6 * level * sanityFactor);
           if (level > 0.3) litCount++;
         }
         if (buzzGain) {
@@ -1199,7 +1229,7 @@
           camera.updateProjectionMatrix();
         } else {
           if (camera.rotation.z !== 0) {
-            camera.rotation.z *= 0.9; // Fade out shake smoothly
+            camera.rotation.z *= 0.9; 
           }
           if (Math.abs(camera.fov - baseFov) > 0.01) {
             camera.fov += (baseFov - camera.fov) * 0.1;
