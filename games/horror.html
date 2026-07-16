@@ -99,6 +99,7 @@
       background: radial-gradient(ellipse at center, rgba(40,0,0,0.85) 0%, rgba(5,0,0,0.97) 100%);
       color: #ff4444; font-family: 'Courier New', monospace;
       text-align: center; text-shadow: 0 0 15px #ff0000;
+      cursor: pointer;
     }
     .overlay h1 {
       font-size: clamp(1.4rem, 5vw, 2.4rem);
@@ -141,7 +142,7 @@
       box-shadow: 0 0 20px rgba(255,0,0,0.6);
     }
     .hidden { display: none !important; }
-    .credits { font-size: 0.7rem; opacity: 0.5; margin-top: 18px; }
+    .credits { font-size: 0.7rem; opacity: 0.5; margin-top: 18px; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -218,13 +219,16 @@
     window.addEventListener('resize', resize);
     resize();
 
-    const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    if (isTouch) document.getElementById('joystick-container').classList.remove('hidden');
+    // Mobile detection for joystick / touch controls
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      document.getElementById('joystick-container').classList.remove('hidden');
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  AUDIO (fully synthesized)
     // ════════════════════════════════════════════════════════════════════
-    let audioCtx = null, masterGain, droneGain, buzzGain, whisperGain, heartbeatGain;
+    let audioCtx = null, masterGain, buzzGain, whisperGain, heartbeatGain;
 
     function initAudio() {
       if (audioCtx) { audioCtx.resume(); return; }
@@ -233,22 +237,8 @@
       masterGain.gain.value = 0.55;
       masterGain.connect(audioCtx.destination);
 
-      // Ambient drone — two detuned saws through lowpass
-      const droneFilter = audioCtx.createBiquadFilter();
-      droneFilter.type = 'lowpass';
-      droneFilter.frequency.value = 200;
-      droneGain = audioCtx.createGain();
-      droneGain.gain.value = 0.18;
-      droneFilter.connect(droneGain).connect(masterGain);
-      [55, 58.3, 82].forEach(freq => {
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.value = freq;
-        osc.connect(droneFilter);
-        osc.start();
-      });
-
-      // Electrical buzz
+      // Removed the continuous annoying drone sound based on request.
+      // Keeping the subtle electrical buzz tied to ceiling lights.
       const buzzOsc = audioCtx.createOscillator();
       buzzOsc.type = 'square';
       buzzOsc.frequency.value = 120;
@@ -257,7 +247,6 @@
       buzzOsc.connect(buzzGain).connect(masterGain);
       buzzOsc.start();
 
-      // Whisper bed — filtered noise, gain modulated by sanity
       const whisperNoise = audioCtx.createBufferSource();
       const wlen = audioCtx.sampleRate * 2;
       const wbuf = audioCtx.createBuffer(1, wlen, audioCtx.sampleRate);
@@ -274,7 +263,6 @@
       whisperNoise.connect(whisperFilter).connect(whisperGain).connect(masterGain);
       whisperNoise.start();
 
-      // Heartbeat low rumble bed
       heartbeatGain = audioCtx.createGain();
       heartbeatGain.gain.value = 0;
       heartbeatGain.connect(masterGain);
@@ -300,7 +288,6 @@
     function playStinger() {
       if (!audioCtx) return;
       const now = audioCtx.currentTime;
-      // Noise hit
       const len = audioCtx.sampleRate * 0.4;
       const buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -312,7 +299,7 @@
       noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
       noise.connect(noiseGain).connect(masterGain);
       noise.start();
-      // Descending saw
+
       const osc = audioCtx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(440, now);
@@ -322,7 +309,7 @@
       oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
       osc.connect(oscGain).connect(masterGain);
       osc.start(); osc.stop(now + 0.6);
-      // Sub boom
+
       const sub = audioCtx.createOscillator();
       sub.type = 'sine';
       sub.frequency.setValueAtTime(80, now);
@@ -405,55 +392,20 @@
     scene.add(followLight);
 
     // ════════════════════════════════════════════════════════════════════
-    //  PROCEDURAL TEXTURES
+    //  PROCEDURAL TEXTURES & MATERIALS
     // ════════════════════════════════════════════════════════════════════
-    function makeWallTexture() {
-      const size = 256;
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      // base
-      ctx.fillStyle = '#3a1818';
-      ctx.fillRect(0, 0, size, size);
-      // tile lines
-      ctx.strokeStyle = '#1a0808';
-      ctx.lineWidth = 2;
-      const step = size / 4;
-      for (let i = 0; i <= 4; i++) {
-        ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke();
-      }
-      // grime stains
-      for (let i = 0; i < 25; i++) {
-        const x = Math.random() * size, y = Math.random() * size;
-        const r = 8 + Math.random() * 35;
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-        grad.addColorStop(0, `rgba(8, 3, 3, ${0.3 + Math.random() * 0.4})`);
-        grad.addColorStop(1, 'rgba(8, 3, 3, 0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x - r, y - r, r * 2, r * 2);
-      }
-      // rust spots
-      for (let i = 0; i < 10; i++) {
-        const x = Math.random() * size, y = Math.random() * size;
-        const r = 3 + Math.random() * 8;
-        ctx.fillStyle = `rgba(80, 30, 10, ${0.3 + Math.random() * 0.3})`;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-      }
-      // scratches
-      ctx.strokeStyle = 'rgba(120, 80, 80, 0.25)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 18; i++) {
-        ctx.beginPath();
-        ctx.moveTo(Math.random() * size, Math.random() * size);
-        ctx.lineTo(Math.random() * size, Math.random() * size);
-        ctx.stroke();
-      }
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      return tex;
-    }
+    const SEG_LEN = 40;
+    const SEG_COUNT = 8;
+    const TOTAL_LEN = SEG_LEN * SEG_COUNT;
 
+    // Load the provided red mottled texture for the walls
+    const wallTextureUrl = 'bwall.jpg';
+    const textureLoader = new THREE.TextureLoader();
+    const wallTex = textureLoader.load(wallTextureUrl);
+    wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
+    wallTex.repeat.set(SEG_LEN / 10, 3);
+
+    // Keeping canvas textures for floor and ceiling to match grit
     function makeFloorTexture() {
       const size = 256;
       const canvas = document.createElement('canvas');
@@ -468,14 +420,12 @@
         ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke();
       }
-      // tile shading variation
       for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
         if (Math.random() < 0.4) {
           ctx.fillStyle = `rgba(${30 + Math.random()*30}, ${10 + Math.random()*15}, ${10 + Math.random()*10}, 0.5)`;
           ctx.fillRect(i * step, j * step, step, step);
         }
       }
-      // dark stains
       for (let i = 0; i < 15; i++) {
         const x = Math.random() * size, y = Math.random() * size;
         const r = 10 + Math.random() * 30;
@@ -504,7 +454,6 @@
         ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, size); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(size, i * step); ctx.stroke();
       }
-      // water stains
       for (let i = 0; i < 8; i++) {
         const x = Math.random() * size, y = Math.random() * size;
         const r = 15 + Math.random() * 40;
@@ -526,19 +475,16 @@
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
-      // splatter
       ctx.fillStyle = 'rgba(80, 0, 0, 0.85)';
       for (let i = 0; i < 6; i++) {
         const x = Math.random() * size, y = Math.random() * size;
         const r = 5 + Math.random() * 15;
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
-      // drips
       for (let i = 0; i < 4; i++) {
         const x = Math.random() * size;
         ctx.fillRect(x, 0, 2 + Math.random() * 3, 20 + Math.random() * 40);
       }
-      // droplets
       for (let i = 0; i < 15; i++) {
         const x = Math.random() * size, y = Math.random() * size;
         ctx.beginPath(); ctx.arc(x, y, 1 + Math.random() * 3, 0, Math.PI * 2); ctx.fill();
@@ -556,14 +502,12 @@
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 4;
       ctx.strokeRect(4, 4, size-8, size-8);
-      // random text lines
       ctx.fillStyle = '#aa8888';
       for (let i = 0; i < 5; i++) {
         const y = 20 + i * 18;
         const w = 30 + Math.random() * 80;
         ctx.fillRect(15, y, w, 6);
       }
-      // damage
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       for (let i = 0; i < 8; i++) {
         ctx.beginPath();
@@ -573,12 +517,10 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    const wallTex = makeWallTexture();
-    wallTex.repeat.set(segmentLength / 10, 3);
     const floorTex = makeFloorTexture();
-    floorTex.repeat.set(4, segmentLength / 6);
+    floorTex.repeat.set(4, SEG_LEN / 6);
     const ceilingTex = makeCeilingTexture();
-    ceilingTex.repeat.set(4, segmentLength / 6);
+    ceilingTex.repeat.set(4, SEG_LEN / 6);
 
     const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0x884444, roughness: 0.95, side: THREE.DoubleSide });
     const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, color: 0x553030, roughness: 1, side: THREE.DoubleSide });
@@ -594,9 +536,6 @@
     // ════════════════════════════════════════════════════════════════════
     //  CORRIDOR SEGMENTS
     // ════════════════════════════════════════════════════════════════════
-    const SEG_LEN = 40;
-    const SEG_COUNT = 8;
-    const TOTAL_LEN = SEG_LEN * SEG_COUNT;
     const segments = [];
     const ceilingLights = [];
 
@@ -611,7 +550,6 @@
 
       const panel = new THREE.Mesh(new THREE.BoxGeometry(doorD, doorH, doorW), doorMat);
       panel.position.set(wallX + insetDir * (frameD / 2 + 0.02), doorH / 2, zPos);
-      // some doors slightly ajar
       if (variant === 'ajar') panel.rotation.y = insetDir * 0.5;
       g.add(panel);
 
@@ -619,7 +557,6 @@
       handle.position.set(wallX + insetDir * (frameD / 2 + 0.15), doorH * 0.45, zPos + doorW * 0.32);
       g.add(handle);
 
-      // blood stain on some doors
       if (variant === 'bloody') {
         const stain = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 4), bloodMat);
         stain.position.set(wallX + insetDir * (frameD / 2 + 0.05), 3, zPos);
@@ -655,16 +592,13 @@
     }
 
     function createWallDetails(wallX, zCenter, facing) {
-      // facing: +1 means wall front faces +x (left wall), -1 means right wall
       const g = new THREE.Group();
-      // pipes along the wall
       if (Math.random() < 0.6) {
         const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, SEG_LEN * 0.9, 8), pipeMat);
         pipe.rotation.x = Math.PI / 2;
         pipe.position.set(wallX + facing * 0.15, 12 + Math.random() * 2, zCenter);
         g.add(pipe);
       }
-      // wall-mounted emergency light
       if (Math.random() < 0.35) {
         const sign = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 1.4), signMat);
         sign.position.set(wallX + facing * 0.2, 11, zCenter + (Math.random() - 0.5) * SEG_LEN * 0.5);
@@ -672,14 +606,12 @@
         signLight.position.set(wallX + facing * 0.5, 11, sign.position.z);
         g.add(sign); g.add(signLight);
       }
-      // blood stain
       if (Math.random() < 0.45) {
         const stain = new THREE.Mesh(new THREE.PlaneGeometry(2 + Math.random() * 3, 3 + Math.random() * 4), bloodMat);
         stain.position.set(wallX + facing * 0.1, 3 + Math.random() * 4, zCenter + (Math.random() - 0.5) * SEG_LEN * 0.7);
         stain.rotation.y = facing > 0 ? Math.PI / 2 : -Math.PI / 2;
         g.add(stain);
       }
-      // poster
       if (Math.random() < 0.3) {
         const poster = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2), posterMat);
         poster.position.set(wallX + facing * 0.08, 5 + Math.random() * 2, zCenter + (Math.random() - 0.5) * SEG_LEN * 0.6);
@@ -716,18 +648,15 @@
       ceiling.position.set(0, 16, zCenter);
       group.add(ceiling);
 
-      // doors with variants
       const variants = ['closed', 'ajar', 'bloody', 'closed'];
       const lv = variants[Math.floor(Math.random() * variants.length)];
       const rv = variants[Math.floor(Math.random() * variants.length)];
       group.add(createDoor(-10, zCenter, 1, lv));
       group.add(createDoor(10, zCenter, -1, rv));
 
-      // wall details
       group.add(createWallDetails(-10, zCenter, 1));
       group.add(createWallDetails(10, zCenter, -1));
 
-      // ceiling light
       const fixture = createCeilingFixture(zCenter);
       group.add(fixture.group);
       ceilingLights.push(fixture);
@@ -758,14 +687,12 @@
     eyeL.position.set(-0.2, 6.7, 0.45);
     monsterGroup.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.2; monsterGroup.add(eyeR);
-    // arms
     const armGeo = new THREE.CylinderGeometry(0.09, 0.14, 3.4, 6);
     const armL = new THREE.Mesh(armGeo, monsterMat);
     armL.position.set(-0.6, 3.8, 0); armL.rotation.z = 0.35;
     monsterGroup.add(armL);
     const armR = armL.clone(); armR.position.x = 0.6; armR.rotation.z = -0.35;
     monsterGroup.add(armR);
-    // eye glow light
     const monsterLight = new THREE.PointLight(0xff0000, 0, 10);
     monsterLight.position.set(0, 6.5, 0.5);
     monsterGroup.add(monsterLight);
@@ -778,7 +705,8 @@
       speed: 2.2,
       watchTime: 0,
       respawnTimer: 6,
-      attacking: false
+      attacking: false,
+      attackId: 0
     };
 
     // ════════════════════════════════════════════════════════════════════
@@ -844,11 +772,11 @@
         const cy = rect.top + rect.height / 2;
         let dx = t.clientX - cx;
         let dy = t.clientY - cy;
-        const dist = Math.min(rect.width / 2 - 10, Math.sqrt(dx*dx + dy*dy));
+        const maxR = rect.width / 2 - 10;
+        const dist = Math.min(maxR, Math.sqrt(dx*dx + dy*dy));
         const angle = Math.atan2(dy, dx);
         dx = Math.cos(angle) * dist;
         dy = Math.sin(angle) * dist;
-        const maxR = rect.width / 2 - 10;
         knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         moveVec.x = dx / maxR;
         moveVec.z = dy / maxR;
@@ -925,27 +853,35 @@
     let survivedTime = 0;
     let maxDistance = 0;
 
-    startOverlay.addEventListener('click', () => {
+    function showStartOverlay(text) {
+      startOverlay.querySelector('.enter').textContent = text;
+      startOverlay.classList.remove('hidden');
+    }
+
+    function startGame() {
       initAudio();
-      if (!isTouch) controls.lock();
       startOverlay.classList.add('hidden');
+      deathOverlay.classList.add('hidden');
       hud.classList.remove('hidden');
       started = true;
+      dead = false;
+      if (!isMobile) {
+        controls.lock();
+      }
+    }
+
+    startOverlay.addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    controls.addEventListener('lock', () => {
+      startOverlay.classList.add('hidden');
+      deathOverlay.classList.add('hidden');
     });
 
     controls.addEventListener('unlock', () => {
       if (started && !dead) {
-        startOverlay.classList.remove('hidden');
-        startOverlay.querySelector('.enter').textContent = '— CLICK TO RESUME —';
+        showStartOverlay('— CLICK TO RESUME —');
       }
-    });
-
-    document.getElementById('restart-btn').addEventListener('click', () => {
-      resetGame();
-      deathOverlay.classList.add('hidden');
-      hud.classList.remove('hidden');
-      started = true;
-      if (!isTouch) controls.lock();
     });
 
     function resetGame() {
@@ -958,12 +894,13 @@
       monsterState.attacking = false;
       monsterState.watchTime = 0;
       monsterState.respawnTimer = 6;
+      monsterState.attackId++; // Invalidate any ongoing attack animations
       monsterGroup.visible = false;
       monsterGroup.position.set(0, 0, 50);
+      monsterGroup.scale.setScalar(1);
       camera.position.set(0, 1.8, 10);
       camera.rotation.set(0, 0, 0);
       pitch = 0;
-      // reset all segment positions
       for (let i = 0; i < segments.length; i++) {
         segments[i].group.position.set(0, 0, 0);
         segments[i].z = -i * SEG_LEN;
@@ -987,7 +924,6 @@
     }
 
     function spawnMonster() {
-      // spawn behind player
       const camForward = camera.getWorldDirection(new THREE.Vector3());
       const behind = camForward.clone().multiplyScalar(-1);
       const spawnDist = 25 + Math.random() * 15;
@@ -1004,25 +940,35 @@
     function triggerJumpscare() {
       if (monsterState.attacking) return;
       monsterState.attacking = true;
+      monsterState.attackId++;
+      const myAttackId = monsterState.attackId;
+      
+      bloodFlash.classList.remove('fire');
+      void bloodFlash.offsetWidth; // Force reflow to restart animation
       bloodFlash.classList.add('fire');
+      
       playStinger();
       horrorLight.intensity = 30;
       horrorLight.color.setHex(0xffffff);
-      // snap camera to face monster
+      
       _toMonster.subVectors(monsterGroup.position, camera.position);
       camera.rotation.y = Math.atan2(_toMonster.x, _toMonster.z);
-      // monster lunges at camera
+      
       const lungeStart = monsterGroup.position.clone();
       const lungeEnd = camera.position.clone().add(new THREE.Vector3(0, -0.5, 0));
       const lungeT0 = performance.now();
       const lungeDur = 280;
+      
       function lungeAnim() {
+        if (monsterState.attackId !== myAttackId) return;
         const t = Math.min(1, (performance.now() - lungeT0) / lungeDur);
         monsterGroup.position.lerpVectors(lungeStart, lungeEnd, t);
         monsterGroup.scale.setScalar(1 + t * 1.5);
-        if (t < 1) requestAnimationFrame(lungeAnim);
-        else {
+        if (t < 1) {
+          requestAnimationFrame(lungeAnim);
+        } else {
           setTimeout(() => {
+            if (monsterState.attackId !== myAttackId) return;
             monsterGroup.scale.setScalar(1);
             triggerDeath();
           }, 200);
@@ -1057,7 +1003,7 @@
     let distantSoundTimer = 4 + Math.random() * 6;
     let bobPhase = 0;
     let shakeAmount = 0;
-    let baseFov = 76;
+    const baseFov = 76;
 
     function animate() {
       requestAnimationFrame(animate);
@@ -1081,9 +1027,7 @@
         controls.moveForward(fwd * MOVE_SPEED * dt);
         controls.moveRight(strafe * MOVE_SPEED * dt);
 
-        // clamp inside corridor
         camera.position.x = Math.max(-8.5, Math.min(8.5, camera.position.x));
-        // distance traveled (only forward progress counts)
         const dz = prevZ - camera.position.z;
         if (dz > 0) {
           distance += dz;
@@ -1095,7 +1039,6 @@
           bobPhase += dt * moveMag * 9;
           const bobY = Math.sin(bobPhase * 2) * 0.06;
           camera.position.y = 1.8 + bobY;
-          // footstep audio
           footstepTimer -= dt;
           if (footstepTimer <= 0) {
             playFootstep();
@@ -1141,7 +1084,6 @@
             }
             level = fx.isOn ? 1 : 0.04;
           }
-          // sanity affects lights — at low sanity they all dim and flicker more
           const sanityFactor = Math.max(0.3, sanity / 100);
           fx.light.intensity = Math.max(0.05, 1.6 * level * sanityFactor);
           fx.bulbMat.emissiveIntensity = Math.max(0.08, 1.4 * level * sanityFactor);
@@ -1155,7 +1097,6 @@
         // ── Monster logic ──
         if (!monsterState.active) {
           monsterState.respawnTimer -= dt;
-          // spawns faster as sanity drops
           const spawnBoost = (100 - sanity) / 100 * 3;
           if (monsterState.respawnTimer <= 0 && sanity < 90) {
             spawnMonster();
@@ -1164,16 +1105,12 @@
         } else if (!monsterState.attacking) {
           const inView = isMonsterInView();
           if (inView) {
-            // being watched — freeze and recede
             monsterState.watchTime += dt;
             monsterLight.intensity = Math.max(0.3, monsterLight.intensity - dt * 2);
-            // slowly back away
             const back = camera.getWorldDirection(new THREE.Vector3());
             monsterGroup.position.add(back.multiplyScalar(-1.5 * dt));
             monsterGroup.position.y = 0;
-            // sanity drains faster while watching
             sanity -= dt * 4;
-            // after ~2.5s of being watched, vanish
             if (monsterState.watchTime > 2.5) {
               monsterGroup.visible = false;
               monsterState.active = false;
@@ -1181,13 +1118,11 @@
               monsterLight.intensity = 0;
             }
           } else {
-            // not watched — approach
             monsterState.watchTime = Math.max(0, monsterState.watchTime - dt * 0.5);
             monsterLight.intensity = Math.min(2, monsterLight.intensity + dt * 1.5);
             _toMonster.subVectors(camera.position, monsterGroup.position);
             const dist = _toMonster.length();
             _toMonster.normalize();
-            // speed scales with low sanity
             const sp = monsterState.speed * (1 + (100 - sanity) / 150);
             monsterGroup.position.add(_toMonster.multiplyScalar(sp * dt));
             monsterGroup.position.y = 0;
@@ -1199,9 +1134,7 @@
         }
 
         // ── Sanity drain / regen ──
-        // base slow drain
         sanity -= dt * 0.6;
-        // small regen while moving forward
         if (moveMag > 0.3 && dz > 0) sanity += dt * 0.3;
         sanity = Math.max(0, Math.min(100, sanity));
         if (sanity <= 0 && !monsterState.attacking) {
@@ -1213,7 +1146,6 @@
         distanceEl.textContent = Math.floor(maxDistance);
         timeEl.textContent = Math.floor(survivedTime);
 
-        // vignette
         vignette.classList.toggle('low', sanity < 60);
         vignette.classList.toggle('critical', sanity < 30);
         if (sanity < 60) {
@@ -1222,22 +1154,19 @@
           vignette.style.opacity = '1';
         }
 
-        // whisper gain
         if (whisperGain) {
           const whisperTarget = sanity < 60 ? Math.min(0.12, (60 - sanity) / 60 * 0.15) : 0;
           whisperGain.gain.value += (whisperTarget - whisperGain.gain.value) * 0.05;
         }
 
-        // heartbeat at low sanity
         if (sanity < 40) {
           heartbeatTimer -= dt;
           if (heartbeatTimer <= 0) {
             playHeartbeat();
-            heartbeatTimer = 1.2 - (40 - sanity) / 40 * 0.6; // faster as sanity drops
+            heartbeatTimer = 1.2 - (40 - sanity) / 40 * 0.6;
           }
         }
 
-        // random whispers
         if (sanity < 70) {
           whisperTimer -= dt;
           if (whisperTimer <= 0) {
@@ -1246,19 +1175,16 @@
           }
         }
 
-        // distant ambient sounds
         distantSoundTimer -= dt;
         if (distantSoundTimer <= 0) {
           playDistantSound();
           distantSoundTimer = 8 + Math.random() * 12;
         }
 
-        // ── Random ambient jumpscares (light only) ──
         scareTimer += dt;
         if (scareTimer >= nextScareAt) {
           scareTimer = 0;
           nextScareAt = 10 + Math.random() * 10;
-          // small light flash, not full jumpscare
           horrorLight.intensity = 12;
           setTimeout(() => { if (!dead) horrorLight.intensity = 4; }, 120);
           playWhisper();
@@ -1267,15 +1193,18 @@
         // ── Camera shake on low sanity ──
         if (sanity < 30) {
           shakeAmount = (30 - sanity) / 30 * 0.04;
-          camera.rotation.x = pitch + (Math.random() - 0.5) * shakeAmount;
           camera.rotation.z = (Math.random() - 0.5) * shakeAmount;
-          // subtle fov breathing
           const targetFov = baseFov + Math.sin(time * 4) * 2;
           camera.fov += (targetFov - camera.fov) * 0.1;
           camera.updateProjectionMatrix();
-        } else if (camera.fov !== baseFov) {
-          camera.fov += (baseFov - camera.fov) * 0.1;
-          camera.updateProjectionMatrix();
+        } else {
+          if (camera.rotation.z !== 0) {
+            camera.rotation.z *= 0.9; // Fade out shake smoothly
+          }
+          if (Math.abs(camera.fov - baseFov) > 0.01) {
+            camera.fov += (baseFov - camera.fov) * 0.1;
+            camera.updateProjectionMatrix();
+          }
         }
 
         // ── Dust particles ──
@@ -1284,7 +1213,6 @@
           positions[i*3]   += dustVel[i*3]   * dt;
           positions[i*3+1] += dustVel[i*3+1] * dt;
           positions[i*3+2] += dustVel[i*3+2] * dt;
-          // wrap around player
           const dx2 = positions[i*3] - camera.position.x;
           const dz2 = positions[i*3+2] - camera.position.z;
           if (dx2 > 12)  positions[i*3] -= 24;
