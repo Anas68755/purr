@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>🎮 Gam Lub</title>
     <style>
-        /* ── reset & base ── */
         * {
             margin: 0;
             padding: 0;
@@ -14,7 +13,7 @@
         body {
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
-            background: linear-gradient(145deg, #0b0a1a 0%, #1a1035 100%);
+            background: radial-gradient(ellipse at 50% 0%, #1a1035 0%, #0b0a1a 60%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -23,14 +22,13 @@
         }
 
         .hub {
-            max-width: 900px;
+            max-width: 980px;
             width: 100%;
         }
 
-        /* ── header ── */
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
         }
         .header h1 {
             font-size: 3rem;
@@ -48,128 +46,129 @@
             font-size: 1rem;
             letter-spacing: 0.5px;
         }
-        .header p strong {
-            color: #f5c542;
-            font-weight: 600;
-        }
 
-        /* ── game grid ── */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 10px;
-        }
-
-        /* ── game card (button) ── */
-        .game-card {
-            background: rgba(20, 18, 48, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-radius: 32px;
-            padding: 30px 20px 24px;
-            border: 1px solid rgba(255, 215, 0, 0.08);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            touch-action: manipulation;
-            user-select: none;
+        /* ── 3D globe stage ── */
+        .globe-stage {
             position: relative;
+            width: 100%;
+            height: 560px;
+            border-radius: 32px;
             overflow: hidden;
+            background: radial-gradient(circle at 50% 45%, rgba(123, 63, 228, 0.10), transparent 65%);
+            border: 1px solid rgba(255, 215, 0, 0.06);
+            touch-action: none;
+            cursor: grab;
+        }
+        .globe-stage.dragging {
+            cursor: grabbing;
+        }
+        #earth-gl {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #cards-layer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .drag-hint {
+            position: absolute;
+            bottom: 14px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6e6492;
+            letter-spacing: 0.4px;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* ── game card button, positioned manually in 3D each frame ── */
+        .game-card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 176px;
+            height: 164px;
+            margin: -82px 0 0 -88px; /* center on its computed x,y */
+            background: rgba(20, 18, 48, 0.85);
+            border-radius: 24px;
+            padding: 18px 14px 16px;
+            border: 1px solid rgba(255, 215, 0, 0.16);
+            box-shadow: 0 0 22px rgba(245, 197, 66, 0.10), 0 16px 40px rgba(0, 0, 0, 0.55);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            pointer-events: auto;
+            user-select: none;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 200px;
+            will-change: transform, opacity;
         }
         .game-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(255, 215, 0, 0.15);
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
-        }
-        .game-card:active {
-            transform: scale(0.96);
+            border-color: rgba(255, 215, 0, 0.4);
+            box-shadow: 0 0 30px rgba(245, 197, 66, 0.2), 0 16px 46px rgba(0, 0, 0, 0.6);
         }
 
         .game-card .icon {
-            font-size: 3.5rem;
+            font-size: 2.3rem;
             line-height: 1;
-            margin-bottom: 10px;
-            filter: drop-shadow(0 4px 20px rgba(255, 200, 50, 0.1));
+            margin-bottom: 6px;
+            filter: drop-shadow(0 4px 14px rgba(255, 200, 50, 0.15));
         }
         .game-card .name {
-            font-size: 1.3rem;
+            font-size: 0.98rem;
             font-weight: 700;
             color: #f0ecff;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         .game-card .subtitle {
-            font-size: 0.8rem;
+            font-size: 0.64rem;
             color: #9288b8;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
         .game-card .play-btn {
             display: inline-block;
-            padding: 8px 28px;
+            padding: 5px 20px;
             border-radius: 60px;
             background: linear-gradient(135deg, #f5c542, #ff8a5c);
             color: #0b0a1a;
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: 0.76rem;
             border: none;
-            cursor: pointer;
-            transition: all 0.2s;
             letter-spacing: 0.5px;
-            box-shadow: 0 4px 20px rgba(245, 197, 66, 0.15);
-        }
-        .game-card .play-btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 6px 30px rgba(245, 197, 66, 0.25);
-        }
-        .game-card .play-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* ── special styling for blank/empty cards ── */
-        .game-card.blank {
-            border-color: rgba(255, 255, 255, 0.05);
-            background: rgba(20, 18, 48, 0.3);
-            opacity: 0.7;
-        }
-        .game-card.blank:hover {
-            border-color: rgba(255, 255, 255, 0.12);
-            opacity: 0.9;
+            box-shadow: 0 4px 18px rgba(245, 197, 66, 0.2);
+            pointer-events: none;
         }
         .game-card .badge-empty {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.04);
-            color: #5d537a;
-            font-size: 0.55rem;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #f5c542;
+            font-size: 0.5rem;
             font-weight: 700;
-            padding: 2px 10px;
+            padding: 2px 8px;
             border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 215, 0, 0.15);
             letter-spacing: 0.5px;
-        }
-
-        /* ── glow effect ── */
-        .game-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.03) 0%, transparent 70%);
             pointer-events: none;
         }
 
-        /* ── footer ── */
         .footer {
-            margin-top: 40px;
+            margin-top: 28px;
             text-align: center;
             font-size: 0.8rem;
             color: #4a406a;
@@ -179,61 +178,34 @@
         .footer span {
             color: #6e6492;
         }
-        .footer .hint {
-            color: #5d537a;
-            font-size: 0.75rem;
-            margin-top: 6px;
-        }
 
-        /* ── responsive ── */
         @media (max-width: 640px) {
             .header h1 {
-                font-size: 2.4rem;
+                font-size: 2.2rem;
             }
-            .game-grid {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-                gap: 14px;
+            .globe-stage {
+                height: 460px;
+                border-radius: 22px;
             }
             .game-card {
-                padding: 22px 14px 18px;
-                min-height: 160px;
+                width: 132px;
+                height: 130px;
+                margin: -65px 0 0 -66px;
+                padding: 12px 10px 10px;
+                border-radius: 18px;
             }
             .game-card .icon {
-                font-size: 2.8rem;
+                font-size: 1.7rem;
             }
             .game-card .name {
-                font-size: 1.1rem;
-            }
-            .game-card .play-btn {
-                padding: 6px 20px;
                 font-size: 0.8rem;
             }
-        }
-        @media (max-width: 400px) {
-            .game-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-            .game-card {
-                padding: 16px 10px 14px;
-                min-height: 130px;
-                border-radius: 20px;
-            }
-            .game-card .icon {
-                font-size: 2rem;
-            }
-            .game-card .name {
-                font-size: 0.9rem;
-            }
             .game-card .subtitle {
-                font-size: 0.65rem;
+                font-size: 0.55rem;
             }
             .game-card .play-btn {
                 padding: 4px 14px;
-                font-size: 0.7rem;
-            }
-            .header h1 {
-                font-size: 1.8rem;
+                font-size: 0.65rem;
             }
         }
     </style>
@@ -241,21 +213,23 @@
 <body>
 
 <div class="hub">
-    <!-- HEADER -->
     <header class="header">
         <h1>🎮 Gam Lub</h1>
-        <p>Click any card to launch the game</p>
+        <p>Drag to spin the globe · tap a button to launch</p>
     </header>
 
-    <!-- GAME GRID -->
-    <div class="game-grid" id="gameGrid"></div>
+    <div class="globe-stage" id="globeStage">
+        <canvas id="earth-gl"></canvas>
+        <div id="cards-layer"></div>
+        <div class="drag-hint">✦ drag anywhere on the globe to rotate it</div>
+    </div>
 
-    <!-- FOOTER -->
     <div class="footer">
         <span>✦ click a card to start</span>
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
     (function() {
         "use strict";
@@ -264,7 +238,6 @@
         //  🎮  EDIT THIS ARRAY TO CUSTOMIZE YOUR GAME BUTTONS
         // ═══════════════════════════════════════════════════════════════
         const GAMES = [
-            // ── Button 1 ──
             {
                 id: 'truth-or-dare',
                 name: 'Truth or Dare',
@@ -274,7 +247,6 @@
                 blank: false,
                 new: true
             },
-            // ── Button 2 (Blank) ──
             {
                 id: 'chess-cards',
                 name: 'Chess Cards',
@@ -311,7 +283,6 @@
                 blank: false,
                 new: true
             },
-            // ── Button 3 (Blank) ──
             {
                 id: 'survircane-ar',
                 name: 'الساحر الناجي',
@@ -321,7 +292,6 @@
                 blank: false,
                 new: true
             },
-            // ── Button 4 (Blank) ──
             {
                 id: 'cack-sim',
                 name: 'CyberHack Sim',
@@ -349,7 +319,6 @@
                 blank: false,
                 new: true
             },
-            // ── Button 5 (Blank) ──
             {
                 id: 'mono-poly',
                 name: 'Neon Monopoly X',
@@ -382,92 +351,300 @@
         //  END OF EDITABLE SECTION
         // ═══════════════════════════════════════════════════════════════
 
-        // ─── DOM REFS ──────────────────────────────────────────────────
-        const grid = document.getElementById('gameGrid');
-
-        // ─── RENDER ────────────────────────────────────────────────────
-        function renderGames() {
-            let html = '';
-            for (const game of GAMES) {
-                const blankClass = game.blank ? ' blank' : '';
-                const newBadge = game.new ? `<span class="badge-empty">✦ new</span>` : '';
-                const emptyBadge = game.blank ? `<span class="badge-empty">⏳ empty</span>` : '';
-
-                html += `
-                    <div class="game-card${blankClass}" 
-                         data-id="${game.id}" 
-                         data-file="${game.file}" 
-                         data-blank="${game.blank}"
-                         role="button" 
-                         tabindex="0"
-                         aria-label="${game.blank ? 'Empty slot - ' : ''}${game.name}">
-                        ${newBadge}
-                        ${emptyBadge}
-                        <div class="icon">${game.icon}</div>
-                        <div class="name">${game.name}</div>
-                        <div class="subtitle">${game.subtitle}</div>
-                        <button class="play-btn">${game.blank ? '⏳ Coming Soon' : '▶ Play'}</button>
-                    </div>
-                `;
-            }
-            grid.innerHTML = html;
-        }
-
         // ─── LAUNCH GAME ──────────────────────────────────────────────
         function launchGame(file, blank) {
             if (blank || file === '#') {
-                // Show a playful alert for blank slots
                 alert('🎮 This slot is empty!\n\nEdit the GAMES array in the code to add your game.\n\n💡 Look for the "EDIT THIS ARRAY" comment.');
                 return;
             }
             window.location.href = file;
         }
 
-        // ─── EVENT DELEGATION ─────────────────────────────────────────
-        grid.addEventListener('click', function(e) {
-            const card = e.target.closest('.game-card');
-            if (!card) return;
+        // ─── shared drag-tracking state (used to distinguish tap vs drag) ──
+        const dragState = { distance: 0 };
+        const CLICK_THRESHOLD = 6;
 
-            const file = card.dataset.file;
-            const blank = card.dataset.blank === 'true';
-            launchGame(file, blank);
+        // ─── BUILD DOM ELEMENT FOR A CARD ──────────────────────────────
+        function buildCardElement(game) {
+            const el = document.createElement('div');
+            el.className = 'game-card';
+            el.dataset.id = game.id;
+
+            const newBadge = game.new ? '<span class="badge-empty">✦ new</span>' : '';
+            const emptyBadge = game.blank ? '<span class="badge-empty">⏳ empty</span>' : '';
+
+            el.innerHTML = `
+                ${newBadge}
+                ${emptyBadge}
+                <div class="icon">${game.icon}</div>
+                <div class="name">${game.name}</div>
+                <div class="subtitle">${game.subtitle}</div>
+                <button class="play-btn">${game.blank ? '⏳ Coming Soon' : '▶ Play'}</button>
+            `;
+
+            el.addEventListener('click', () => {
+                if (dragState.distance > CLICK_THRESHOLD) return; // was a drag, not a tap
+                launchGame(game.file, game.blank);
+            });
+            el.setAttribute('role', 'button');
+            el.setAttribute('tabindex', '0');
+            el.setAttribute('aria-label', (game.blank ? 'Empty slot - ' : '') + game.name);
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    launchGame(game.file, game.blank);
+                }
+            });
+
+            return el;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  🌐  NEON EARTH + BUTTONS WRAPPED AROUND IT
+        //  (three.js core only — no extra CDN dependency, so it can't
+        //   silently fail to load like a second external script could)
+        // ═══════════════════════════════════════════════════════════════
+        const stage = document.getElementById('globeStage');
+        const glCanvas = document.getElementById('earth-gl');
+        const cardsLayer = document.getElementById('cards-layer');
+
+        if (!stage || typeof THREE === 'undefined') {
+            cardsLayer.style.pointerEvents = 'auto';
+            cardsLayer.style.position = 'relative';
+            cardsLayer.style.display = 'flex';
+            cardsLayer.style.flexWrap = 'wrap';
+            cardsLayer.style.gap = '16px';
+            cardsLayer.style.justifyContent = 'center';
+            cardsLayer.style.padding = '30px';
+            GAMES.forEach(game => {
+                const el = buildCardElement(game);
+                el.style.position = 'relative';
+                el.style.margin = '0';
+                cardsLayer.appendChild(el);
+            });
+            return;
+        }
+
+        function getStageSize() {
+            return { w: stage.clientWidth || 1, h: stage.clientHeight || 1 };
+        }
+        let { w: stageW, h: stageH } = getStageSize();
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, stageW / stageH, 0.1, 100);
+        camera.position.set(0, 0, 5.4);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, alpha: true, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(stageW, stageH);
+
+        // globe group — everything that spins together
+        const globe = new THREE.Group();
+        scene.add(globe);
+
+        // ── smaller neon earth: dark core + double wireframe ──
+        const EARTH_R = 1.05;
+
+        const fillMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_R * 0.98, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x140f2c, transparent: true, opacity: 0.92 })
+        );
+        globe.add(fillMesh);
+
+        const wireMesh = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(EARTH_R, 3),
+            new THREE.MeshBasicMaterial({ color: 0xf5c542, wireframe: true, transparent: true, opacity: 0.65 })
+        );
+        globe.add(wireMesh);
+
+        const wireMesh2 = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(EARTH_R * 1.01, 1),
+            new THREE.MeshBasicMaterial({ color: 0xff8a5c, wireframe: true, transparent: true, opacity: 0.35 })
+        );
+        globe.add(wireMesh2);
+
+        // ── fresnel-style glow shell ──
+        const glowMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                glowColorA: { value: new THREE.Color(0xf5c542) },
+                glowColorB: { value: new THREE.Color(0x7b3fe4) }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vPos;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vPos = mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                varying vec3 vPos;
+                uniform vec3 glowColorA;
+                uniform vec3 glowColorB;
+                void main() {
+                    vec3 viewDir = normalize(-vPos);
+                    float rim = pow(1.0 - abs(dot(viewDir, vNormal)), 2.6);
+                    vec3 color = mix(glowColorA, glowColorB, 0.5 + 0.5 * vNormal.y);
+                    gl_FragColor = vec4(color, rim * 0.9);
+                }
+            `,
+            transparent: true,
+            side: THREE.FrontSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const glowMesh = new THREE.Mesh(new THREE.SphereGeometry(EARTH_R * 1.22, 48, 48), glowMaterial);
+        globe.add(glowMesh);
+
+        // ── thin tilted neon ring ──
+        const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(EARTH_R * 1.7, 0.01, 8, 120),
+            new THREE.MeshBasicMaterial({ color: 0xf5c542, transparent: true, opacity: 0.35 })
+        );
+        ring.rotation.x = Math.PI / 2.4;
+        globe.add(ring);
+
+        // ── faint fixed background starfield ──
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 300;
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            const r = 12 + Math.random() * 8;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            starPos[i * 3 + 2] = r * Math.cos(phi) - 4;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ size: 0.04, color: 0xfff3d0, transparent: true, opacity: 0.6 });
+        scene.add(new THREE.Points(starGeo, starMat));
+
+        // ── distribute cards around the sphere (Fibonacci sphere) ──
+        function fibonacciPoint(i, n) {
+            const golden = Math.PI * (3 - Math.sqrt(5));
+            const y = 1 - (i / (n - 1)) * 2;
+            const radiusAtY = Math.sqrt(1 - y * y);
+            const theta = golden * i;
+            return new THREE.Vector3(Math.cos(theta) * radiusAtY, y, Math.sin(theta) * radiusAtY);
+        }
+
+        const CARD_R = EARTH_R * 2.35;
+        const cards = GAMES.map((game, i) => {
+            const normal = fibonacciPoint(i, GAMES.length);
+            const element = buildCardElement(game);
+            cardsLayer.appendChild(element);
+            return { normal, element, worldPos: new THREE.Vector3() };
         });
 
-        // Keyboard support (Enter/Space on cards)
-        grid.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                const card = e.target.closest('.game-card');
-                if (!card) return;
+        // ── rotation state: drag + inertia + gentle auto-spin ──
+        const rot = { x: 0.18, y: 0 };
+        const vel = { x: 0, y: 0 };
+        let autoSpin = 0;
+        let isPointerDown = false;
+        let lastX = 0, lastY = 0;
 
-                e.preventDefault();
-                const file = card.dataset.file;
-                const blank = card.dataset.blank === 'true';
-                launchGame(file, blank);
+        function onPointerDown(e) {
+            isPointerDown = true;
+            stage.classList.add('dragging');
+            dragState.distance = 0;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            stage.setPointerCapture(e.pointerId);
+        }
+        function onPointerMove(e) {
+            if (!isPointerDown) return;
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+            dragState.distance += Math.abs(dx) + Math.abs(dy);
+            vel.y = dx * 0.006;
+            vel.x = dy * 0.006;
+            rot.y += vel.y;
+            rot.x = Math.max(-1.1, Math.min(1.1, rot.x + vel.x));
+            lastX = e.clientX;
+            lastY = e.clientY;
+        }
+        function onPointerUp(e) {
+            isPointerDown = false;
+            stage.classList.remove('dragging');
+            try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
+
+        stage.addEventListener('pointerdown', onPointerDown);
+        stage.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+
+        function onResize() {
+            const size = getStageSize();
+            stageW = size.w;
+            stageH = size.h;
+            camera.aspect = stageW / stageH;
+            camera.updateProjectionMatrix();
+            renderer.setSize(stageW, stageH);
+        }
+        window.addEventListener('resize', onResize);
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(onResize).observe(stage);
+        }
+
+        const clock = new THREE.Clock();
+        const camDir = new THREE.Vector3();
+        const rotatedNormal = new THREE.Vector3();
+        const euler = new THREE.Euler();
+
+        function animate() {
+            const dt = Math.min(clock.getDelta(), 0.1);
+
+            if (!isPointerDown) {
+                autoSpin += dt * 0.1;
+                // gentle momentum decay after a drag
+                vel.x *= 0.92;
+                vel.y *= 0.92;
+                rot.y += vel.y + dt * 0.06; // slow constant drift so it always keeps turning
+                rot.x = Math.max(-1.1, Math.min(1.1, rot.x + vel.x));
             }
-        });
 
-        // ─── TOUCH FEEDBACK ────────────────────────────────────────────
-        grid.addEventListener('touchstart', function(e) {
-            const card = e.target.closest('.game-card');
-            if (card) {
-                card.style.transform = 'scale(0.96)';
-            }
-        }, { passive: true });
+            globe.rotation.y = rot.y;
+            globe.rotation.x = rot.x;
 
-        grid.addEventListener('touchend', function(e) {
-            const card = e.target.closest('.game-card');
-            if (card) {
-                card.style.transform = '';
-            }
-        }, { passive: true });
+            ring.rotation.z += dt * 0.05;
 
-        // ─── INIT ──────────────────────────────────────────────────────
-        renderGames();
-        console.log('🎮 Gam Lub loaded');
-        console.log(`📁 ${GAMES.length} game slots (${GAMES.filter(g => g.blank).length} blank)`);
+            euler.set(rot.x, rot.y, 0, 'XYZ');
+            camDir.copy(camera.position).normalize();
 
+            cards.forEach((card) => {
+                rotatedNormal.copy(card.normal).applyEuler(euler);
+                card.worldPos.copy(rotatedNormal).multiplyScalar(CARD_R);
+
+                // project 3D world position to 2D screen space using the same camera
+                const projected = card.worldPos.clone().project(camera);
+                const screenX = (projected.x * 0.5 + 0.5) * stageW;
+                const screenY = (-projected.y * 0.5 + 0.5) * stageH;
+
+                const facing = rotatedNormal.dot(camDir);
+                const opacity = Math.max(0, Math.min(1, (facing + 0.05) / 0.4));
+                const scale = 0.72 + facing * 0.35;
+
+                card.element.style.transform =
+                    `translate3d(${screenX.toFixed(1)}px, ${screenY.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+                card.element.style.opacity = opacity.toFixed(2);
+                card.element.style.pointerEvents = facing > 0.05 ? 'auto' : 'none';
+                card.element.style.zIndex = String(Math.round(facing * 1000) + 1000);
+            });
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        console.log('🎮 Gam Lub loaded — earth stage with', GAMES.length, 'cards');
     })();
 </script>
 
 </body>
-  </html>
+</html>
