@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Psychotic Corridor</title>
+  <style>
+    body { 
+      margin:0; overflow:hidden; background:#000; touch-action: none;
+      display: flex; justify-content: center; align-items: center;
+      height: 100vh;
+    }
+    canvas { display: block; }
+    
+    #ui { 
+      position:absolute; top:15px; left:15px; color:#ff3333; font-family:monospace; 
+      text-shadow:0 0 15px #ff0000; font-size:16px; z-index:100; pointer-events:none;
+    }
+
+    /* Virtual Joystick */
+    #joystick-container {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 0, 0, 0.15);
+      border: 3px solid #ff3333;
+      border-radius: 50%;
+      z-index: 200;
+      touch-action: none;
+    }
+    #joystick-knob {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: #ff3333;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 15px #ff6666;
+    }
+
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: rgba(5, 0, 0, 0.88);
+      color: #ff3333;
+      font-family: monospace;
+      text-align: center;
+      text-shadow: 0 0 15px #ff0000;
+      padding: 20px;
+    }
+    #start-overlay {
+      cursor: pointer;
+    }
+    #start-overlay h1 {
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      animation: pulse 1.6s infinite;
+    }
+    #start-overlay p {
+      font-size: 0.85rem;
+      opacity: 0.75;
+      max-width: 320px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    #gameover-overlay {
+      display: none;
+    }
+    #gameover-overlay h1 {
+      font-size: 1.8rem;
+      letter-spacing: 3px;
+    }
+    #gameover-overlay button {
+      background: #ff3333;
+      color: #000;
+      border: none;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 10px 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    #gameover-overlay button:active {
+      transform: scale(0.96);
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">SANITY: <span id="sanity">88</span>% — DON'T STOP</div>
+
+  <div id="joystick-container">
+    <div id="joystick-knob"></div>
+  </div>
+
+  <div id="start-overlay" class="overlay">
+    <h1>◈ PSYCHOTIC CORRIDOR ◈</h1>
+    <p>Desktop: click to lock your mouse, WASD to walk, mouse to look.<br>
+       Mobile: use the joystick to walk, drag anywhere else to look.<br>
+       Keep moving. Something is behind you.</p>
+    <p style="color:#ff6666;">— TAP / CLICK TO ENTER —</p>
+  </div>
+
+  <div id="gameover-overlay" class="overlay">
+    <h1>YOU LOST YOUR MIND</h1>
+    <p>The corridor never ends. It just waits for the next one.</p>
+    <button id="retry-btn">TRY AGAIN</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x1a0000, 18, 70);
+
+    const camera = new THREE.PerspectiveCamera(76, window.innerWidth / window.innerHeight, 0.1, 300);
+    const renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new PointerLockControls(camera, document.body);
+    camera.rotation.order = 'YXZ';
+
+    function resize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ── Lighting ──
+    scene.add(new THREE.AmbientLight(0x220000, 0.2));
+    const horrorLight = new THREE.PointLight(0xff2222, 4, 80);
+    horrorLight.position.set(0, 8, 20);
+    scene.add(horrorLight);
+
+    // a dim light that follows the player so the corridor right around you is visible
+    const followLight = new THREE.PointLight(0xff4444, 1.1, 14);
+    scene.add(followLight);
+
+    // ── Corridor ──
+    const segments = [];
+    const segmentLength = 40;
+    const corridorTotalLength = segmentLength * 8;
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x550000, roughness: 0.95 });
+
+    function createSegment(z) {
+      const group = new THREE.Group();
+      const wallGeo = new THREE.PlaneGeometry(1, 16);
+
+      const left = new THREE.Mesh(wallGeo, wallMat);
+      left.scale.x = segmentLength;
+      left.position.set(-10, 8, z - segmentLength / 2);
+      left.rotation.y = Math.PI / 2;
+      group.add(left);
+
+      const right = left.clone();
+      right.position.x = 10;
+      group.add(right);
+
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(22, segmentLength),
+        new THREE.MeshStandardMaterial({ color: 0x0f0000, roughness: 1 }));
+      floor.rotation.x = Math.PI / 2;
+      floor.position.set(0, 0, z - segmentLength / 2);
+      group.add(floor);
+
+      const ceiling = floor.clone();
+      ceiling.position.y = 16;
+      ceiling.rotation.x = -Math.PI / 2;
+      group.add(ceiling);
+
+      scene.add(group);
+      return { group, z };
+    }
+
+    for (let i = 0; i < 8; i++) segments.push(createSegment(-i * segmentLength));
+
+    camera.position.set(0, 1.8, 10);
+
+    // ── Virtual Joystick (movement) ──
+    const knob = document.getElementById('joystick-knob');
+    const container = document.getElementById('joystick-container');
+    let moveSpeed = { x: 0, z: 0 };
+    let isDragging = false;
+
+    container.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
+    container.addEventListener('touchend', () => {
+      isDragging = false;
+      moveSpeed = { x: 0, z: 0 };
+      knob.style.transform = 'translate(-50%, -50%)';
+    });
+    container.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + 60;
+      const centerY = rect.top + 60;
+
+      let dx = e.touches[0].clientX - centerX;
+      let dy = e.touches[0].clientY - centerY;
+
+      const dist = Math.min(45, Math.sqrt(dx * dx + dy * dy));
+      const angle = Math.atan2(dy, dx);
+
+      dx = Math.cos(angle) * dist;
+      dy = Math.sin(angle) * dist;
+
+      knob.style.transform = `translate(${dx - 25}px, ${dy - 25}px)`;
+
+      moveSpeed.x = dx / 45;
+      moveSpeed.z = dy / 45;
+    });
+
+    // ── Keyboard movement (desktop) ──
+    const keys = { forward: false, back: false, left: false, right: false };
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.back = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.back = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+    });
+
+    // ── Touch-drag look (mobile), ignoring the joystick zone ──
+    let lookTouchId = null;
+    let lastLookX = 0, lastLookY = 0;
+    let pitch = 0;
+
+    window.addEventListener('touchstart', (e) => {
+      for (const t of e.changedTouches) {
+        const rect = container.getBoundingClientRect();
+        const inJoystick = t.clientX >= rect.left && t.clientX <= rect.right &&
+                            t.clientY >= rect.top && t.clientY <= rect.bottom;
+        if (!inJoystick && lookTouchId === null) {
+          lookTouchId = t.identifier;
+          lastLookX = t.clientX;
+          lastLookY = t.clientY;
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (controls.isLocked) return; // desktop pointer-lock already owns look
+      for (const t of e.changedTouches) {
+        if (t.identifier === lookTouchId) {
+          const dx = t.clientX - lastLookX;
+          const dy = t.clientY - lastLookY;
+          camera.rotation.y -= dx * 0.0035;
+          pitch = Math.max(-1.2, Math.min(1.2, pitch - dy * 0.0035));
+          camera.rotation.x = pitch;
+          lastLookX = t.clientX;
+          lastLookY = t.clientY;
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === lookTouchId) lookTouchId = null;
+      }
+    });
+
+    // ── Start / pointer-lock overlay ──
+    const startOverlay = document.getElementById('start-overlay');
+    startOverlay.addEventListener('click', () => {
+      controls.lock();
+      startOverlay.classList.add('hidden');
+      started = true;
+    });
+    controls.addEventListener('unlock', () => {
+      if (!gameOver) startOverlay.classList.remove('hidden');
+    });
+
+    // ── Game state ──
+    let sanity = 88;
+    let time = 0;
+    let scareTimer = 0;
+    let nextScareAt = 5 + Math.random() * 4;
+    let gameOver = false;
+    let started = false;
+
+    const sanityEl = document.getElementById('sanity');
+    const gameoverOverlay = document.getElementById('gameover-overlay');
+    document.getElementById('retry-btn').addEventListener('click', () => location.reload());
+
+    function doJumpscare() {
+      horrorLight.intensity = 25;
+      horrorLight.color.setHex(0xffffff);
+      camera.position.z += 0.6;
+      camera.rotation.z = 0.12;
+      setTimeout(() => {
+        horrorLight.intensity = 4;
+        horrorLight.color.setHex(0xff2222);
+        camera.rotation.z = 0;
+      }, 180);
+    }
+
+    function endGame() {
+      gameOver = true;
+      controls.unlock();
+      startOverlay.classList.add('hidden');
+      gameoverOverlay.style.display = 'flex';
+    }
+
+    // ── Animation ──
+    const clock = new THREE.Clock();
+    const MOVE_SPEED = 6;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      time += dt;
+
+      if (started && !gameOver) {
+        // ── movement: keyboard (desktop) + joystick (mobile) combined ──
+        let forwardInput = 0;
+        let strafeInput = 0;
+
+        if (keys.forward) forwardInput += 1;
+        if (keys.back) forwardInput -= 1;
+        if (keys.right) strafeInput += 1;
+        if (keys.left) strafeInput -= 1;
+
+        // joystick: pushing the knob up (negative dy) means walk forward
+        forwardInput += -moveSpeed.z;
+        strafeInput += moveSpeed.x;
+
+        controls.moveForward(forwardInput * MOVE_SPEED * dt);
+        controls.moveRight(strafeInput * MOVE_SPEED * dt);
+
+        // keep the player inside the corridor walls
+        camera.position.x = Math.max(-8, Math.min(8, camera.position.x));
+        camera.position.y = 1.8;
+
+        // ── recycle corridor segments behind the player for an endless loop ──
+        for (const seg of segments) {
+          const worldZ = seg.z + seg.group.position.z;
+          if (worldZ > camera.position.z + segmentLength) {
+            seg.group.position.z -= corridorTotalLength;
+          }
+        }
+
+        // ── light follows the player ──
+        followLight.position.set(camera.position.x, 6, camera.position.z - 4);
+
+        // ── ambient flicker (skipped for an instant right after a jumpscare) ──
+        if (horrorLight.intensity < 6) {
+          horrorLight.intensity = 3.5 + Math.sin(time * 9) * 0.6 + Math.random() * 0.3;
+        }
+
+        // ── sanity drains over time ──
+        sanity -= dt * 0.6;
+
+        // ── random jumpscares ──
+        scareTimer += dt;
+        if (scareTimer >= nextScareAt) {
+          doJumpscare();
+          sanity -= 9;
+          scareTimer = 0;
+          nextScareAt = 5 + Math.random() * 7;
+        }
+
+        sanity = Math.max(0, sanity);
+        sanityEl.textContent = Math.round(sanity);
+
+        if (sanity <= 0) endGame();
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
