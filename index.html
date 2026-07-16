@@ -391,10 +391,6 @@
                 <button class="play-btn">${game.blank ? '⏳ Coming Soon' : '▶ Play'}</button>
             `;
 
-            el.addEventListener('click', () => {
-                if (dragState.distance > CLICK_THRESHOLD) return; // was a drag, not a tap
-                launchGame(game.file, game.blank);
-            });
             el.setAttribute('role', 'button');
             el.setAttribute('tabindex', '0');
             el.setAttribute('aria-label', (game.blank ? 'Empty slot - ' : '') + game.name);
@@ -581,6 +577,19 @@
             isPointerDown = false;
             stage.classList.remove('dragging');
             try { stage.releasePointerCapture(e.pointerId); } catch (err) {}
+
+            // Because the stage captures the pointer during drags, a native
+            // "click" event on a card never fires (it gets retargeted to the
+            // stage). So on a small-movement pointerup, hit-test manually
+            // and launch the game that way instead.
+            if (dragState.distance <= CLICK_THRESHOLD) {
+                const target = document.elementFromPoint(e.clientX, e.clientY);
+                const cardEl = target && target.closest ? target.closest('.game-card') : null;
+                if (cardEl) {
+                    const game = GAMES.find(g => g.id === cardEl.dataset.id);
+                    if (game) launchGame(game.file, game.blank);
+                }
+            }
         }
 
         stage.addEventListener('pointerdown', onPointerDown);
