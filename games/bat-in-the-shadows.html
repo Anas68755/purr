@@ -3,30 +3,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Bat in the Shadows — Scroll Fly</title>
+    <title>Bat in the Shadows — Key Look</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body { overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; cursor: none; }
         canvas { display: block; }
-
-        #crosshair {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 20px; height: 20px; pointer-events: none; z-index: 25;
-            opacity: 0; transition: opacity 0.3s;
-        }
-        #crosshair.show { opacity: 1; }
-        #crosshair::before, #crosshair::after {
-            content: ''; position: absolute; background: rgba(255,255,255,0.6);
-        }
-        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
-        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
-
-        #scrollHint {
-            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
-            color: rgba(255,255,255,0.4); font-size: 12px; pointer-events: none; z-index: 20;
-            opacity: 0; transition: opacity 0.5s;
-        }
-        #scrollHint.show { opacity: 1; }
 
         #hud {
             position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10;
@@ -116,16 +97,11 @@
         @media (hover: none) and (pointer: coarse) {
             #touchControls { display: flex; }
             #controlsHint { display: none !important; }
-            #scrollHint { display: none !important; }
             body { cursor: auto !important; }
-            #crosshair { display: none !important; }
         }
     </style>
 </head>
 <body>
-
-    <div id="crosshair"><div></div></div>
-    <div id="scrollHint">Scroll to fly up/down</div>
 
     <div id="hud">
         <div id="hud-left">
@@ -135,7 +111,7 @@
             </div>
         </div>
         <div id="hud-right">
-            <div class="badge" id="controlsHint">WASD · Mouse look · Scroll fly · ESC pause</div>
+            <div class="badge" id="controlsHint">WASD move · Q/E look · Scroll fly · ESC pause</div>
             <div class="badge">Best: <span id="highScoreVal">0</span></div>
             <div class="badge" id="comboBadge">🔥 Combo x<span id="comboVal">0</span></div>
         </div>
@@ -146,7 +122,7 @@
     <div id="startScreen" class="screen show">
         <h1>🦇 Bat in the Shadows</h1>
         <p>Explore a vast luminous cavern. Avoid sunbeams. Collect treasures.</p>
-        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Mouse to look · Scroll wheel to fly up/down · ESC pause</p>
+        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · ESC pause</p>
         <button class="btn" id="startBtn">Enter the World</button>
     </div>
 
@@ -598,13 +574,11 @@
 
         document.getElementById('highScoreVal').textContent = highScore;
 
-        // ===== MOUSE LOOK STATE =====
-        let mouseX = 0, mouseY = 0;
+        // ===== CAMERA ROTATION STATE =====
         let cameraYaw = 0, cameraPitch = 0;
-        const mouseSensitivity = 0.002;
-        let pointerLocked = false;
+        const keyLookSpeed = 2.0; // radians per second
 
-        // ===== SCROLL STATE (NEW) =====
+        // ===== SCROLL STATE =====
         let scrollVelocity = 0;
         const scrollForce = 0.08;
         const scrollDecay = 0.85;
@@ -621,17 +595,9 @@
         });
         document.addEventListener('keyup', e => { keys[e.code] = false; });
 
-        // Mouse movement for look
-        document.addEventListener('mousemove', e => {
-            if (!pointerLocked || gameState !== 'playing') return;
-            mouseX += e.movementX * mouseSensitivity;
-            mouseY += e.movementY * mouseSensitivity;
-            mouseY = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, mouseY));
-        });
-
-        // ===== SCROLL WHEEL FOR ALTITUDE (NEW) =====
+        // ===== SCROLL WHEEL FOR ALTITUDE =====
         document.addEventListener('wheel', e => {
-            if (gameState !== 'playing' || !pointerLocked) return;
+            if (gameState !== 'playing') return;
             e.preventDefault();
             // Scroll up (negative deltaY) = fly up
             // Scroll down (positive deltaY) = fly down
@@ -639,24 +605,6 @@
             // Clamp max scroll impulse
             scrollVelocity = Math.max(-0.5, Math.min(0.5, scrollVelocity));
         }, { passive: false });
-
-        // Pointer lock
-        const canvasEl = renderer.domElement;
-        canvasEl.addEventListener('click', () => {
-            if (gameState === 'playing' && !pointerLocked) {
-                canvasEl.requestPointerLock();
-            }
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            pointerLocked = document.pointerLockElement === canvasEl;
-            document.getElementById('crosshair').classList.toggle('show', pointerLocked);
-            document.getElementById('scrollHint').classList.toggle('show', pointerLocked);
-        });
-
-        document.addEventListener('pointerlockerror', () => {
-            console.log('Pointer lock failed');
-        });
 
         const touchState = { x: 0, y: 0, up: false, down: false };
         const joyZone = document.getElementById('joyLeft');
@@ -690,7 +638,7 @@
             score = 0; health = 3; combo = 0; difficulty = 1;
             beamTimer = 0; nextBeamTime = 2.5; invincibleTimer = 0; screenShake = 0;
             scrollVelocity = 0;
-            mouseX = 0; mouseY = 0; cameraYaw = 0; cameraPitch = 0;
+            cameraYaw = 0; cameraPitch = 0;
             batGroup.position.set(0, 5, 0);
             batGroup.rotation.set(0, 0, 0);
             velocity.set(0, 0, 0);
@@ -702,24 +650,20 @@
             setScreen('startScreen', false);
             setScreen('gameoverScreen', false);
             setScreen('pauseScreen', false);
-            setTimeout(() => canvasEl.requestPointerLock(), 100);
         }
 
         function setPause(p) {
             if (p) {
                 gameState = 'paused';
                 setScreen('pauseScreen', true);
-                document.exitPointerLock();
             } else {
                 gameState = 'playing';
                 setScreen('pauseScreen', false);
-                canvasEl.requestPointerLock();
             }
         }
 
         function gameOver() {
             gameState = 'gameover';
-            document.exitPointerLock();
             AudioSys.play('gameover');
             if (score > highScore) {
                 highScore = Math.floor(score);
@@ -785,7 +729,7 @@
             velocity.x += input.x * accel;
             velocity.z += input.z * accel;
 
-            // ===== SCROLL ALTITUDE (NEW) =====
+            // ===== SCROLL ALTITUDE =====
             // Apply scroll velocity with decay
             scrollVelocity *= scrollDecay;
             velocity.y += scrollVelocity * dt * 60;
@@ -968,8 +912,11 @@
         const camHeight = 4;
 
         function updateCamera(dt) {
-            cameraYaw += (mouseX - cameraYaw) * 0.1;
-            cameraPitch += (mouseY - cameraPitch) * 0.1;
+            // Key-based camera rotation (Q/E or Arrow Left/Right for yaw)
+            if (gameState === 'playing') {
+                if (keys['KeyQ'] || keys['ArrowLeft']) cameraYaw -= keyLookSpeed * dt;
+                if (keys['KeyE'] || keys['ArrowRight']) cameraYaw += keyLookSpeed * dt;
+            }
 
             const sinYaw = Math.sin(cameraYaw);
             const cosYaw = Math.cos(cameraYaw);
