@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Bat in the Shadows — Open World</title>
+    <title>Bat in the Shadows — Optimized</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body { overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; }
@@ -202,13 +202,12 @@
             }
         };
 
-        // ===== Scene — HUGE & BRIGHT =====
+        // ===== Scene =====
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1e1e3a);
-        // Light fog for huge world depth
         scene.fog = new THREE.FogExp2(0x2a2a50, 0.006);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -218,14 +217,13 @@
         renderer.toneMappingExposure = 1.4;
         document.body.appendChild(renderer.domElement);
 
-        // ===== Terrain Generation =====
+        // ===== Terrain (REDUCED POLY) =====
         const worldSize = 400;
         const worldHalf = worldSize / 2;
-        const segments = 128;
-        const terrainGeo = new THREE.PlaneGeometry(worldSize, worldSize, segments, segments);
+        const seg = 64; // was 128 — half the vertices
+        const terrainGeo = new THREE.PlaneGeometry(worldSize, worldSize, seg, seg);
         const tPos = terrainGeo.attributes.position;
 
-        // Simple multi-octave noise using sin/cos
         function terrainHeight(x, z) {
             let y = 0;
             y += Math.sin(x * 0.015) * Math.cos(z * 0.015) * 4;
@@ -236,7 +234,7 @@
         }
 
         for (let i = 0; i < tPos.count; i++) {
-            const x = tPos.getX(i), z = tPos.getY(i); // plane is XY before rotation
+            const x = tPos.getX(i), z = tPos.getY(i);
             tPos.setZ(i, terrainHeight(x, z));
         }
         terrainGeo.computeVertexNormals();
@@ -249,8 +247,8 @@
         terrain.receiveShadow = true;
         scene.add(terrain);
 
-        // ===== Ceiling (far above) =====
-        const ceilGeo = new THREE.PlaneGeometry(worldSize, worldSize, 64, 64);
+        // ===== Ceiling (LOWER POLY) =====
+        const ceilGeo = new THREE.PlaneGeometry(worldSize, worldSize, 32, 32);
         const cPos = ceilGeo.attributes.position;
         for (let i = 0; i < cPos.count; i++) {
             const x = cPos.getX(i), y = cPos.getY(i);
@@ -263,69 +261,95 @@
         ceiling.position.y = 35;
         scene.add(ceiling);
 
-        // ===== Scattered World Objects =====
-        // Crystal pillars
-        const pillarGeo = new THREE.CylinderGeometry(0.3, 0.8, 6, 6);
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4a7a, roughness: 0.8, flatShading: true });
-        const glowPillarMat = new THREE.MeshStandardMaterial({ color: 0x6644aa, emissive: 0x442288, emissiveIntensity: 0.4, roughness: 0.6, flatShading: true });
-
-        for (let i = 0; i < 120; i++) {
-            const x = (Math.random() - 0.5) * worldSize * 0.9;
-            const z = (Math.random() - 0.5) * worldSize * 0.9;
-            const h = terrainHeight(x, z);
-            const isGlowing = Math.random() > 0.7;
-            const mesh = new THREE.Mesh(pillarGeo, isGlowing ? glowPillarMat : pillarMat);
-            mesh.position.set(x, h + 3, z);
-            mesh.scale.set(1 + Math.random(), 0.5 + Math.random() * 1.5, 1 + Math.random());
-            mesh.rotation.y = Math.random() * Math.PI;
-            mesh.castShadow = true; mesh.receiveShadow = true;
-            scene.add(mesh);
-            if (isGlowing) {
-                const pl = new THREE.PointLight(0x8866ff, 1.5, 20);
-                pl.position.set(x, h + 5, z);
-                scene.add(pl);
-            }
-        }
-
-        // Rock clusters
+        // ===== INSTANCED ROCKS (80 instead of 200, 1 draw call) =====
         const rockGeo = new THREE.DodecahedronGeometry(1, 0);
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3a5a, roughness: 0.9, flatShading: true });
-        for (let i = 0; i < 200; i++) {
+        const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 80);
+        rockMesh.receiveShadow = true;
+        rockMesh.castShadow = false; // rocks don't cast — expensive and unnoticeable
+        const dummy = new THREE.Object3D();
+
+        for (let i = 0; i < 80; i++) {
             const x = (Math.random() - 0.5) * worldSize * 0.95;
             const z = (Math.random() - 0.5) * worldSize * 0.95;
             const h = terrainHeight(x, z);
-            const rock = new THREE.Mesh(rockGeo, rockMat);
-            rock.position.set(x, h + 0.5, z);
-            rock.scale.setScalar(0.5 + Math.random() * 2);
-            rock.rotation.set(Math.random(), Math.random(), Math.random());
-            rock.castShadow = true; rock.receiveShadow = true;
-            scene.add(rock);
+            dummy.position.set(x, h + 0.5, z);
+            dummy.scale.setScalar(0.5 + Math.random() * 2);
+            dummy.rotation.set(Math.random(), Math.random(), Math.random());
+            dummy.updateMatrix();
+            rockMesh.setMatrixAt(i, dummy.matrix);
         }
+        rockMesh.instanceMatrix.needsUpdate = true;
+        scene.add(rockMesh);
 
-        // Giant mushrooms
-        const stemGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6);
-        const capGeo = new THREE.SphereGeometry(0.8, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-        const stemMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.9 });
-        const capMat = new THREE.MeshStandardMaterial({ color: 0xff6688, emissive: 0x441122, emissiveIntensity: 0.2, roughness: 0.7 });
+        // ===== INSTANCED PILLARS (60 total, 2 draw calls) =====
+        const pillarGeo = new THREE.CylinderGeometry(0.3, 0.8, 6, 6);
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4a7a, roughness: 0.8, flatShading: true });
+        const glowPillarMat = new THREE.MeshStandardMaterial({ color: 0x6644aa, emissive: 0x442288, emissiveIntensity: 0.5, roughness: 0.6, flatShading: true });
 
+        const pillarMesh = new THREE.InstancedMesh(pillarGeo, pillarMat, 40);
+        const glowPillarMesh = new THREE.InstancedMesh(pillarGeo, glowPillarMat, 20);
+        pillarMesh.castShadow = true; pillarMesh.receiveShadow = true;
+        glowPillarMesh.castShadow = true; glowPillarMesh.receiveShadow = true;
+
+        let pIdx = 0, gIdx = 0;
         for (let i = 0; i < 60; i++) {
             const x = (Math.random() - 0.5) * worldSize * 0.9;
             const z = (Math.random() - 0.5) * worldSize * 0.9;
             const h = terrainHeight(x, z);
-            const group = new THREE.Group();
-            const stem = new THREE.Mesh(stemGeo, stemMat);
-            stem.position.y = 0.75;
-            const cap = new THREE.Mesh(capGeo, capMat);
-            cap.position.y = 1.4;
-            group.add(stem, cap);
-            group.position.set(x, h, z);
-            group.scale.setScalar(0.8 + Math.random() * 1.5);
-            group.castShadow = true;
-            scene.add(group);
-        }
+            dummy.position.set(x, h + 3, z);
+            dummy.scale.set(1 + Math.random(), 0.5 + Math.random() * 1.5, 1 + Math.random());
+            dummy.rotation.set(0, Math.random() * Math.PI, 0);
+            dummy.updateMatrix();
 
-        // Ambient particles (fireflies / dust)
-        const dustCount = 2000;
+            if (Math.random() > 0.3 && gIdx < 20) {
+                glowPillarMesh.setMatrixAt(gIdx++, dummy.matrix);
+            } else if (pIdx < 40) {
+                pillarMesh.setMatrixAt(pIdx++, dummy.matrix);
+            }
+        }
+        pillarMesh.instanceMatrix.needsUpdate = true;
+        glowPillarMesh.instanceMatrix.needsUpdate = true;
+        scene.add(pillarMesh);
+        scene.add(glowPillarMesh);
+        // NO individual point lights for pillars — emissive material handles the glow look
+
+        // ===== INSTANCED MUSHROOMS (30, 2 draw calls) =====
+        const stemGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6);
+        const capGeo = new THREE.SphereGeometry(0.8, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.9 });
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xff6688, emissive: 0x441122, emissiveIntensity: 0.2, roughness: 0.7 });
+
+        const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, 30);
+        const capMesh = new THREE.InstancedMesh(capGeo, capMat, 30);
+        stemMesh.castShadow = true; capMesh.castShadow = true;
+
+        for (let i = 0; i < 30; i++) {
+            const x = (Math.random() - 0.5) * worldSize * 0.9;
+            const z = (Math.random() - 0.5) * worldSize * 0.9;
+            const h = terrainHeight(x, z);
+            const s = 0.8 + Math.random() * 1.5;
+
+            // Stem
+            dummy.position.set(x, h + 0.75 * s, z);
+            dummy.scale.set(s, s, s);
+            dummy.rotation.set(0, Math.random() * Math.PI, 0);
+            dummy.updateMatrix();
+            stemMesh.setMatrixAt(i, dummy.matrix);
+
+            // Cap
+            dummy.position.set(x, h + 1.4 * s, z);
+            dummy.scale.set(s, s * 0.6, s);
+            dummy.updateMatrix();
+            capMesh.setMatrixAt(i, dummy.matrix);
+        }
+        stemMesh.instanceMatrix.needsUpdate = true;
+        capMesh.instanceMatrix.needsUpdate = true;
+        scene.add(stemMesh);
+        scene.add(capMesh);
+
+        // ===== Dust (REDUCED to 800) =====
+        const dustCount = 800;
         const dustGeo = new THREE.BufferGeometry();
         const dustPos = new Float32Array(dustCount * 3);
         for (let i = 0; i < dustCount; i++) {
@@ -339,18 +363,17 @@
         }));
         scene.add(dustSystem);
 
-        // ===== Lighting — BRIGHT =====
+        // ===== Lighting (NO scattered point lights) =====
         scene.add(new THREE.AmbientLight(0x445588, 0.7));
         const sun = new THREE.DirectionalLight(0xffeedd, 0.6);
         sun.position.set(50, 40, -30);
         sun.castShadow = true;
-        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.mapSize.set(1024, 1024); // was 2048
         sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
         sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
         sun.shadow.camera.far = 100;
         scene.add(sun);
 
-        // Blue fill
         const fillLight = new THREE.DirectionalLight(0x6688cc, 0.3);
         fillLight.position.set(-40, 20, 40);
         scene.add(fillLight);
@@ -423,7 +446,6 @@
             }));
             mesh.scale.setScalar(type.size);
 
-            // Spawn near player but not too close
             const angle = Math.random() * Math.PI * 2;
             const dist = 15 + Math.random() * 40;
             const x = batGroup.position.x + Math.cos(angle) * dist;
@@ -478,7 +500,7 @@
         // ===== Beams =====
         const beams = [];
         const beamPool = [];
-        const MAX_BEAMS = 8;
+        const MAX_BEAMS = 6;
 
         function getBeam() {
             if (beamPool.length) return beamPool.pop();
@@ -502,7 +524,7 @@
             spot.position.set(0, 32, 0);
             spot.target.position.set(0, -5, 0);
             spot.castShadow = true;
-            spot.shadow.mapSize.set(512, 512);
+            spot.shadow.mapSize.set(256, 256); // LOW res for beams
             group.add(spot);
             group.add(spot.target);
 
@@ -519,12 +541,10 @@
         function spawnBeam() {
             if (beams.length >= MAX_BEAMS) return;
             const b = getBeam();
-            // Spawn near player so they're relevant
             const angle = Math.random() * Math.PI * 2;
             const dist = 8 + Math.random() * 25;
             b.x = batGroup.position.x + Math.cos(angle) * dist;
             b.z = batGroup.position.z + Math.sin(angle) * dist;
-            // Clamp to world
             b.x = THREE.MathUtils.clamp(b.x, -worldHalf + 10, worldHalf - 10);
             b.z = THREE.MathUtils.clamp(b.z, -worldHalf + 10, worldHalf - 10);
 
@@ -695,12 +715,10 @@
             batGroup.position.z += velocity.z;
             batGroup.position.y += velocity.y;
 
-            // Terrain collision
             const groundH = terrainHeight(batGroup.position.x, batGroup.position.z);
             batGroup.position.y = Math.max(batGroup.position.y, groundH + 0.8);
             batGroup.position.y = Math.min(batGroup.position.y, 32);
 
-            // World bounds (soft)
             batGroup.position.x = THREE.MathUtils.clamp(batGroup.position.x, -worldHalf + 2, worldHalf - 2);
             batGroup.position.z = THREE.MathUtils.clamp(batGroup.position.z, -worldHalf + 2, worldHalf - 2);
 
