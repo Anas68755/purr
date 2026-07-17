@@ -412,7 +412,7 @@
         try {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             masterGain = audioCtx.createGain();
-            masterGain.gain.value = 0.25;
+            masterGain.gain.value = 0.08;
             masterGain.connect(audioCtx.destination);
             reverbNode = audioCtx.createConvolver();
             const length = audioCtx.sampleRate * 1.5;
@@ -423,7 +423,7 @@
             }
             reverbNode.buffer = impulse;
             const reverbGain = audioCtx.createGain();
-            reverbGain.gain.value = 0.15;
+            reverbGain.gain.value = 0.05;
             reverbNode.connect(reverbGain);
             reverbGain.connect(masterGain);
         } catch(e) { console.warn('Audio unavailable'); }
@@ -447,7 +447,7 @@
             filter.frequency.exponentialRampToValueAtTime(80, now + 0.6);
             filter.Q.value = 5;
             gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.15 * (intensity || 1), now + 0.02);
+            gain.gain.linearRampToValueAtTime(0.04 * (intensity || 1), now + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
             osc.start(now); osc.stop(now + 0.6);
         } catch(e) {}
@@ -462,7 +462,7 @@
             osc.connect(gain); gain.connect(masterGain);
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(50 + Math.random() * 20, now);
-            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.setValueAtTime(0.02, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
             osc.start(now); osc.stop(now + 0.1);
         } catch(e) {}
@@ -478,7 +478,7 @@
                 osc.connect(gain); gain.connect(masterGain);
                 osc.frequency.setValueAtTime(freq, now + i * 0.1);
                 gain.gain.setValueAtTime(0, now + i * 0.1);
-                gain.gain.linearRampToValueAtTime(0.1, now + i * 0.1 + 0.02);
+                gain.gain.linearRampToValueAtTime(0.04, now + i * 0.1 + 0.02);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
                 osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.3);
             });
@@ -495,7 +495,7 @@
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(200, now);
             osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
-            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.setValueAtTime(0.03, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
             osc.start(now); osc.stop(now + 0.3);
         } catch(e) {}
@@ -1000,37 +1000,32 @@
             }
         });
 
-        particles = particles.filter(p => p.life > 0);
-        particles.forEach(p => {
-            p.x += p.vx; p.y += p.vy; p.life -= dt * 2;
-            ctx.globalAlpha = p.life;
+        particles.filter(p => p.life > 0).forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.life -= dt;
+            const px = p.x - camera.x; const py = p.y - camera.y;
+            if (px < -10 || px > canvas.width + 10 || py < -10 || py > canvas.height + 10) return;
+            ctx.globalAlpha = p.life / (0.8 + Math.random() * 0.4);
             ctx.fillStyle = p.color;
-            ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+            ctx.beginPath();
+            ctx.arc(px, py, p.size, 0, Math.PI * 2);
+            ctx.fill();
         });
         ctx.globalAlpha = 1;
+        particles = particles.filter(p => p.life > 0);
 
-        const ppx = player.x * tileSize - camera.x + tileSize / 2;
-        const ppy = player.y * tileSize - camera.y + tileSize / 2;
-        ctx.fillStyle = '#06b6d4';
-        ctx.shadowColor = '#06b6d4'; ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(ppx, ppy, tileSize / 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(ppx, ppy, tileSize / 2, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(6,182,212,0.1)';
-        ctx.fill();
+        const barCount = 24;
+        for (let i = 0; i < barCount; i++) {
+            const angle = (i / barCount) * Math.PI * 2;
+            const distance = 40 + Math.sin(gameTime * 2 + angle) * 10;
+            const height = Math.max(2, Math.sin(gameTime * 3 + angle * 2) * 20 + 10);
+            vizBars[i].style.height = height + 'px';
+        }
 
-        vizBars.forEach((bar, i) => {
-            const height = echoRipples.length > 0 ? 5 + Math.random() * 35 : 5 + Math.random() * 5;
-            bar.style.height = height + 'px';
-            bar.style.opacity = echoRipples.length > 0 ? 1 : 0.3;
-        });
-
-        if (!isGameOver && !levelComplete) requestAnimationFrame(gameLoop);
+        requestAnimationFrame(gameLoop);
     }
 
+    // ===== INIT =====
+    resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
