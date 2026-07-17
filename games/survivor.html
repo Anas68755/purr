@@ -6,11 +6,13 @@
 <title>Shadowrise — The Monster's Path</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root{--gold:#d4a84a;--gold-b:#f0c860;--crimson:#c83838;--crimson-d:#8a2020;--mana:#7a4ac8;--mana-b:#9a6ae8;--rage:#c84040;--bg:#0a0610;--panel:rgba(15,8,20,.92);--border:rgba(180,100,220,.35)}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);font-family:'Cinzel',serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;color:#e0d0e8}
-#game{display:block;width:100vw;height:100vh;background:#0a0610}
+#game{position:fixed;inset:0;opacity:0;pointer-events:none;z-index:-1}
+#glcanvas{display:block;width:100vw;height:100vh;background:#0a0610}
 
 #hud{position:fixed;inset:0;pointer-events:none;z-index:15}
 .stats-panel{position:absolute;top:16px;left:16px;background:var(--panel);border:2px solid var(--border);border-radius:8px;padding:12px 16px;min-width:260px;backdrop-filter:blur(4px)}
@@ -164,6 +166,7 @@ body{background:var(--bg);font-family:'Cinzel',serif;overflow:hidden;touch-actio
 </head>
 <body>
 <canvas id="game"></canvas>
+<canvas id="glcanvas"></canvas>
 
 <div id="hud">
   <div class="stats-panel"><div class="lvl-badge" id="lvl-badge">1</div><div class="pname">Grimm the Shadowborn</div>
@@ -237,9 +240,11 @@ body{background:var(--bg);font-family:'Cinzel',serif;overflow:hidden;touch-actio
 // ============== SHADOWRISE — THE MONSTER'S PATH (ULTIMATE EDITION) ==============
 const TILE=48,WORLD_W=128,WORLD_H=128;
 const cvs=document.getElementById('game'),ctx=cvs.getContext('2d');
+const glCanvas=document.getElementById('glcanvas');
 const mmCvs=document.getElementById('minimap'),mmCtx=mmCvs.getContext('2d');
 let W=innerWidth,H=innerHeight,DPR=devicePixelRatio||1;
-function resize(){W=innerWidth;H=innerHeight;DPR=devicePixelRatio||1;cvs.width=W*DPR;cvs.height=H*DPR;cvs.style.width=W+'px';cvs.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0)}
+let glInitialized=false;
+function resize(){W=innerWidth;H=innerHeight;DPR=devicePixelRatio||1;cvs.width=W*DPR;cvs.height=H*DPR;cvs.style.width=W+'px';cvs.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);if(glInitialized)resizeGLView()}
 addEventListener('resize',resize);resize();
 const rand=(a,b)=>Math.random()*(b-a)+a,randI=(a,b)=>Math.floor(rand(a,b+1));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
@@ -377,7 +382,8 @@ const player={
   upgrades:{weapon:0,armor:0,vitality:0,mana:0},
   points:0,str:0,vit:0,int:0,agi:0,
   rage:0,maxRage:100,rageMode:0,dashCD:0,dashTimer:0,dashAngle:0,
-  poison:0,poisonTick:0,oocTimer:0
+  poison:0,poisonTick:0,oocTimer:0,
+  craftAtk:0,craftDef:0,craftMaxHp:0,craftMaxMp:0,speedMult:1
 };
 let enemies=[],npcs=[],items=[],particles=[],dmgNums=[],interactables=[],projectiles=[];
 let currentNPC=null,dialogueNode='start',shopOpen=false,craftOpen=false,merchantOpen=false;
@@ -516,7 +522,7 @@ const RECIPES=[
   {id:'bone_armor',name:'Bone Armor',desc:'+8 Defense',cost:{leather:5,ore:2},result:{type:'stat',stat:'def',value:8}},
   {id:'vit_amulet',name:'Vitality Amulet',desc:'+50 Max HP',cost:{crystal:3,wood:5},result:{type:'stat',stat:'maxHp',value:50}},
   {id:'mana_heart',name:'Mana Heart',desc:'+20 Max Mana',cost:{crystal:2,leather:3},result:{type:'stat',stat:'maxMp',value:20}},
-  {id:'ring_haste',name:'Ring of Haste',desc:'+15% Move Speed',cost:{crystal:1,leather:2,ore:2},result:{type:'stat',stat:'speed',value:1.15}}
+  {id:'ring_haste',name:'Ring of Haste',desc:'+15% Move Speed',cost:{crystal:1,leather:2,ore:2},result:{type:'stat',stat:'speed',value:0.15}}
 ];
 function shopCost(it){return Math.floor(it.baseCost*Math.pow(it.scale,player.upgrades[it.id]))}
 
@@ -581,7 +587,8 @@ function saveGame(){
       level:player.level,xp:player.xp,xpNext:player.xpNext,atk:player.atk,def:player.def,
       coins:player.coins,potions:player.potions,greaterPotions:player.greaterPotions,
       ore:player.ore,wood:player.wood,leather:player.leather,crystal:player.crystal,
-      upgrades:player.upgrades,points:player.points,str:player.str,vit:player.vit,int:player.int,agi:player.agi
+      upgrades:player.upgrades,points:player.points,str:player.str,vit:player.vit,int:player.int,agi:player.agi,
+      craftAtk:player.craftAtk,craftDef:player.craftDef,craftMaxHp:player.craftMaxHp,craftMaxMp:player.craftMaxMp,speedMult:player.speedMult
     },
     quests:quests,
     interactables:interactables.map(it=>({x:it.x,y:it.y,opened:it.opened,cooldown:it.cooldown})),
@@ -598,6 +605,7 @@ function loadGame(slot){
   player.upgrades=save.player.upgrades;player.points=save.player.points;player.str=save.player.str;player.vit=save.player.vit;player.int=save.player.int;player.agi=save.player.agi;
   player.coins=save.player.coins;player.potions=save.player.potions;player.greaterPotions=save.player.greaterPotions;
   player.ore=save.player.ore;player.wood=save.player.wood;player.leather=save.player.leather;player.crystal=save.player.crystal;
+  player.craftAtk=save.player.craftAtk||0;player.craftDef=save.player.craftDef||0;player.craftMaxHp=save.player.craftMaxHp||0;player.craftMaxMp=save.player.craftMaxMp||0;player.speedMult=save.player.speedMult||1;
   player.attacking=false;player.atkCD=0;player.magicCD=0;player.novaCD=0;player.invuln=0;player.hurtFlash=0;player.slow=0;player.rage=0;player.rageMode=0;player.dashCD=0;player.poison=0;
   quests=save.quests;game.kills=save.kills||0;game.dayTime=save.dayTime||0;game.state='playing';
   currentSlot=slot;updatePlayerStats();
@@ -620,9 +628,12 @@ addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeDialogue();closeShop();closeCraft();closeMerchant();closeQuestLog()}
 });
 addEventListener('keyup',e=>{input.keys[e.key.toLowerCase()]=false});
-cvs.addEventListener('mousemove',e=>{input.mouse.x=e.clientX;input.mouse.y=e.clientY});
-cvs.addEventListener('mousedown',e=>{initAudio();input.mouse.down=true;if(!currentNPC&&!shopOpen&&!craftOpen&&!merchantOpen)attack()});
-cvs.addEventListener('mouseup',()=>{input.mouse.down=false});
+function onCanvasMouseMove(e){input.mouse.x=e.clientX;input.mouse.y=e.clientY}
+function onCanvasMouseDown(e){initAudio();input.mouse.down=true;if(!currentNPC&&!shopOpen&&!craftOpen&&!merchantOpen)attack()}
+function onCanvasMouseUp(){input.mouse.down=false}
+glCanvas.addEventListener('mousemove',onCanvasMouseMove);
+glCanvas.addEventListener('mousedown',onCanvasMouseDown);
+glCanvas.addEventListener('mouseup',onCanvasMouseUp);
 const jlEl=document.getElementById('joy-l'),jrEl=document.getElementById('joy-r');
 const jlK=jlEl.querySelector('.joy-knob'),jrK=jrEl.querySelector('.joy-knob');
 const jzl=document.getElementById('jzl'),jzr=document.getElementById('jzr');
@@ -669,10 +680,10 @@ document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',
 
 // ---- Player Stats & Leveling ----
 function updatePlayerStats(){
-  player.maxHp=80+player.level*15+player.vit*10+player.upgrades.vitality*20;
-  player.maxMp=50+player.level*8+player.int*5+player.upgrades.mana*10;
-  player.atk=18+player.level*3+player.str*2+player.upgrades.weapon*5;
-  player.def=4+Math.floor(player.level*0.5)+Math.floor(player.vit*0.5)+player.upgrades.armor*3;
+  player.maxHp=80+player.level*15+player.vit*10+player.upgrades.vitality*20+player.craftMaxHp;
+  player.maxMp=50+player.level*8+player.int*5+player.upgrades.mana*10+player.craftMaxMp;
+  player.atk=18+player.level*3+player.str*2+player.upgrades.weapon*5+player.craftAtk;
+  player.def=4+Math.floor(player.level*0.5)+Math.floor(player.vit*0.5)+player.upgrades.armor*3+player.craftDef;
   player.hp=Math.min(player.hp,player.maxHp);player.mp=Math.min(player.mp,player.maxMp);
 }
 function checkLevelUp(){
@@ -917,7 +928,16 @@ function craftItem(rcp){
   if(!Object.keys(rcp.cost).every(k=>player[k]>=rcp.cost[k])){sfx.deny();showToast("Missing materials");return}
   for(let k in rcp.cost)player[k]-=rcp.cost[k];
   if(rcp.result.type==='item'){player[rcp.result.item]+=rcp.result.count}
-  else if(rcp.result.type==='stat'){player[rcp.result.stat]+=rcp.result.value;if(rcp.result.stat==='maxHp')player.hp+=rcp.result.value;if(rcp.result.stat==='maxMp')player.mp+=rcp.result.value}
+  else if(rcp.result.type==='stat'){
+    const statMap={atk:'craftAtk',def:'craftDef',maxHp:'craftMaxHp',maxMp:'craftMaxMp',speed:'speedMult'};
+    const key=statMap[rcp.result.stat];
+    if(key){
+      player[key]+=rcp.result.value;
+      if(rcp.result.stat==='maxHp')player.hp+=rcp.result.value;
+      if(rcp.result.stat==='maxMp')player.mp+=rcp.result.value;
+      updatePlayerStats();
+    }
+  }
   sfx.buy();showToast(`Crafted ${rcp.name}!`);
   for(let i=0;i<15;i++)spawnParticle(player.x,player.y,'#f0c860',{vx:rand(-80,80),vy:rand(-120,-20),life:.8,size:rand(3,5)});
   renderCraft();
@@ -963,7 +983,7 @@ function updatePlayer(dt){
   const len=Math.hypot(mx,my);if(len>1){mx/=len;my/=len}
   player.moving=len>.1;
   
-  let baseSpeed=230*(player.slow>0?.6:1)*(1+player.agi*0.01);
+  let baseSpeed=230*(player.slow>0?.6:1)*(1+player.agi*0.01)*player.speedMult;
   if(player.rageMode>0)baseSpeed*=1.3;
   
   if(player.dashTimer>0){
@@ -1398,6 +1418,7 @@ function renderEverything(){
     renderProjectiles();renderFrontParticles();renderDmgNums();ctx.restore();
     renderBiomeTint();renderDayNight();renderVignette();renderHurtFlash();renderMinimap();renderUI();
   }
+  if(glInitialized)renderGL();
 }
 function gameOver(victory){game.state='gameover';const go=document.getElementById('game-over');document.getElementById('go-title').textContent=victory?'VICTORY!':'YOU FELL';go.classList.toggle('victory',victory);document.getElementById('go-stats').textContent=`Level ${player.level} — ${game.kills} slain — ${player.coins} coins`;go.classList.add('active')}
 function victory(){setTimeout(()=>gameOver(true),1500)}
@@ -1405,6 +1426,7 @@ function startNewGame(slot){
   initAudio();game.state='playing';game.time=0;game.kills=0;
   quests=JSON.parse(JSON.stringify(defaultQuests));
   player.level=1;player.xp=0;player.xpNext=100;player.coins=0;player.potions=3;player.greaterPotions=0;player.ore=0;player.wood=0;player.leather=0;player.crystal=0;player.attacking=false;player.atkCD=0;player.magicCD=0;player.novaCD=0;player.invuln=0;player.hurtFlash=0;player.slow=0;player.rage=0;player.rageMode=0;player.dashCD=0;player.upgrades={weapon:0,armor:0,vitality:0,mana:0};player.points=0;player.str=0;player.vit=0;player.int=0;player.agi=0;player.poison=0;
+  player.craftAtk=0;player.craftDef=0;player.craftMaxHp=0;player.craftMaxMp=0;player.speedMult=1;
   player.x=63*TILE;player.y=65*TILE;player.vx=0;player.vy=0;
   updatePlayerStats();player.hp=player.maxHp;player.mp=player.maxMp;
   genWorld();initEntities();
@@ -1417,6 +1439,128 @@ document.getElementById('restart-btn').addEventListener('click',()=>{
   document.getElementById('title-screen').classList.remove('hidden');
   game.state='title';updateSaveSlotsUI();
 });
+
+// ================= WebGL / three.js compositor =================
+// The existing 2D canvas (`cvs`/`ctx`) still does all game drawing exactly as before —
+// every tile, sprite, and effect above is untouched. Each frame that finished 2D
+// composite is uploaded as a live texture onto a screen-aligned plane and rendered
+// through a genuine three.js WebGL pipeline, with an additive glow layer on top for
+// effects a flat 2D canvas can't blend as richly (magic bolts, boss/elite auras,
+// rage/dash/poison states, active shrines).
+let glScene,glCamera,glRenderer,bgTexture,bgPlane,glowPool=[],glowPoolIdx=0;
+function makeRadialTexture(){
+  const size=128;
+  const c=document.createElement('canvas');c.width=c.height=size;
+  const gctx=c.getContext('2d');
+  const grad=gctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  grad.addColorStop(0,'rgba(255,255,255,1)');
+  grad.addColorStop(0.4,'rgba(255,255,255,0.4)');
+  grad.addColorStop(1,'rgba(255,255,255,0)');
+  gctx.fillStyle=grad;gctx.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(c);
+}
+let glFailed=false;
+function initGL(){
+  try{
+  glScene=new THREE.Scene();
+  glCamera=new THREE.OrthographicCamera(0,W,0,H,-1000,1000);
+  glCamera.position.z=500;
+  glRenderer=new THREE.WebGLRenderer({canvas:glCanvas,antialias:true});
+  glRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  glRenderer.setSize(W,H);
+  glRenderer.setClearColor(0x0a0610,1);
+
+  bgTexture=new THREE.CanvasTexture(cvs);
+  bgTexture.minFilter=THREE.LinearFilter;
+  bgTexture.magFilter=THREE.LinearFilter;
+  bgTexture.flipY=false;
+  const bgMat=new THREE.MeshBasicMaterial({map:bgTexture,depthTest:false,depthWrite:false});
+  bgPlane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),bgMat);
+  bgPlane.position.set(W/2,H/2,0);
+  bgPlane.scale.set(W,H,1);
+  glScene.add(bgPlane);
+
+  const glowTex=makeRadialTexture();
+  for(let i=0;i<48;i++){
+    const mat=new THREE.SpriteMaterial({map:glowTex,transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff,opacity:0});
+    const spr=new THREE.Sprite(mat);
+    spr.visible=false;spr.position.z=10;
+    glScene.add(spr);
+    glowPool.push(spr);
+  }
+  glInitialized=true;
+  }catch(err){
+    console.error('WebGL init failed, falling back to plain 2D canvas:',err);
+    glFailed=true;glInitialized=false;
+    document.getElementById('glcanvas').style.display='none';
+    const gc=document.getElementById('game');gc.style.opacity='1';gc.style.zIndex='1';gc.style.pointerEvents='auto';
+    gc.addEventListener('mousemove',onCanvasMouseMove);
+    gc.addEventListener('mousedown',onCanvasMouseDown);
+    gc.addEventListener('mouseup',onCanvasMouseUp);
+  }
+}
+function getGlowSprite(){
+  if(glowPoolIdx>=glowPool.length)return null;
+  const s=glowPool[glowPoolIdx++];s.visible=true;return s;
+}
+function placeGlow(x,y,scale,colorHex,opacity){
+  const s=getGlowSprite();if(!s)return;
+  s.position.set(x,y,10);s.scale.set(scale,scale,1);
+  s.material.color.set(colorHex);s.material.opacity=opacity;
+}
+function renderGlowLayer(){
+  glowPoolIdx=0;
+  for(let p of projectiles){
+    const x=p.x-game.cam.x,y=p.y-game.cam.y;
+    if(x<-40||x>W+40||y<-40||y>H+40)continue;
+    placeGlow(x,y,p.r*7,p.color,0.85);
+  }
+  const px=player.x-game.cam.x,py=player.y-game.cam.y;
+  if(player.rageMode>0)placeGlow(px,py,90+Math.sin(game.time*8)*10,'#ff2020',0.4);
+  if(player.dashTimer>0)placeGlow(px,py,70,'#80c0ff',0.5);
+  if(player.poison>0)placeGlow(px,py,60,'#60ff40',0.3);
+  if(player.attacking)placeGlow(px,py,50,'#c080e0',0.35);
+  for(let e of enemies){
+    if(e.hp<=0)continue;
+    const ex=e.x-game.cam.x,ey=e.y-game.cam.y;
+    if(ex<-80||ex>W+80||ey<-80||ey>H+80)continue;
+    if(e.isBoss)placeGlow(ex,ey,e.r*4.5+Math.sin(game.time*3)*8,'#ff0000',0.28);
+    else if(e.isElite)placeGlow(ex,ey,e.r*3.5,'#ffaa00',0.22);
+  }
+  for(let it of interactables){
+    if(it.type==='shrine'&&it.cooldown<=0){
+      const ix=it.x-game.cam.x,iy=it.y-game.cam.y-8;
+      if(ix<-40||ix>W+40||iy<-40||iy>H+40)continue;
+      placeGlow(ix,iy,36+Math.sin(game.time*3)*6,'#c080e0',0.4);
+    }
+  }
+  for(let i=glowPoolIdx;i<glowPool.length;i++)glowPool[i].visible=false;
+}
+function resizeGLView(){
+  if(!glInitialized)return;
+  glRenderer.setSize(W,H);
+  glCamera.left=0;glCamera.right=W;glCamera.top=0;glCamera.bottom=H;
+  glCamera.updateProjectionMatrix();
+  bgPlane.position.set(W/2,H/2,0);
+  bgPlane.scale.set(W,H,1);
+}
+function renderGL(){
+  if(glFailed)return;
+  try{
+    bgTexture.needsUpdate=true;
+    renderGlowLayer();
+    glRenderer.render(glScene,glCamera);
+  }catch(err){
+    console.error('WebGL render failed, falling back to plain 2D canvas:',err);
+    glFailed=true;glInitialized=false;
+    document.getElementById('glcanvas').style.display='none';
+    const gc=document.getElementById('game');gc.style.opacity='1';gc.style.zIndex='1';gc.style.pointerEvents='auto';
+    gc.addEventListener('mousemove',onCanvasMouseMove);
+    gc.addEventListener('mousedown',onCanvasMouseDown);
+    gc.addEventListener('mouseup',onCanvasMouseUp);
+  }
+}
+initGL();
 
 genWorld();updateSaveSlotsUI();requestAnimationFrame(loop);
 </script>
