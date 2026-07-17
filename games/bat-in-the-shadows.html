@@ -3,11 +3,30 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Bat in the Shadows — Optimized</title>
+    <title>Bat in the Shadows — Scroll Fly</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-        body { overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; }
+        body { overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; cursor: none; }
         canvas { display: block; }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 20px; height: 20px; pointer-events: none; z-index: 25;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        #crosshair.show { opacity: 1; }
+        #crosshair::before, #crosshair::after {
+            content: ''; position: absolute; background: rgba(255,255,255,0.6);
+        }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+
+        #scrollHint {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.4); font-size: 12px; pointer-events: none; z-index: 20;
+            opacity: 0; transition: opacity 0.5s;
+        }
+        #scrollHint.show { opacity: 1; }
 
         #hud {
             position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10;
@@ -38,6 +57,7 @@
             position: absolute; inset: 0; display: none; flex-direction: column;
             align-items: center; justify-content: center; z-index: 30;
             background: rgba(10, 12, 32, 0.88); backdrop-filter: blur(20px);
+            cursor: default;
         }
         .screen.show { display: flex; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -96,10 +116,16 @@
         @media (hover: none) and (pointer: coarse) {
             #touchControls { display: flex; }
             #controlsHint { display: none !important; }
+            #scrollHint { display: none !important; }
+            body { cursor: auto !important; }
+            #crosshair { display: none !important; }
         }
     </style>
 </head>
 <body>
+
+    <div id="crosshair"><div></div></div>
+    <div id="scrollHint">Scroll to fly up/down</div>
 
     <div id="hud">
         <div id="hud-left">
@@ -109,7 +135,7 @@
             </div>
         </div>
         <div id="hud-right">
-            <div class="badge" id="controlsHint">WASD · Space/Shift · ESC pause</div>
+            <div class="badge" id="controlsHint">WASD · Mouse look · Scroll fly · ESC pause</div>
             <div class="badge">Best: <span id="highScoreVal">0</span></div>
             <div class="badge" id="comboBadge">🔥 Combo x<span id="comboVal">0</span></div>
         </div>
@@ -120,7 +146,7 @@
     <div id="startScreen" class="screen show">
         <h1>🦇 Bat in the Shadows</h1>
         <p>Explore a vast luminous cavern. Avoid sunbeams. Collect treasures.</p>
-        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Space up · Shift down · ESC pause</p>
+        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Mouse to look · Scroll wheel to fly up/down · ESC pause</p>
         <button class="btn" id="startBtn">Enter the World</button>
     </div>
 
@@ -207,7 +233,7 @@
         scene.background = new THREE.Color(0x1e1e3a);
         scene.fog = new THREE.FogExp2(0x2a2a50, 0.006);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -572,6 +598,17 @@
 
         document.getElementById('highScoreVal').textContent = highScore;
 
+        // ===== MOUSE LOOK STATE =====
+        let mouseX = 0, mouseY = 0;
+        let cameraYaw = 0, cameraPitch = 0;
+        const mouseSensitivity = 0.002;
+        let pointerLocked = false;
+
+        // ===== SCROLL STATE (NEW) =====
+        let scrollVelocity = 0;
+        const scrollForce = 0.08;
+        const scrollDecay = 0.85;
+
         // ===== Input =====
         const keys = {};
         document.addEventListener('keydown', e => {
@@ -583,6 +620,43 @@
             if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
         });
         document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        // Mouse movement for look
+        document.addEventListener('mousemove', e => {
+            if (!pointerLocked || gameState !== 'playing') return;
+            mouseX += e.movementX * mouseSensitivity;
+            mouseY += e.movementY * mouseSensitivity;
+            mouseY = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, mouseY));
+        });
+
+        // ===== SCROLL WHEEL FOR ALTITUDE (NEW) =====
+        document.addEventListener('wheel', e => {
+            if (gameState !== 'playing' || !pointerLocked) return;
+            e.preventDefault();
+            // Scroll up (negative deltaY) = fly up
+            // Scroll down (positive deltaY) = fly down
+            scrollVelocity += e.deltaY > 0 ? -scrollForce : scrollForce;
+            // Clamp max scroll impulse
+            scrollVelocity = Math.max(-0.5, Math.min(0.5, scrollVelocity));
+        }, { passive: false });
+
+        // Pointer lock
+        const canvasEl = renderer.domElement;
+        canvasEl.addEventListener('click', () => {
+            if (gameState === 'playing' && !pointerLocked) {
+                canvasEl.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            pointerLocked = document.pointerLockElement === canvasEl;
+            document.getElementById('crosshair').classList.toggle('show', pointerLocked);
+            document.getElementById('scrollHint').classList.toggle('show', pointerLocked);
+        });
+
+        document.addEventListener('pointerlockerror', () => {
+            console.log('Pointer lock failed');
+        });
 
         const touchState = { x: 0, y: 0, up: false, down: false };
         const joyZone = document.getElementById('joyLeft');
@@ -615,6 +689,8 @@
             gameState = 'playing';
             score = 0; health = 3; combo = 0; difficulty = 1;
             beamTimer = 0; nextBeamTime = 2.5; invincibleTimer = 0; screenShake = 0;
+            scrollVelocity = 0;
+            mouseX = 0; mouseY = 0; cameraYaw = 0; cameraPitch = 0;
             batGroup.position.set(0, 5, 0);
             batGroup.rotation.set(0, 0, 0);
             velocity.set(0, 0, 0);
@@ -626,15 +702,24 @@
             setScreen('startScreen', false);
             setScreen('gameoverScreen', false);
             setScreen('pauseScreen', false);
+            setTimeout(() => canvasEl.requestPointerLock(), 100);
         }
 
         function setPause(p) {
-            if (p) { gameState = 'paused'; setScreen('pauseScreen', true); }
-            else { gameState = 'playing'; setScreen('pauseScreen', false); }
+            if (p) {
+                gameState = 'paused';
+                setScreen('pauseScreen', true);
+                document.exitPointerLock();
+            } else {
+                gameState = 'playing';
+                setScreen('pauseScreen', false);
+                canvasEl.requestPointerLock();
+            }
         }
 
         function gameOver() {
             gameState = 'gameover';
+            document.exitPointerLock();
             AudioSys.play('gameover');
             if (score > highScore) {
                 highScore = Math.floor(score);
@@ -670,24 +755,28 @@
             else badge.classList.remove('show');
         }
 
-        // ===== Movement =====
+        // ===== Movement (WASD + SCROLL for altitude) =====
         const velocity = new THREE.Vector3();
         const speed = 0.16;
         const maxSpeed = 0.32;
         const friction = 0.88;
 
         function updateBat(dt) {
+            const forward = new THREE.Vector3();
+            const right = new THREE.Vector3();
+            
+            forward.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+            right.set(Math.sin(cameraYaw + Math.PI/2), 0, Math.cos(cameraYaw + Math.PI/2));
+
             const input = new THREE.Vector3();
-            if (keys['KeyW'] || keys['ArrowUp']) input.z -= 1;
-            if (keys['KeyS'] || keys['ArrowDown']) input.z += 1;
-            if (keys['KeyA'] || keys['ArrowLeft']) input.x -= 1;
-            if (keys['KeyD'] || keys['ArrowRight']) input.x += 1;
-            if (keys['Space'] || touchState.up) input.y += 1;
-            if (keys['ShiftLeft'] || keys['ShiftRight'] || touchState.down) input.y -= 1;
+            if (keys['KeyW'] || keys['ArrowUp']) input.add(forward);
+            if (keys['KeyS'] || keys['ArrowDown']) input.sub(forward);
+            if (keys['KeyA'] || keys['ArrowLeft']) input.sub(right);
+            if (keys['KeyD'] || keys['ArrowRight']) input.add(right);
 
             if (Math.abs(touchState.x) > 0.1 || Math.abs(touchState.y) > 0.1) {
-                input.x = touchState.x;
-                input.z = touchState.y;
+                input.x += touchState.x;
+                input.z += touchState.y;
             }
 
             if (input.length() > 1) input.normalize();
@@ -695,7 +784,15 @@
             const accel = speed * dt * 60;
             velocity.x += input.x * accel;
             velocity.z += input.z * accel;
-            velocity.y += input.y * accel * 0.7;
+
+            // ===== SCROLL ALTITUDE (NEW) =====
+            // Apply scroll velocity with decay
+            scrollVelocity *= scrollDecay;
+            velocity.y += scrollVelocity * dt * 60;
+
+            // Touch fallback for mobile
+            if (keys['Space'] || touchState.up) velocity.y += accel * 0.7;
+            if (keys['ShiftLeft'] || keys['ShiftRight'] || touchState.down) velocity.y -= accel * 0.7;
 
             velocity.multiplyScalar(friction);
 
@@ -866,10 +963,29 @@
             }
         }
 
-        // ===== Camera with Wave/Roll =====
-        const camOffset = new THREE.Vector3(0, 5, 11);
+        // ===== Camera =====
+        const camDistance = 11;
+        const camHeight = 4;
+
         function updateCamera(dt) {
-            const targetPos = batGroup.position.clone().add(camOffset);
+            cameraYaw += (mouseX - cameraYaw) * 0.1;
+            cameraPitch += (mouseY - cameraPitch) * 0.1;
+
+            const sinYaw = Math.sin(cameraYaw);
+            const cosYaw = Math.cos(cameraYaw);
+            const sinPitch = Math.sin(cameraPitch);
+            const cosPitch = Math.cos(cameraPitch);
+
+            const offsetX = sinYaw * cosPitch * camDistance;
+            const offsetY = sinPitch * camDistance + camHeight;
+            const offsetZ = cosYaw * cosPitch * camDistance;
+
+            let targetPos = new THREE.Vector3(
+                batGroup.position.x - offsetX,
+                batGroup.position.y + offsetY,
+                batGroup.position.z - offsetZ
+            );
+
             if (screenShake > 0) {
                 targetPos.x += (Math.random() - 0.5) * screenShake;
                 targetPos.y += (Math.random() - 0.5) * screenShake;
@@ -877,13 +993,10 @@
                 screenShake *= 0.85;
                 if (screenShake < 0.01) screenShake = 0;
             }
-            camera.position.lerp(targetPos, 0.07);
+
+            camera.position.lerp(targetPos, 0.1);
             const lookTarget = batGroup.position.clone().add(new THREE.Vector3(0, 1.5, 0));
             camera.lookAt(lookTarget);
-
-            // CAMERA WAVE / ROLL: tilt horizon when bat banks left/right
-            const targetRoll = batGroup.rotation.z * 0.35;
-            camera.rotateZ(targetRoll);
         }
 
         // ===== Main Loop =====
