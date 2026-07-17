@@ -217,10 +217,10 @@
         renderer.toneMappingExposure = 1.4;
         document.body.appendChild(renderer.domElement);
 
-        // ===== Terrain (REDUCED POLY) =====
+        // ===== Terrain =====
         const worldSize = 400;
         const worldHalf = worldSize / 2;
-        const seg = 64; // was 128 — half the vertices
+        const seg = 64;
         const terrainGeo = new THREE.PlaneGeometry(worldSize, worldSize, seg, seg);
         const tPos = terrainGeo.attributes.position;
 
@@ -247,7 +247,7 @@
         terrain.receiveShadow = true;
         scene.add(terrain);
 
-        // ===== Ceiling (LOWER POLY) =====
+        // ===== Ceiling =====
         const ceilGeo = new THREE.PlaneGeometry(worldSize, worldSize, 32, 32);
         const cPos = ceilGeo.attributes.position;
         for (let i = 0; i < cPos.count; i++) {
@@ -261,12 +261,11 @@
         ceiling.position.y = 35;
         scene.add(ceiling);
 
-        // ===== INSTANCED ROCKS (80 instead of 200, 1 draw call) =====
+        // ===== Instanced Rocks =====
         const rockGeo = new THREE.DodecahedronGeometry(1, 0);
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3a5a, roughness: 0.9, flatShading: true });
         const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 80);
         rockMesh.receiveShadow = true;
-        rockMesh.castShadow = false; // rocks don't cast — expensive and unnoticeable
         const dummy = new THREE.Object3D();
 
         for (let i = 0; i < 80; i++) {
@@ -282,7 +281,7 @@
         rockMesh.instanceMatrix.needsUpdate = true;
         scene.add(rockMesh);
 
-        // ===== INSTANCED PILLARS (60 total, 2 draw calls) =====
+        // ===== Instanced Pillars =====
         const pillarGeo = new THREE.CylinderGeometry(0.3, 0.8, 6, 6);
         const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4a7a, roughness: 0.8, flatShading: true });
         const glowPillarMat = new THREE.MeshStandardMaterial({ color: 0x6644aa, emissive: 0x442288, emissiveIntensity: 0.5, roughness: 0.6, flatShading: true });
@@ -312,9 +311,8 @@
         glowPillarMesh.instanceMatrix.needsUpdate = true;
         scene.add(pillarMesh);
         scene.add(glowPillarMesh);
-        // NO individual point lights for pillars — emissive material handles the glow look
 
-        // ===== INSTANCED MUSHROOMS (30, 2 draw calls) =====
+        // ===== Instanced Mushrooms =====
         const stemGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 6);
         const capGeo = new THREE.SphereGeometry(0.8, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2);
         const stemMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.9 });
@@ -330,14 +328,12 @@
             const h = terrainHeight(x, z);
             const s = 0.8 + Math.random() * 1.5;
 
-            // Stem
             dummy.position.set(x, h + 0.75 * s, z);
             dummy.scale.set(s, s, s);
             dummy.rotation.set(0, Math.random() * Math.PI, 0);
             dummy.updateMatrix();
             stemMesh.setMatrixAt(i, dummy.matrix);
 
-            // Cap
             dummy.position.set(x, h + 1.4 * s, z);
             dummy.scale.set(s, s * 0.6, s);
             dummy.updateMatrix();
@@ -348,7 +344,7 @@
         scene.add(stemMesh);
         scene.add(capMesh);
 
-        // ===== Dust (REDUCED to 800) =====
+        // ===== Dust =====
         const dustCount = 800;
         const dustGeo = new THREE.BufferGeometry();
         const dustPos = new Float32Array(dustCount * 3);
@@ -363,12 +359,12 @@
         }));
         scene.add(dustSystem);
 
-        // ===== Lighting (NO scattered point lights) =====
+        // ===== Lighting =====
         scene.add(new THREE.AmbientLight(0x445588, 0.7));
         const sun = new THREE.DirectionalLight(0xffeedd, 0.6);
         sun.position.set(50, 40, -30);
         sun.castShadow = true;
-        sun.shadow.mapSize.set(1024, 1024); // was 2048
+        sun.shadow.mapSize.set(1024, 1024);
         sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
         sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
         sun.shadow.camera.far = 100;
@@ -524,7 +520,7 @@
             spot.position.set(0, 32, 0);
             spot.target.position.set(0, -5, 0);
             spot.castShadow = true;
-            spot.shadow.mapSize.set(256, 256); // LOW res for beams
+            spot.shadow.mapSize.set(256, 256);
             group.add(spot);
             group.add(spot.target);
 
@@ -870,7 +866,7 @@
             }
         }
 
-        // ===== Camera =====
+        // ===== Camera with Wave/Roll =====
         const camOffset = new THREE.Vector3(0, 5, 11);
         function updateCamera(dt) {
             const targetPos = batGroup.position.clone().add(camOffset);
@@ -884,6 +880,10 @@
             camera.position.lerp(targetPos, 0.07);
             const lookTarget = batGroup.position.clone().add(new THREE.Vector3(0, 1.5, 0));
             camera.lookAt(lookTarget);
+
+            // CAMERA WAVE / ROLL: tilt horizon when bat banks left/right
+            const targetRoll = batGroup.rotation.z * 0.35;
+            camera.rotateZ(targetRoll);
         }
 
         // ===== Main Loop =====
