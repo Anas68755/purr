@@ -94,6 +94,166 @@
         }
         .touch-btn:active { background: rgba(255,255,255,0.2); }
 
+        /* ===== NEON PAUSE MENU ===== */
+        .pause-overlay {
+            position: absolute; inset: 0; display: none;
+            background: rgba(5, 5, 20, 0.85); backdrop-filter: blur(24px) saturate(1.2);
+            z-index: 30; cursor: default; opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pause-overlay.show {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 1;
+        }
+
+        .pause-title {
+            font-size: clamp(32px, 5vw, 56px); font-weight: 900;
+            color: #fff; letter-spacing: 4px; text-transform: uppercase;
+            text-shadow:
+                0 0 10px #0ea5e9,
+                0 0 30px #0ea5e9,
+                0 0 60px #6366f1,
+                0 0 100px rgba(99, 102, 241, 0.4);
+            margin-bottom: 40px; animation: neonPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes neonPulse {
+            0%, 100% { text-shadow: 0 0 10px #0ea5e9, 0 0 30px #0ea5e9, 0 0 60px #6366f1, 0 0 100px rgba(99,102,241,0.4); }
+            50% { text-shadow: 0 0 15px #0ea5e9, 0 0 40px #0ea5e9, 0 0 80px #6366f1, 0 0 140px rgba(99,102,241,0.6); }
+        }
+
+        .pause-nav {
+            display: flex; gap: 12px; margin-bottom: 32px;
+        }
+        .pause-tab {
+            padding: 10px 28px; font-size: 14px; font-weight: 700;
+            color: rgba(255,255,255,0.4); background: transparent;
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+            cursor: pointer; transition: all 0.25s ease; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .pause-tab:hover { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+        .pause-tab.active {
+            color: #fff; background: rgba(14, 165, 233, 0.15);
+            border-color: #0ea5e9;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.2), inset 0 0 20px rgba(14, 165, 233, 0.05);
+        }
+
+        .pause-panel {
+            display: none; flex-direction: column; align-items: center; gap: 16px;
+            min-width: 320px; max-width: 420px; width: 90%;
+            animation: panelIn 0.35s ease;
+        }
+        .pause-panel.active { display: flex; }
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .neon-btn {
+            width: 100%; padding: 16px 32px; font-size: 16px; font-weight: 700;
+            color: #fff; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+            cursor: pointer; transition: all 0.25s ease; position: relative; overflow: hidden;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .neon-btn::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(14,165,233,0.1), rgba(99,102,241,0.1));
+            opacity: 0; transition: opacity 0.25s ease;
+        }
+        .neon-btn:hover {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 25px rgba(14, 165, 233, 0.25), inset 0 0 30px rgba(14, 165, 233, 0.05);
+            transform: translateY(-2px);
+        }
+        .neon-btn:hover::before { opacity: 1; }
+        .neon-btn:active { transform: translateY(0) scale(0.98); }
+        .neon-btn.primary {
+            background: linear-gradient(135deg, rgba(14,165,233,0.2), rgba(99,102,241,0.2));
+            border-color: rgba(14,165,233,0.4);
+        }
+        .neon-btn.primary:hover {
+            box-shadow: 0 0 35px rgba(14, 165, 233, 0.4), inset 0 0 40px rgba(14, 165, 233, 0.1);
+        }
+        .neon-btn.danger {
+            border-color: rgba(255, 56, 96, 0.3); color: #ff8fa3;
+        }
+        .neon-btn.danger:hover {
+            border-color: #ff3860;
+            box-shadow: 0 0 25px rgba(255, 56, 96, 0.3);
+        }
+
+        /* Settings Panel */
+        .setting-row {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 18px; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+        .setting-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+        .setting-label { color: #c0c8e0; font-size: 14px; font-weight: 500; }
+        .setting-value { color: #0ea5e9; font-size: 13px; font-weight: 700; min-width: 40px; text-align: right; }
+
+        .neon-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 140px; height: 6px; background: rgba(255,255,255,0.08);
+            border-radius: 3px; outline: none; cursor: pointer;
+        }
+        .neon-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #0ea5e9; border: 2px solid #fff;
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.6);
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .neon-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.9);
+        }
+        .neon-slider::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #0ea5e9; border: 2px solid #fff;
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.6);
+            cursor: pointer;
+        }
+
+        .neon-toggle {
+            width: 48px; height: 26px; background: rgba(255,255,255,0.08);
+            border-radius: 13px; position: relative; cursor: pointer;
+            transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .neon-toggle.on { background: rgba(14, 165, 233, 0.3); border-color: #0ea5e9; }
+        .neon-toggle::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+        .neon-toggle.on::after { left: 25px; background: #0ea5e9; box-shadow: 0 0 12px rgba(14,165,233,0.6); }
+
+        /* Controls Panel */
+        .control-grid {
+            width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .control-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+        }
+        .control-key {
+            min-width: 36px; padding: 6px 10px; background: rgba(14,165,233,0.15);
+            border: 1px solid rgba(14,165,233,0.3); border-radius: 8px;
+            color: #0ea5e9; font-size: 12px; font-weight: 800;
+            text-align: center; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.1);
+        }
+        .control-desc { color: #a0aec0; font-size: 13px; }
+
+        .pause-footer {
+            margin-top: 24px; color: rgba(255,255,255,0.25);
+            font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+        }
+
         @media (hover: none) and (pointer: coarse) {
             #touchControls { display: flex; }
             #controlsHint { display: none !important; }
@@ -135,10 +295,74 @@
         <button class="btn btn-secondary" id="menuBtn">Main Menu</button>
     </div>
 
-    <div id="pauseScreen" class="screen">
-        <h1 style="font-size:48px">⏸ Paused</h1>
-        <button class="btn" id="resumeBtn">Resume</button>
-        <button class="btn btn-secondary" id="quitBtn">Quit to Menu</button>
+    <div id="pauseOverlay" class="pause-overlay">
+        <div class="pause-title">⏸ Paused</div>
+        <div class="pause-nav">
+            <button class="pause-tab active" data-tab="main">Main</button>
+            <button class="pause-tab" data-tab="settings">Settings</button>
+            <button class="pause-tab" data-tab="controls">Controls</button>
+        </div>
+
+        <!-- Main Panel -->
+        <div class="pause-panel active" id="panel-main">
+            <button class="neon-btn primary" id="resumeBtn">▶ Resume</button>
+            <button class="neon-btn" id="quitBtn">✕ Quit to Menu</button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="pause-panel" id="panel-settings">
+            <div class="setting-row">
+                <span class="setting-label">🔊 Master Volume</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="volVal">80%</span>
+                    <input type="range" class="neon-slider" id="volSlider" min="0" max="100" value="80">
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🎵 Music</span>
+                <div class="neon-toggle on" id="musicToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🔔 Sound Effects</span>
+                <div class="neon-toggle on" id="sfxToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🖱️ Mouse Sensitivity</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="sensVal">1.0x</span>
+                    <input type="range" class="neon-slider" id="sensSlider" min="50" max="200" value="100">
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">✨ Particle Effects</span>
+                <div class="neon-toggle on" id="particleToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🌫️ Fog Density</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="fogVal">Medium</span>
+                    <input type="range" class="neon-slider" id="fogSlider" min="0" max="100" value="50">
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="pause-panel" id="panel-controls">
+            <div class="control-grid">
+                <div class="control-item"><div class="control-key">W</div><div class="control-desc">Move Forward</div></div>
+                <div class="control-item"><div class="control-key">S</div><div class="control-desc">Move Back</div></div>
+                <div class="control-item"><div class="control-key">A</div><div class="control-desc">Move Left</div></div>
+                <div class="control-item"><div class="control-key">D</div><div class="control-desc">Move Right</div></div>
+                <div class="control-item"><div class="control-key">Q</div><div class="control-desc">Look Left</div></div>
+                <div class="control-item"><div class="control-key">E</div><div class="control-desc">Look Right</div></div>
+                <div class="control-item"><div class="control-key">↕</div><div class="control-desc">Scroll Fly</div></div>
+                <div class="control-item"><div class="control-key">Sp</div><div class="control-desc">Fly Up</div></div>
+                <div class="control-item"><div class="control-key">Sh</div><div class="control-desc">Fly Down</div></div>
+                <div class="control-item"><div class="control-key">Esc</div><div class="control-desc">Pause</div></div>
+            </div>
+        </div>
+
+        <div class="pause-footer">Bat in the Shadows v1.0</div>
     </div>
 
     <div id="touchControls">
@@ -164,16 +388,21 @@
         // ===== Audio =====
         const AudioSys = {
             ctx: null,
+            masterGain: null,
+            sfxEnabled: true,
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.masterGain.gain.value = 0.8;
             },
             play(type) {
-                if (!this.ctx) return;
+                if (!this.ctx || !this.sfxEnabled) return;
                 const ctx = this.ctx, t = ctx.currentTime;
                 const o = ctx.createOscillator();
                 const g = ctx.createGain();
-                o.connect(g); g.connect(ctx.destination);
+                o.connect(g); g.connect(this.masterGain || ctx.destination);
                 switch(type) {
                     case 'collect':
                         o.type = 'sine'; o.frequency.setValueAtTime(660, t);
@@ -475,6 +704,7 @@
         // Particles
         const particles = [];
         function spawnParticles(pos, color) {
+            if (!particlesEnabled) return;
             const count = 14;
             const geo = new THREE.BufferGeometry();
             const positions = new Float32Array(count * 3);
@@ -565,6 +795,7 @@
 
         // ===== Game State =====
         let gameState = 'menu';
+        let particlesEnabled = true;
         let score = 0, highScore = parseInt(localStorage.getItem('batHighScore') || '0');
         let health = 3, combo = 0, comboTimer = 0;
         let difficulty = 1;
@@ -649,21 +880,76 @@
             document.getElementById('scoreVal').textContent = '0';
             setScreen('startScreen', false);
             setScreen('gameoverScreen', false);
-            setScreen('pauseScreen', false);
+            document.getElementById('pauseOverlay').classList.remove('show');
         }
 
         function setPause(p) {
+            const overlay = document.getElementById('pauseOverlay');
             if (p) {
                 gameState = 'paused';
-                setScreen('pauseScreen', true);
+                overlay.classList.add('show');
+                // Reset to main tab
+                switchPauseTab('main');
             } else {
                 gameState = 'playing';
-                setScreen('pauseScreen', false);
+                overlay.classList.remove('show');
             }
         }
 
+        function switchPauseTab(tabName) {
+            document.querySelectorAll('.pause-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.pause-panel').forEach(p => {
+                p.classList.toggle('active', p.id === 'panel-' + tabName);
+            });
+        }
+
+        // Pause tab navigation
+        document.querySelectorAll('.pause-tab').forEach(tab => {
+            tab.addEventListener('click', () => switchPauseTab(tab.dataset.tab));
+        });
+
+        // Settings: Volume slider
+        document.getElementById('volSlider').addEventListener('input', e => {
+            const val = e.target.value;
+            document.getElementById('volVal').textContent = val + '%';
+            if (AudioSys.ctx && AudioSys.masterGain) {
+                AudioSys.masterGain.gain.value = val / 100;
+            }
+        });
+
+        // Settings: Sensitivity slider
+        document.getElementById('sensSlider').addEventListener('input', e => {
+            const val = e.target.value;
+            document.getElementById('sensVal').textContent = (val / 100).toFixed(1) + 'x';
+        });
+
+        // Settings: Fog slider
+        document.getElementById('fogSlider').addEventListener('input', e => {
+            const val = parseInt(e.target.value);
+            const labels = ['Off', 'Low', 'Medium', 'High', 'Max'];
+            const idx = Math.min(4, Math.floor(val / 25));
+            document.getElementById('fogVal').textContent = labels[idx];
+            const densityMap = [0, 0.003, 0.006, 0.01, 0.015];
+            scene.fog.density = densityMap[idx];
+        });
+
+        // Toggle switches
+        function setupToggle(id, callback) {
+            const el = document.getElementById(id);
+            el.addEventListener('click', () => {
+                el.classList.toggle('on');
+                if (callback) callback(el.classList.contains('on'));
+            });
+        }
+        setupToggle('musicToggle', on => { /* music toggle */ });
+        setupToggle('sfxToggle', on => { AudioSys.sfxEnabled = on; });
+        setupToggle('particleToggle', on => { particlesEnabled = on; });
+
         function gameOver() {
             gameState = 'gameover';
+            document.getElementById('pauseOverlay').classList.remove('show');
             AudioSys.play('gameover');
             if (score > highScore) {
                 highScore = Math.floor(score);
@@ -987,6 +1273,7 @@
         document.getElementById('menuBtn').addEventListener('click', () => {
             setScreen('gameoverScreen', false);
             setScreen('startScreen', true);
+            document.getElementById('pauseOverlay').classList.remove('show');
             gameState = 'menu';
         });
         document.getElementById('resumeBtn').addEventListener('click', () => setPause(false));
