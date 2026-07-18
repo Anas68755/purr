@@ -260,6 +260,7 @@
             body { cursor: auto !important; }
         }
     </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -271,7 +272,7 @@
             </div>
         </div>
         <div id="hud-right">
-            <div class="badge" id="controlsHint">WASD move · Q/E look · Scroll fly · ESC pause</div>
+            <div class="badge" id="controlsHint">WASD move · Mouse look · Q/E look · Scroll fly · ESC pause</div>
             <div class="badge">Best: <span id="highScoreVal">0</span></div>
             <div class="badge" id="comboBadge">🔥 Combo x<span id="comboVal">0</span></div>
         </div>
@@ -282,7 +283,7 @@
     <div id="startScreen" class="screen show">
         <h1>🦇 Bat in the Shadows</h1>
         <p>Explore a vast luminous cavern. Avoid sunbeams. Collect treasures.</p>
-        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · ESC pause</p>
+        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Mouse to look · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · ESC pause</p>
         <button class="btn" id="startBtn">Enter the World</button>
     </div>
 
@@ -336,6 +337,18 @@
             <div class="setting-row">
                 <span class="setting-label">✨ Particle Effects</span>
                 <div class="neon-toggle on" id="particleToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🖱️ Mouse Look</span>
+                <div class="neon-toggle on" id="mouseLookToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🔄 Invert Look</span>
+                <div class="neon-toggle" id="invertLookToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">↔️ Invert Side Move</span>
+                <div class="neon-toggle" id="invertSideToggle"></div>
             </div>
             <div class="setting-row">
                 <span class="setting-label">🌫️ Fog Density</span>
@@ -438,7 +451,7 @@
         scene.background = new THREE.Color(0x1e1e3a);
         scene.fog = new THREE.FogExp2(0x2a2a50, 0.006);
 
-        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 400);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -449,9 +462,9 @@
         document.body.appendChild(renderer.domElement);
 
         // ===== Terrain =====
-        const worldSize = 400;
+        const worldSize = 800;
         const worldHalf = worldSize / 2;
-        const seg = 64;
+        const seg = 128;
         const terrainGeo = new THREE.PlaneGeometry(worldSize, worldSize, seg, seg);
         const tPos = terrainGeo.attributes.position;
 
@@ -489,17 +502,17 @@
         const ceilMat = new THREE.MeshStandardMaterial({ color: 0x3a3a60, roughness: 0.9, flatShading: true, side: THREE.DoubleSide });
         const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
         ceiling.rotation.x = Math.PI / 2;
-        ceiling.position.y = 35;
+        ceiling.position.y = 55;
         scene.add(ceiling);
 
         // ===== Instanced Rocks =====
         const rockGeo = new THREE.DodecahedronGeometry(1, 0);
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3a5a, roughness: 0.9, flatShading: true });
-        const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 80);
+        const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, 250);
         rockMesh.receiveShadow = true;
         const dummy = new THREE.Object3D();
 
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 250; i++) {
             const x = (Math.random() - 0.5) * worldSize * 0.95;
             const z = (Math.random() - 0.5) * worldSize * 0.95;
             const h = terrainHeight(x, z);
@@ -517,13 +530,13 @@
         const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4a7a, roughness: 0.8, flatShading: true });
         const glowPillarMat = new THREE.MeshStandardMaterial({ color: 0x6644aa, emissive: 0x442288, emissiveIntensity: 0.5, roughness: 0.6, flatShading: true });
 
-        const pillarMesh = new THREE.InstancedMesh(pillarGeo, pillarMat, 40);
-        const glowPillarMesh = new THREE.InstancedMesh(pillarGeo, glowPillarMat, 20);
+        const pillarMesh = new THREE.InstancedMesh(pillarGeo, pillarMat, 100);
+        const glowPillarMesh = new THREE.InstancedMesh(pillarGeo, glowPillarMat, 50);
         pillarMesh.castShadow = true; pillarMesh.receiveShadow = true;
         glowPillarMesh.castShadow = true; glowPillarMesh.receiveShadow = true;
 
         let pIdx = 0, gIdx = 0;
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 150; i++) {
             const x = (Math.random() - 0.5) * worldSize * 0.9;
             const z = (Math.random() - 0.5) * worldSize * 0.9;
             const h = terrainHeight(x, z);
@@ -532,9 +545,9 @@
             dummy.rotation.set(0, Math.random() * Math.PI, 0);
             dummy.updateMatrix();
 
-            if (Math.random() > 0.3 && gIdx < 20) {
+            if (Math.random() > 0.3 && gIdx < 50) {
                 glowPillarMesh.setMatrixAt(gIdx++, dummy.matrix);
-            } else if (pIdx < 40) {
+            } else if (pIdx < 100) {
                 pillarMesh.setMatrixAt(pIdx++, dummy.matrix);
             }
         }
@@ -549,11 +562,11 @@
         const stemMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.9 });
         const capMat = new THREE.MeshStandardMaterial({ color: 0xff6688, emissive: 0x441122, emissiveIntensity: 0.2, roughness: 0.7 });
 
-        const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, 30);
-        const capMesh = new THREE.InstancedMesh(capGeo, capMat, 30);
+        const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, 80);
+        const capMesh = new THREE.InstancedMesh(capGeo, capMat, 80);
         stemMesh.castShadow = true; capMesh.castShadow = true;
 
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 80; i++) {
             const x = (Math.random() - 0.5) * worldSize * 0.9;
             const z = (Math.random() - 0.5) * worldSize * 0.9;
             const h = terrainHeight(x, z);
@@ -576,7 +589,7 @@
         scene.add(capMesh);
 
         // ===== Dust =====
-        const dustCount = 800;
+        const dustCount = 2500;
         const dustGeo = new THREE.BufferGeometry();
         const dustPos = new Float32Array(dustCount * 3);
         for (let i = 0; i < dustCount; i++) {
@@ -596,9 +609,9 @@
         sun.position.set(50, 40, -30);
         sun.castShadow = true;
         sun.shadow.mapSize.set(1024, 1024);
-        sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-        sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
-        sun.shadow.camera.far = 100;
+        sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+        sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+        sun.shadow.camera.far = 200;
         scene.add(sun);
 
         const fillLight = new THREE.DirectionalLight(0x6688cc, 0.3);
@@ -699,7 +712,7 @@
             collectables.push(mesh);
         }
 
-        for (let i = 0; i < 12; i++) spawnCollectable();
+        for (let i = 0; i < 25; i++) spawnCollectable();
 
         // Particles
         const particles = [];
@@ -728,7 +741,7 @@
         // ===== Beams =====
         const beams = [];
         const beamPool = [];
-        const MAX_BEAMS = 6;
+        const MAX_BEAMS = 12;
 
         function getBeam() {
             if (beamPool.length) return beamPool.pop();
@@ -739,17 +752,17 @@
             warn.rotation.x = -Math.PI / 2;
             group.add(warn);
 
-            const shaftGeo = new THREE.CylinderGeometry(0.15, 3.0, 35, 16, 1, true);
+            const shaftGeo = new THREE.CylinderGeometry(0.15, 3.0, 55, 16, 1, true);
             const shaftMat = new THREE.MeshBasicMaterial({
                 color: 0xfff5cc, transparent: true, opacity: 0, blending: THREE.AdditiveBlending,
                 depthWrite: false, side: THREE.DoubleSide
             });
             const shaft = new THREE.Mesh(shaftGeo, shaftMat);
-            shaft.position.y = 16;
+            shaft.position.y = 26;
             group.add(shaft);
 
             const spot = new THREE.SpotLight(0xffeedd, 0, 50, 0.45, 0.5, 1.0);
-            spot.position.set(0, 32, 0);
+            spot.position.set(0, 52, 0);
             spot.target.position.set(0, -5, 0);
             spot.castShadow = true;
             spot.shadow.mapSize.set(256, 256);
@@ -760,7 +773,7 @@
             const glowMat = new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
             const glow = new THREE.Mesh(glowGeo, glowMat);
             glow.rotation.x = -Math.PI / 2;
-            glow.position.y = 32;
+            glow.position.y = 52;
             group.add(glow);
 
             return { group, warn, shaft, spot, glow, active: false, phase: 'warn', timer: 0, x: 0, z: 0, swayOffset: 0 };
@@ -770,7 +783,7 @@
             if (beams.length >= MAX_BEAMS) return;
             const b = getBeam();
             const angle = Math.random() * Math.PI * 2;
-            const dist = 8 + Math.random() * 25;
+            const dist = 15 + Math.random() * 50;
             b.x = batGroup.position.x + Math.cos(angle) * dist;
             b.z = batGroup.position.z + Math.sin(angle) * dist;
             b.x = THREE.MathUtils.clamp(b.x, -worldHalf + 10, worldHalf - 10);
@@ -809,6 +822,14 @@
         let cameraYaw = 0, cameraPitch = 0;
         const keyLookSpeed = 2.0; // radians per second
 
+        // ===== MOUSE LOOK STATE =====
+        let mouseLookEnabled = true;
+        let invertLook = false;
+        let invertSideMovement = false;
+        let mouseDeltaX = 0;
+        let mouseAccumX = 0;
+        const mouseLookSpeed = 0.003; // radians per pixel
+
         // ===== SCROLL STATE =====
         let scrollVelocity = 0;
         const scrollForce = 0.08;
@@ -825,6 +846,12 @@
             if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
         });
         document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        // ===== MOUSE LOOK INPUT =====
+        document.addEventListener('mousemove', e => {
+            if (gameState !== 'playing' || !mouseLookEnabled) return;
+            mouseDeltaX += e.movementX;
+        });
 
         // ===== SCROLL WHEEL FOR ALTITUDE =====
         document.addEventListener('wheel', e => {
@@ -875,7 +902,7 @@
             velocity.set(0, 0, 0);
             beams.forEach(b => returnBeam(b)); beams.length = 0;
             collectables.forEach(c => scene.remove(c)); collectables.length = 0;
-            for (let i = 0; i < 12; i++) spawnCollectable();
+            for (let i = 0; i < 25; i++) spawnCollectable();
             updateHealthUI();
             document.getElementById('scoreVal').textContent = '0';
             setScreen('startScreen', false);
@@ -931,7 +958,7 @@
             const labels = ['Off', 'Low', 'Medium', 'High', 'Max'];
             const idx = Math.min(4, Math.floor(val / 25));
             document.getElementById('fogVal').textContent = labels[idx];
-            const densityMap = [0, 0.003, 0.006, 0.01, 0.015];
+            const densityMap = [0, 0.0015, 0.003, 0.005, 0.008];
             scene.fog.density = densityMap[idx];
         });
 
@@ -946,6 +973,9 @@
         setupToggle('musicToggle', on => { /* music toggle */ });
         setupToggle('sfxToggle', on => { AudioSys.sfxEnabled = on; });
         setupToggle('particleToggle', on => { particlesEnabled = on; });
+        setupToggle('mouseLookToggle', on => { mouseLookEnabled = on; });
+        setupToggle('invertLookToggle', on => { invertLook = on; });
+        setupToggle('invertSideToggle', on => { invertSideMovement = on; });
 
         function gameOver() {
             gameState = 'gameover';
@@ -1001,8 +1031,13 @@
             const input = new THREE.Vector3();
             if (keys['KeyW'] || keys['ArrowUp']) input.add(forward);
             if (keys['KeyS'] || keys['ArrowDown']) input.sub(forward);
-            if (keys['KeyA'] || keys['ArrowLeft']) input.sub(right);
-            if (keys['KeyD'] || keys['ArrowRight']) input.add(right);
+            if (invertSideMovement) {
+                if (keys['KeyA'] || keys['ArrowLeft']) input.add(right);
+                if (keys['KeyD'] || keys['ArrowRight']) input.sub(right);
+            } else {
+                if (keys['KeyA'] || keys['ArrowLeft']) input.sub(right);
+                if (keys['KeyD'] || keys['ArrowRight']) input.add(right);
+            }
 
             if (Math.abs(touchState.x) > 0.1 || Math.abs(touchState.y) > 0.1) {
                 input.x += touchState.x;
@@ -1040,7 +1075,7 @@
 
             const groundH = terrainHeight(batGroup.position.x, batGroup.position.z);
             batGroup.position.y = Math.max(batGroup.position.y, groundH + 0.8);
-            batGroup.position.y = Math.min(batGroup.position.y, 32);
+            batGroup.position.y = Math.min(batGroup.position.y, 52);
 
             batGroup.position.x = THREE.MathUtils.clamp(batGroup.position.x, -worldHalf + 2, worldHalf - 2);
             batGroup.position.z = THREE.MathUtils.clamp(batGroup.position.z, -worldHalf + 2, worldHalf - 2);
@@ -1117,9 +1152,9 @@
                         const dx = batGroup.position.x - actualX;
                         const dz = batGroup.position.z - b.z;
                         const dist = Math.sqrt(dx*dx + dz*dz);
-                        const heightFactor = (35 - batGroup.position.y) / 35;
+                        const heightFactor = (55 - batGroup.position.y) / 55;
                         const radius = heightFactor * 3.0;
-                        if (dist < radius && batGroup.position.y < 34) {
+                        if (dist < radius && batGroup.position.y < 54) {
                             takeDamage();
                         }
                     }
@@ -1165,7 +1200,7 @@
                     collectables.splice(i, 1);
                 }
             }
-            if (collectables.length < 12) spawnCollectable();
+            if (collectables.length < 25) spawnCollectable();
         }
 
         // ===== Particles =====
@@ -1202,6 +1237,14 @@
             if (gameState === 'playing') {
                 if (keys['KeyQ'] || keys['ArrowLeft']) cameraYaw -= keyLookSpeed * dt;
                 if (keys['KeyE'] || keys['ArrowRight']) cameraYaw += keyLookSpeed * dt;
+
+                // Mouse look camera rotation
+                if (mouseLookEnabled && Math.abs(mouseDeltaX) > 0) {
+                    const sensMultiplier = parseInt(document.getElementById('sensSlider').value) / 100;
+                    const dir = invertLook ? -1 : 1;
+                    cameraYaw += mouseDeltaX * mouseLookSpeed * sensMultiplier * dir;
+                    mouseDeltaX = 0; // consume the delta
+                }
             }
 
             const sinYaw = Math.sin(cameraYaw);
