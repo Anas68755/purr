@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clash Kingdoms</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0e14;
+    color: #fff;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* ===== MAIN LAYOUT ===== */
+#game-stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #1a2332 0%, #0a0e14 70%);
+}
+
+/* ===== RESOURCE BAR (TOP) ===== */
+#res-bar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 50;
+    padding: 6px 14px;
+    background: linear-gradient(180deg, rgba(20,30,45,0.95), rgba(10,15,25,0.95));
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    backdrop-filter: blur(8px);
+}
+
+.res-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.res-icon { font-size: 15px; }
+.res-val { min-width: 32px; text-align: right; }
+.res-gold .res-val { color: #fbbf24; }
+.res-elixir .res-val { color: #c084fc; }
+.res-troop .res-val { color: #60a5fa; }
+.res-trophy .res-val { color: #facc15; }
+.res-cap { font-size: 10px; color: #64748b; margin-left: 2px; }
+
+/* ===== CANVAS CONTAINER ===== */
+#village-view {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+#mainCanvas {
+    display: block;
+    background: #2d5a27;
+    cursor: crosshair;
+    image-rendering: pixelated;
+}
+
+/* ===== FLOATING BUTTONS ===== */
+.fab {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 40;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+.fab:hover {
+    transform: scale(1.12) translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.fab:active { transform: scale(0.95); }
+
+.fab .fab-icon { font-size: 22px; margin-bottom: 1px; }
+
+/* Build Button - Bottom Left */
+#fab-build {
+    bottom: 24px;
+    left: 24px;
+    background: linear-gradient(180deg, #d97706, #92400e);
+    border-color: #fbbf24;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+#fab-build:hover { box-shadow: 0 8px 25px rgba(217,119,6,0.4); }
+
+/* Army Button - Bottom Right */
+#fab-army {
+    bottom: 24px;
+    right: 24px;
+    background: linear-gradient(180deg, #2563eb, #1e3a8a);
+    border-color: #60a5fa;
+    color: #fff;
+}
+#fab-army:hover { box-shadow: 0 8px 25px rgba(37,99,235,0.4); }
+
+/* Attack Button - Top Right */
+#fab-attack {
+    top: 70px;
+    right: 24px;
+    background: linear-gradient(180deg, #dc2626, #7f1d1d);
+    border-color: #f87171;
+    color: #fff;
+}
+#fab-attack:hover { box-shadow: 0 8px 25px rgba(220,38,38,0.4); }
+
+/* Info Button - Top Left */
+#fab-info {
+    top: 70px;
+    left: 24px;
+    background: linear-gradient(180deg, #475569, #1e293b);
+    border-color: #94a3b8;
+    color: #fff;
+}
+#fab-info:hover { box-shadow: 0 8px 25px rgba(71,85,105,0.4); }
+
+/* Badge on buttons */
+.fab-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #0a0e14;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ===== FLOATING MENUS ===== */
+.float-menu {
+    display: none;
+    position: absolute;
+    z-index: 60;
+    background: linear-gradient(180deg, rgba(20,30,45,0.97), rgba(10,15,25,0.97));
+    border: 1px solid rgba(255,215,0,0.15);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    backdrop-filter: blur(12px);
+    animation: menuPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.float-menu.active { display: block; }
+
+@keyframes menuPop {
+    from { opacity: 0; transform: scale(0.85) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Menu positions */
+#menu-build { bottom: 100px; left: 20px; width: 320px; }
+#menu-army { bottom: 100px; right: 20px; width: 300px; }
+#menu-attack { top: 140px; right: 20px; width: 280px; }
+#menu-info { top: 140px; left: 20px; width: 280px; }
+
+.menu-title {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    font-weight: 900;
+    color: #fbbf24;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,215,0,0.15);
+}
+
+.menu-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 20px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.menu-close:hover { color: #fff; }
+
+/* Build grid inside menu */
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.menu-item {
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.menu-item:hover {
+    background: linear-gradient(180deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05));
+    border-color: rgba(251,191,36,0.4);
+    transform: translateY(-2px);
+}
+
+.menu-item.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.menu-item-icon { font-size: 24px; margin-bottom: 4px; }
+.menu-item-name { font-size: 10px; font-weight: 700; color: #e2e8f0; margin-bottom: 2px; }
+.menu-item-cost { font-size: 10px; color: #fbbf24; font-weight: 600; }
+.menu-item-meta { font-size: 9px; color: #64748b; margin-top: 2px; }
+
+/* Army list */
+.army-list { display: flex; flex-direction: column; gap: 8px; }
+.army-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.army-row:hover { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.2); }
+.army-row.disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+.army-row-icon { font-size: 24px; width: 36px; text-align: center; }
+.army-row-info { flex: 1; }
+.army-row-name { font-size: 13px; font-weight: 700; color: #e2e8f0; }
+.army-row-cost { font-size: 11px; color: #c084fc; }
+.army-row-count {
+    background: #dc2626;
+    color: #fff;
+    border-radius: 50%;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+}
+
+/* Attack panel */
+.attack-panel { text-align: center; padding: 10px 0; }
+.attack-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(180deg, #dc2626, #991b1b);
+    border: 2px solid #f87171;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.attack-btn:hover { transform: scale(1.03); box-shadow: 0 4px 20px rgba(220,38,38,0.4); }
+.attack-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.attack-info { margin-top: 12px; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+
+/* Info panel */
+.info-btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.info-btn {
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.info-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+
+/* Camp bar */
+.camp-bar {
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    font-size: 11px;
+    color: #94a3b8;
+}
+.camp-bar strong { color: #fbbf24; }
+
+/* ===== BATTLE OVERLAY ===== */
+#battle-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#battle-overlay.active { display: flex; }
+
+#battleCanvas {
+    border-radius: 16px;
+    box-shadow: 0 0 40px rgba(220,38,38,0.2);
+    background: #3d6b35;
+    image-rendering: pixelated;
+}
+
+.battle-ui {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    z-index: 110;
+}
+
+.battle-deploy-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: linear-gradient(180deg, rgba(30,40,60,0.95), rgba(10,15,25,0.95));
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.battle-deploy-btn:hover { transform: scale(1.08); border-color: #fbbf24; }
+.battle-deploy-btn.picked { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251,191,36,0.3); }
+.battle-deploy-btn.empty { opacity: 0.3; cursor: not-allowed; }
+
+.battle-deploy-btn .bd-icon { font-size: 22px; }
+.battle-deploy-btn .bd-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #0a0e14;
+}
+
+.battle-surrender {
+    padding: 12px 24px;
+    background: linear-gradient(180deg, #7f1d1d, #450a0a);
+    border: 2px solid #dc2626;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.battle-hud-top {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 16px;
+    z-index: 110;
+}
+
+.battle-hud-item {
+    background: rgba(10,15,25,0.9);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+.battle-hud-item span { color: #fbbf24; }
+
+/* ===== RESULT MODAL ===== */
+#result-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+}
+#result-modal.active { display: flex; }
+
+.result-box {
+    background: linear-gradient(180deg, #1a2332, #0f172a);
+    border: 2px solid #fbbf24;
+    border-radius: 24px;
+    padding: 40px 50px;
+    text-align: center;
+    animation: resultPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 60px rgba(251,191,36,0.1);
+}
+
+@keyframes resultPop {
+    from { transform: scale(0.3); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.result-title { font-family: 'Cinzel', serif; font-size: 40px; font-weight: 900; margin-bottom: 8px; }
+.result-title.win { color: #fbbf24; }
+.result-title.loss { color: #ef4444; }
+.result-stars { font-size: 48px; margin-bottom: 16px; }
+.result-row { font-size: 15px; color: #94a3b8; margin-bottom: 8px; }
+.result-row strong { color: #fbbf24; font-size: 18px; }
+.result-btn {
+    margin-top: 20px;
+    padding: 14px 36px;
+    background: linear-gradient(180deg, #d97706, #92400e);
+    border: 2px solid #fbbf24;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+}
+.result-btn:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(217,119,6,0.4); }
+
+/* ===== UPGRADE MODAL ===== */
+#upgrade-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 150;
+    align-items: center;
+    justify-content: center;
+}
+#upgrade-modal.active { display: flex; }
+
+.upgrade-box {
+    background: linear-gradient(180deg, #1a2332, #0f172a);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    max-width: 360px;
+    animation: resultPop 0.35s ease;
+}
+
+.upgrade-box h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    color: #fbbf24;
+    margin-bottom: 14px;
+}
+
+.upgrade-stat { font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
+.upgrade-stat b { color: #e2e8f0; }
+
+.upgrade-btns { display: flex; gap: 10px; margin-top: 18px; justify-content: center; }
+
+.u-btn {
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.u-btn-green {
+    background: linear-gradient(180deg, #16a34a, #15803d);
+    border-color: #22c55e;
+    color: #fff;
+}
+.u-btn-green:hover { transform: scale(1.05); }
+.u-btn-green:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.u-btn-gray {
+    background: linear-gradient(180deg, #374151, #1f2937);
+    border-color: #4b5563;
+    color: #e2e8f0;
+}
+
+.u-btn-red {
+    background: linear-gradient(180deg, #dc2626, #7f1d1d);
+    border-color: #ef4444;
+    color: #fff;
+    margin-top: 10px;
+}
+
+/* ===== TOAST ===== */
+#toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: linear-gradient(180deg, #1a2332, #0f172a);
+    border: 1px solid rgba(251,191,36,0.4);
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fbbf24;
+    z-index: 300;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ===== SELECTION INDICATOR ===== */
+#selection-hint {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,15,25,0.9);
+    border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 12px;
+    color: #fbbf24;
+    z-index: 45;
+    display: none;
+    animation: menuPop 0.2s ease;
+}
+#selection-hint.active { display: block; }
+
+/* Scrollbar for menus */
+.float-menu::-webkit-scrollbar { width: 4px; }
+.float-menu::-webkit-scrollbar-track { background: transparent; }
+.float-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Responsive */
+@media (max-width: 950px) {
+    #mainCanvas { width: 95vw; height: auto; }
+    .fab { width: 54px; height: 54px; font-size: 9px; }
+    .fab .fab-icon { font-size: 18px; }
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<div id="game-stage">
+    <!-- Resource Bar -->
+    <div id="res-bar">
+        <div class="res-item res-gold">
+            <span class="res-icon">🪙</span>
+            <span class="res-val" id="rv-gold">0</span>
+            <span class="res-cap">/<span id="rc-gold">1200</span></span>
+        </div>
+        <div class="res-item res-elixir">
+            <span class="res-icon">💧</span>
+            <span class="res-val" id="rv-elixir">0</span>
+            <span class="res-cap">/<span id="rc-elixir">1200</span></span>
+        </div>
+        <div class="res-item res-troop">
+            <span class="res-icon">🪖</span>
+            <span class="res-val" id="rv-troops">0</span>
+            <span class="res-cap">/<span id="rc-troops">25</span></span>
+        </div>
+        <div class="res-item">
+            <span class="res-icon">🏰</span>
+            <span class="res-val" id="rv-th">1</span>
+        </div>
+        <div class="res-item res-trophy">
+            <span class="res-icon">⭐</span>
+            <span class="res-val" id="rv-trophy">0</span>
+        </div>
+    </div>
+
+    <!-- Village Canvas -->
+    <div id="village-view">
+        <canvas id="mainCanvas" width="900" height="650"></canvas>
+
+        <!-- Floating Action Buttons -->
+        <button class="fab" id="fab-build" onclick="openMenu('build')">
+            <span class="fab-icon">🏗</span>
+            <span>Build</span>
+        </button>
+
+        <button class="fab" id="fab-army" onclick="openMenu('army')">
+            <span class="fab-icon">🪖</span>
+            <span>Army</span>
+            <span class="fab-badge" id="army-badge" style="display:none;">0</span>
+        </button>
+
+        <button class="fab" id="fab-attack" onclick="openMenu('attack')">
+            <span class="fab-icon">⚔</span>
+            <span>Attack</span>
+        </button>
+
+        <button class="fab" id="fab-info" onclick="openMenu('info')">
+            <span class="fab-icon">⚙</span>
+            <span>Menu</span>
+        </button>
+
+        <!-- Selection Hint -->
+        <div id="selection-hint">Click on the village to place building</div>
+
+        <!-- Build Menu -->
+        <div class="float-menu" id="menu-build">
+            <button class="menu-close" onclick="closeAllMenus()">×</button>
+            <div class="menu-title">🏗 Build</div>
+            <div class="menu-grid" id="grid-build"></div>
+            <div class="camp-bar">💡 Click a building, then click the village to place it.</div>
+        </div>
+
+        <!-- Army Menu -->
+        <div class="float-menu" id="menu-army">
+            <button class="menu-close" onclick="closeAllMenus()">×</button>
+            <div class="menu-title">🪖 Train Troops</div>
+            <div class="army-list" id="list-army"></div>
+            <div class="camp-bar"><strong>Camp:</strong> <span id="camp-bar">0/25</span> housing used</div>
+        </div>
+
+        <!-- Attack Menu -->
+        <div class="float-menu" id="menu-attack">
+            <button class="menu-close" onclick="closeAllMenus()">×</button>
+            <div class="menu-title">⚔ Attack</div>
+            <div class="attack-panel">
+                <button class="attack-btn" id="btn-find" onclick="findMatch()">🔍 Find Match</button>
+                <div class="attack-info">
+                    Army: <strong id="atk-army" style="color:#e2e8f0;">0 troops</strong><br>
+                    Destroy enemy buildings to earn stars and loot!
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Menu -->
+        <div class="float-menu" id="menu-info">
+            <button class="menu-close" onclick="closeAllMenus()">×</button>
+            <div class="menu-title">⚙ Menu</div>
+            <div class="info-btn-row">
+                <button class="info-btn" onclick="saveGame(); closeAllMenus();">💾 Save</button>
+                <button class="info-btn" onclick="loadGame(); closeAllMenus();">📂 Load</button>
+                <button class="info-btn" onclick="resetGame(); closeAllMenus();">🔄 New</button>
+                <button class="info-btn" onclick="toggleGrid(); closeAllMenus();">🔲 Grid</button>
+            </div>
+            <div class="camp-bar" style="margin-top:12px;">
+                <strong>Buildings:</strong> 🏰TH 🪙Mine 💧Collector 📦Storage 🔫Cannon 🏹Archer 🧱Wall 🏛Barracks ⛺Camp<br>
+                <strong>Troops:</strong> ⚔Barbarian 🏹Archer 🛡Giant
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Battle Overlay -->
+<div id="battle-overlay">
+    <div class="battle-hud-top">
+        <div class="battle-hud-item">⏱ <span id="bh-time">180</span>s</div>
+        <div class="battle-hud-item">⭐ <span id="bh-stars">0</span>/3</div>
+        <div class="battle-hud-item">💥 <span id="bh-dest">0</span>%</div>
+    </div>
+    <canvas id="battleCanvas" width="900" height="650"></canvas>
+    <div class="battle-ui">
+        <div id="deploy-container" style="display:flex; gap:10px;"></div>
+        <button class="battle-surrender" onclick="endBattle()">🏳 End</button>
+    </div>
+</div>
+
+<!-- Result Modal -->
+<div id="result-modal">
+    <div class="result-box">
+        <div class="result-title" id="rt-title">Victory!</div>
+        <div class="result-stars" id="rt-stars">⭐⭐⭐</div>
+        <div class="result-row">🏆 Trophies: <strong id="rt-trophy">+20</strong></div>
+        <div class="result-row">🪙 Gold: <strong id="rt-gold">0</strong></div>
+        <div class="result-row">💧 Elixir: <strong id="rt-elixir">0</strong></div>
+        <button class="result-btn" onclick="closeResult()">Return to Base</button>
+    </div>
+</div>
+
+<!-- Upgrade Modal -->
+<div id="upgrade-modal">
+    <div class="upgrade-box">
+        <h3 id="up-title">Upgrade</h3>
+        <div id="up-info"></div>
+        <div class="upgrade-btns">
+            <button class="u-btn u-btn-green" id="up-confirm" onclick="doUpgrade()">Upgrade</button>
+            <button class="u-btn u-btn-gray" onclick="closeUpgrade()">Cancel</button>
+        </div>
+        <button class="u-btn u-btn-red" onclick="doRemove()">🗑 Remove</button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ==================== CONFIG ====================
+const GS = 25;
+const CW = 900, CH = 650;
+const COLS = Math.floor(CW / GS);
+const ROWS = Math.floor(CH / GS);
+
+const BDEF = {
+    townHall: { name: "Town Hall", icon: "🏰", size: 3, maxCount: 1,
+        costs: [0, 1200, 3500, 9000, 22000], eCosts: [0, 0, 0, 0, 0],
+        hp: [200, 400, 800, 1600, 2800], desc: "Heart of your village" },
+    goldMine: { name: "Gold Mine", icon: "🪙", size: 2, maxCount: [2, 3, 4, 5, 6],
+        costs: [60, 180, 500, 1200, 3000], eCosts: [0, 0, 0, 0, 0],
+        hp: [60, 100, 150, 220, 300], income: [4, 8, 13, 19, 28], desc: "Generates gold" },
+    elixirCollector: { name: "Elixir Collector", icon: "💧", size: 2, maxCount: [2, 3, 4, 5, 6],
+        costs: [60, 180, 500, 1200, 3000], eCosts: [0, 0, 0, 0, 0],
+        hp: [60, 100, 150, 220, 300], income: [4, 8, 13, 19, 28], desc: "Generates elixir" },
+    goldStorage: { name: "Gold Storage", icon: "📦", size: 2, maxCount: [1, 2, 2, 3, 3],
+        costs: [120, 350, 900, 2200, 5500], eCosts: [0, 0, 0, 0, 0],
+        hp: [100, 180, 300, 480, 700], capacity: [600, 1800, 5000, 12000, 30000], desc: "Stores gold" },
+    elixirStorage: { name: "Elixir Storage", icon: "🧪", size: 2, maxCount: [1, 2, 2, 3, 3],
+        costs: [120, 350, 900, 2200, 5500], eCosts: [0, 0, 0, 0, 0],
+        hp: [100, 180, 300, 480, 700], capacity: [600, 1800, 5000, 12000, 30000], desc: "Stores elixir" },
+    cannon: { name: "Cannon", icon: "🔫", size: 2, maxCount: [1, 2, 3, 4, 5],
+        costs: [100, 250, 700, 1700, 4500], eCosts: [0, 0, 0, 0, 0],
+        hp: [80, 130, 200, 310, 450], damage: [10, 15, 22, 32, 45], range: [5, 5, 6, 6, 7], desc: "Ground defense" },
+    archerTower: { name: "Archer Tower", icon: "🏹", size: 2, maxCount: [0, 1, 2, 3, 4],
+        costs: [180, 500, 1200, 2800, 6500], eCosts: [0, 0, 0, 0, 0],
+        hp: [90, 150, 240, 370, 520], damage: [8, 13, 20, 28, 38], range: [6, 6, 7, 7, 8], desc: "Long-range defense" },
+    wall: { name: "Wall", icon: "🧱", size: 1, maxCount: [12, 25, 40, 60, 90],
+        costs: [25, 60, 120, 250, 500], eCosts: [0, 0, 0, 0, 0],
+        hp: [120, 250, 420, 650, 950], desc: "Blocks enemies" },
+    barracks: { name: "Barracks", icon: "🏛", size: 2, maxCount: [1, 1, 2, 2, 3],
+        costs: [250, 600, 1400, 3500, 8000], eCosts: [0, 0, 0, 0, 0],
+        hp: [120, 180, 260, 380, 520], desc: "Unlocks troops" },
+    armyCamp: { name: "Army Camp", icon: "⛺", size: 3, maxCount: [1, 1, 2, 2, 3],
+        costs: [180, 450, 1100, 2800, 6500], eCosts: [0, 0, 0, 0, 0],
+        hp: [100, 160, 240, 350, 480], capacity: [25, 35, 50, 70, 95], desc: "Houses troops" }
+};
+
+const TDEF = {
+    barbarian: { name: "Barbarian", icon: "⚔", cost: 20, housing: 1, hp: 50, damage: 14, speed: 2.0, range: 1, target: "any", desc: "Fast melee", unlockTH: 1, color: "#f97316", shadow: "#c2410c" },
+    archer: { name: "Archer", icon: "🏹", cost: 45, housing: 1, hp: 35, damage: 12, speed: 1.6, range: 4, target: "any", desc: "Ranged", unlockTH: 1, color: "#ec4899", shadow: "#be185d" },
+    giant: { name: "Giant", icon: "🛡", cost: 120, housing: 5, hp: 180, damage: 18, speed: 1.0, range: 1, target: "defense", desc: "Tank", unlockTH: 2, color: "#3b82f6", shadow: "#1d4ed8" }
+};
+
+// ==================== STATE ====================
+let S = {
+    gold: 400, elixir: 400, trophies: 0, townHall: 1,
+    buildings: [{ type: "townHall", x: 15, y: 10, level: 1, hp: 200, maxHp: 200 }],
+    troops: {}, selectedBuild: null, showGrid: true, lastTick: Date.now()
+};
+
+let selIdx = -1, upgIdx = -1, activeMenu = null;
+let B = null, bTimer = null, bAnim = null;
+
+const C = document.getElementById("mainCanvas");
+const X = C.getContext("2d");
+const BC = document.getElementById("battleCanvas");
+const BX = BC.getContext("2d");
+
+// ==================== UTILS ====================
+function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+function bd(t) { return BDEF[t]; }
+function bcnt(t) { return S.buildings.filter(b => b.type === t).length; }
+function maxc(t) { const d = bd(t); return Array.isArray(d.maxCount) ? (d.maxCount[S.townHall - 1] || 0) : d.maxCount; }
+function cap(t) { let c = 1200; const st = t === "gold" ? "goldStorage" : "elixirStorage"; S.buildings.filter(b => b.type === st).forEach(b => { c += (bd(st).capacity[b.level - 1] || 0); }); return c; }
+function tcap() { let c = 0; S.buildings.filter(b => b.type === "armyCamp").forEach(b => { c += bd("armyCamp").capacity[b.level - 1] || 0; }); return c || 25; }
+function ttroops() { return Object.values(S.troops).reduce((a, b) => a + b, 0); }
+function thousing() { let u = 0; for (const [k, v] of Object.entries(S.troops)) u += (TDEF[k]?.housing || 1) * v; return u; }
+function barracks() { return bcnt("barracks"); }
+function unlocked(t) { const d = TDEF[t]; return d && S.townHall >= d.unlockTH && barracks() > 0; }
+function occ(x, y, sz, ex = -1) { for (let i = 0; i < S.buildings.length; i++) { if (i === ex) continue; const b = S.buildings[i], d = bd(b.type); if (x < b.x + d.size && x + sz > b.x && y < b.y + d.size && y + sz > b.y) return true; } return false; }
+function inb(x, y, sz) { return x >= 0 && y >= 0 && x + sz <= COLS && y + sz <= ROWS; }
+
+// ==================== MENU SYSTEM ====================
+function openMenu(name) {
+    if (activeMenu === name) { closeAllMenus(); return; }
+    closeAllMenus();
+    document.getElementById("menu-" + name).classList.add("active");
+    activeMenu = name;
+    if (name === "build") renderBuildMenu();
+    if (name === "army") renderArmyMenu();
+    if (name === "attack") renderAttackMenu();
+}
+
+function closeAllMenus() {
+    document.querySelectorAll(".float-menu").forEach(m => m.classList.remove("active"));
+    activeMenu = null;
+}
+
+function renderBuildMenu() {
+    const g = document.getElementById("grid-build");
+    g.innerHTML = "";
+    for (const [type, d] of Object.entries(BDEF)) {
+        if (type === "townHall") continue;
+        const cnt = bcnt(type), mx = maxc(type);
+        const c = d.costs[0], ec = d.eCosts[0];
+        const ok = S.gold >= c && S.elixir >= ec && cnt < mx;
+        const item = document.createElement("div");
+        item.className = "menu-item" + (ok ? "" : " disabled");
+        item.innerHTML = `
+            <div class="menu-item-icon">${d.icon}</div>
+            <div class="menu-item-name">${d.name}</div>
+            <div class="menu-item-cost">🪙${c}${ec > 0 ? ` 💧${ec}` : ""}</div>
+            <div class="menu-item-meta">${cnt}/${mx}</div>
+        `;
+        if (ok) item.onclick = () => { selectBuild(type); };
+        g.appendChild(item);
+    }
+}
+
+function selectBuild(type) {
+    S.selectedBuild = type;
+    toast(`Selected ${bd(type).name} — click village to place`);
+    document.getElementById("selection-hint").classList.add("active");
+    closeAllMenus();
+    draw();
+}
+
+function renderArmyMenu() {
+    const list = document.getElementById("list-army");
+    list.innerHTML = "";
+    for (const [type, d] of Object.entries(TDEF)) {
+        const ul = unlocked(type), cnt = S.troops[type] || 0;
+        const ok = ul && S.elixir >= d.cost && thousing() + d.housing <= tcap();
+        const row = document.createElement("div");
+        row.className = "army-row" + (ok ? "" : " disabled");
+        row.innerHTML = `
+            <div class="army-row-icon">${d.icon}</div>
+            <div class="army-row-info">
+                <div class="army-row-name">${d.name}</div>
+                <div class="army-row-cost">💧${d.cost} · Space ${d.housing}</div>
+            </div>
+            ${cnt > 0 ? `<div class="army-row-count">${cnt}</div>` : ""}
+        `;
+        if (ok) row.onclick = () => { train(type); renderArmyMenu(); };
+        list.appendChild(row);
+    }
+    document.getElementById("camp-bar").textContent = `${thousing()}/${tcap()}`;
+    const badge = document.getElementById("army-badge");
+    const total = ttroops();
+    badge.textContent = total;
+    badge.style.display = total > 0 ? "flex" : "none";
+}
+
+function train(type) {
+    const d = TDEF[type];
+    if (S.elixir < d.cost) { toast("Not enough elixir!"); return; }
+    if (thousing() + d.housing > tcap()) { toast("Army camp full!"); return; }
+    S.elixir -= d.cost;
+    S.troops[type] = (S.troops[type] || 0) + 1;
+    toast(`Trained ${d.name}!`);
+}
+
+function renderAttackMenu() {
+    const t = ttroops();
+    document.getElementById("atk-army").textContent = t > 0 ? `${t} troops ready` : "Train troops first";
+    document.getElementById("btn-find").disabled = t === 0;
+}
+
+function updStats() {
+    document.getElementById("rv-gold").textContent = Math.floor(S.gold);
+    document.getElementById("rv-elixir").textContent = Math.floor(S.elixir);
+    document.getElementById("rv-troops").textContent = thousing();
+    document.getElementById("rv-th").textContent = S.townHall;
+    document.getElementById("rv-trophy").textContent = S.trophies;
+    document.getElementById("rc-gold").textContent = cap("gold");
+    document.getElementById("rc-elixir").textContent = cap("elixir");
+    document.getElementById("rc-troops").textContent = tcap();
+}
+
+function toggleGrid() { S.showGrid = !S.showGrid; draw(); toast(S.showGrid ? "Grid on" : "Grid off"); }
+
+// ==================== RENDERING ====================
+function drawBuilding(ctx, b, sel = false) {
+    const d = bd(b.type);
+    const px = b.x * GS, py = b.y * GS;
+    const sz = d.size * GS;
+
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(px + 4, py + 5, sz, sz);
+
+    if (b.type === "wall") {
+        const brickColors = ["#5c4a3a", "#6b5745", "#7a6350", "#4a3a2a"];
+        const hl = sel ? "#8a7a6a" : brickColors[0];
+        ctx.fillStyle = hl;
+        ctx.fillRect(px + 1, py + 1, sz - 2, sz - 2);
+        ctx.fillStyle = brickColors[1];
+        ctx.fillRect(px + 3, py + 3, sz - 6, 4);
+        ctx.fillRect(px + 3, py + 10, sz - 6, 4);
+        ctx.fillRect(px + 3, py + 17, sz - 6, 4);
+        ctx.fillStyle = brickColors[2];
+        ctx.fillRect(px + 3, py + 3, 4, 4);
+        ctx.fillRect(px + sz - 7, py + 10, 4, 4);
+        ctx.fillRect(px + 3, py + 17, 4, 4);
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(px + 1, py + 1, sz - 2, 3);
+    } else if (b.type === "townHall") {
+        const thColors = ["#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5"];
+        const base = thColors[b.level - 1] || thColors[0];
+        ctx.fillStyle = base;
+        ctx.fillRect(px + 2, py + 8, sz - 4, sz - 10);
+        ctx.fillStyle = "#7f1d1d";
+        ctx.beginPath();
+        ctx.moveTo(px, py + 8);
+        ctx.lineTo(px + sz / 2, py - 2);
+        ctx.lineTo(px + sz, py + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#991b1b";
+        ctx.fillRect(px + sz / 2 - 3, py - 2, 6, 10);
+        ctx.fillStyle = "#451a03";
+        ctx.fillRect(px + sz / 2 - 5, py + sz - 14, 10, 12);
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(px + 8, py + 14, 6, 8);
+        ctx.fillRect(px + sz - 14, py + 14, 6, 8);
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillRect(px + sz / 2 - 1, py - 10, 2, 10);
+        ctx.fillRect(px + sz / 2, py - 10, 10, 6);
+    } else {
+        const palettes = {
+            goldMine: { base: "#ca8a04", light: "#facc15", dark: "#854d0e", accent: "#fef08a" },
+            elixirCollector: { base: "#7c3aed", light: "#a78bfa", dark: "#5b21b6", accent: "#ddd6fe" },
+            goldStorage: { base: "#d97706", light: "#fbbf24", dark: "#92400e", accent: "#fde68a" },
+            elixirStorage: { base: "#9333ea", light: "#c084fc", dark: "#6b21a8", accent: "#e9d5ff" },
+            cannon: { base: "#475569", light: "#94a3b8", dark: "#1e293b", accent: "#cbd5e1" },
+            archerTower: { base: "#78350f", light: "#b45309", dark: "#451a03", accent: "#fdba74" },
+            barracks: { base: "#9a3412", light: "#ea580c", dark: "#7c2d12", accent: "#fdba74" },
+            armyCamp: { base: "#65a30d", light: "#a3e635", dark: "#3f6212", accent: "#ecfccb" }
+        };
+        const p = palettes[b.type] || { base: "#555", light: "#777", dark: "#333", accent: "#999" };
+        ctx.fillStyle = p.base;
+        ctx.fillRect(px + 1, py + 1, sz - 2, sz - 2);
+        ctx.fillStyle = p.light;
+        ctx.fillRect(px + 1, py + 1, sz - 2, 4);
+        ctx.fillStyle = p.dark;
+        ctx.fillRect(px + sz - 5, py + 1, 4, sz - 2);
+        ctx.fillRect(px + 1, py + sz - 5, sz - 2, 4);
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fillRect(px + 4, py + 4, sz - 8, sz - 8);
+        ctx.fillStyle = p.accent;
+        ctx.fillRect(px + sz / 2 - 6, py + sz / 2 - 6, 12, 12);
+        ctx.fillStyle = p.dark;
+        ctx.font = `bold ${Math.floor(sz / 2.5)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(d.icon, px + sz / 2, py + sz / 2 + 1);
+    }
+
+    if (b.level > 1) {
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 9px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Lv" + b.level, px + sz / 2, py + sz - 5);
+    }
+
+    if (b.hp < b.maxHp) {
+        const bw = sz - 6, bh = 4;
+        ctx.fillStyle = "#1f2937";
+        ctx.fillRect(px + 3, py - 9, bw, bh);
+        const pct = b.hp / b.maxHp;
+        ctx.fillStyle = pct > 0.5 ? "#22c55e" : (pct > 0.25 ? "#eab308" : "#ef4444");
+        ctx.fillRect(px + 3, py - 9, bw * pct, bh);
+    }
+
+    if (sel) {
+        ctx.strokeStyle = "#fbbf24";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(px - 2, py - 2, sz + 4, sz + 4);
+        ctx.setLineDash([]);
+        ctx.shadowColor = "#fbbf24";
+        ctx.shadowBlur = 10;
+        ctx.strokeRect(px - 2, py - 2, sz + 4, sz + 4);
+        ctx.shadowBlur = 0;
+    }
+}
+
+function draw() {
+    X.clearRect(0, 0, CW, CH);
+    X.fillStyle = "#3d7a35";
+    X.fillRect(0, 0, CW, CH);
+    X.fillStyle = "rgba(255,255,255,0.02)";
+    for (let i = 0; i < 80; i++) {
+        X.fillRect(((i * 137.5 + 50) % CW), ((i * 89.7 + 30) % CH), 2, 2);
+    }
+    X.fillStyle = "rgba(0,0,0,0.02)";
+    for (let i = 0; i < 60; i++) {
+        X.fillRect(((i * 211.3 + 100) % CW), ((i * 163.1 + 80) % CH), 2, 2);
+    }
+    if (S.showGrid) {
+        X.strokeStyle = "rgba(255,255,255,0.06)";
+        X.lineWidth = 1;
+        for (let x = 0; x <= CW; x += GS) { X.beginPath(); X.moveTo(x, 0); X.lineTo(x, CH); X.stroke(); }
+        for (let y = 0; y <= CH; y += GS) { X.beginPath(); X.moveTo(0, y); X.lineTo(CW, y); X.stroke(); }
+    }
+    S.buildings.forEach((b, i) => drawBuilding(X, b, i === selIdx));
+    if (S.selectedBuild) {
+        X.strokeStyle = "rgba(251, 191, 36, 0.4)";
+        X.lineWidth = 2;
+        X.setLineDash([6, 4]);
+        X.strokeRect(2, 2, CW - 4, CH - 4);
+        X.setLineDash([]);
+    }
+}
+
+// ==================== INTERACTION ====================
+C.addEventListener("click", e => {
+    const r = C.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const gx = Math.floor(mx / GS), gy = Math.floor(my / GS);
+
+    let clicked = -1;
+    for (let i = 0; i < S.buildings.length; i++) {
+        const b = S.buildings[i], d = bd(b.type);
+        if (gx >= b.x && gx < b.x + d.size && gy >= b.y && gy < b.y + d.size) { clicked = i; break; }
+    }
+
+    if (S.selectedBuild) {
+        const d = bd(S.selectedBuild);
+        if (!inb(gx, gy, d.size)) { toast("Out of bounds!"); return; }
+        if (occ(gx, gy, d.size)) { toast("Space occupied!"); return; }
+        const c = d.costs[0], ec = d.eCosts[0];
+        if (S.gold < c || S.elixir < ec) { toast("Not enough resources!"); S.selectedBuild = null; document.getElementById("selection-hint").classList.remove("active"); draw(); return; }
+        if (bcnt(S.selectedBuild) >= maxc(S.selectedBuild)) { toast("Max count reached!"); S.selectedBuild = null; document.getElementById("selection-hint").classList.remove("active"); draw(); return; }
+
+        S.gold -= c; S.elixir -= ec;
+        S.buildings.push({ type: S.selectedBuild, x: gx, y: gy, level: 1, hp: d.hp[0], maxHp: d.hp[0] });
+        toast(`${d.name} built!`);
+        S.selectedBuild = null;
+        document.getElementById("selection-hint").classList.remove("active");
+        selIdx = -1;
+        updStats(); draw();
+    } else if (clicked >= 0) {
+        selIdx = clicked;
+        showUpgrade(clicked);
+        draw();
+    } else {
+        selIdx = -1; draw();
+    }
+});
+
+C.addEventListener("mousemove", e => {
+    if (!S.selectedBuild) return;
+    const r = C.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const d = bd(S.selectedBuild);
+    const gx = Math.floor(mx / GS), gy = Math.floor(my / GS);
+    const px = gx * GS, py = gy * GS;
+    const sz = d.size * GS;
+    draw();
+    const ok = inb(gx, gy, d.size) && !occ(gx, gy, d.size);
+    X.fillStyle = ok ? "rgba(34, 197, 94, 0.25)" : "rgba(239, 68, 68, 0.25)";
+    X.fillRect(px, py, sz, sz);
+    X.strokeStyle = ok ? "#22c55e" : "#ef4444";
+    X.lineWidth = 2;
+    X.strokeRect(px, py, sz, sz);
+});
+
+// ==================== UPGRADE ====================
+function showUpgrade(idx) {
+    upgIdx = idx;
+    const b = S.buildings[idx], d = bd(b.type), nl = b.level + 1;
+    document.getElementById("up-title").innerHTML = `${d.icon} ${d.name} <span style="color:#64748b;font-size:14px;">Lv${b.level}</span>`;
+
+    if (nl > d.costs.length) {
+        document.getElementById("up-info").innerHTML = `<div class="upgrade-stat" style="color:#22c55e;font-size:16px;">✓ Max Level</div><div class="upgrade-stat">HP: ${b.hp}/${b.maxHp}</div>`;
+        document.getElementById("up-confirm").style.display = "none";
+    } else {
+        const c = d.costs[nl - 1], ec = d.eCosts[nl - 1];
+        const nhp = d.hp[nl - 1];
+        const can = S.gold >= c && S.elixir >= ec;
+        let extra = "";
+        if (d.income) extra += `<div class="upgrade-stat">Income: ${d.income[b.level - 1]} → <b>${d.income[nl - 1]}</b></div>`;
+        if (d.capacity) extra += `<div class="upgrade-stat">Capacity: ${d.capacity[b.level - 1]} → <b>${d.capacity[nl - 1]}</b></div>`;
+        if (d.damage) extra += `<div class="upgrade-stat">Damage: ${d.damage[b.level - 1]} → <b>${d.damage[nl - 1]}</b></div>`;
+        if (d.range) extra += `<div class="upgrade-stat">Range: ${d.range[b.level - 1]} → <b>${d.range[nl - 1]}</b></div>`;
+
+        document.getElementById("up-info").innerHTML = `
+            <div class="upgrade-stat" style="font-size:16px;color:#fbbf24;margin-bottom:10px;">Upgrade to Level ${nl}</div>
+            <div class="upgrade-stat">Cost: 🪙${c}${ec > 0 ? ` | 💧${ec}` : ""}</div>
+            <div class="upgrade-stat">HP: ${b.hp} → <b>${nhp}</b></div>
+            ${extra}
+            <div class="upgrade-stat" style="margin-top:8px;color:${can ? '#22c55e' : '#ef4444'};">${can ? "✓ Can afford" : "✗ Need more resources"}</div>
+        `;
+        document.getElementById("up-confirm").style.display = "inline-block";
+        document.getElementById("up-confirm").disabled = !can;
+        document.getElementById("up-confirm").onclick = () => doUpgrade(c, ec, nl, nhp);
+    }
+    document.getElementById("upgrade-modal").classList.add("active");
+}
+
+function doUpgrade(cost, ec, nl, nhp) {
+    if (upgIdx < 0) return;
+    const b = S.buildings[upgIdx];
+    S.gold -= cost; if (ec) S.elixir -= ec;
+    b.level = nl; b.maxHp = nhp; b.hp = nhp;
+    toast(`${bd(b.type).name} upgraded to Lv${nl}!`);
+    closeUpgrade(); updStats(); draw();
+}
+
+function doRemove() {
+    if (upgIdx < 0) return;
+    const b = S.buildings[upgIdx];
+    if (b.type === "townHall") { toast("Cannot remove Town Hall!"); return; }
+    const refund = Math.floor(bd(b.type).costs[0] * 0.5);
+    S.gold += refund;
+    S.buildings.splice(upgIdx, 1);
+    toast(`${bd(b.type).name} removed! +${refund} gold`);
+    closeUpgrade(); selIdx = -1; updStats(); draw();
+}
+
+function closeUpgrade() { document.getElementById("upgrade-modal").classList.remove("active"); upgIdx = -1; }
+
+// ==================== INCOME ====================
+function tick() {
+    const now = Date.now();
+    if (now - S.lastTick < 2000) return;
+    let gi = 0, ei = 0;
+    S.buildings.forEach(b => {
+        const d = bd(b.type);
+        if (d.income) {
+            const inc = d.income[b.level - 1] || 0;
+            if (b.type === "goldMine") gi += inc;
+            if (b.type === "elixirCollector") ei += inc;
+        }
+    });
+    S.gold = Math.min(S.gold + gi, cap("gold"));
+    S.elixir = Math.min(S.elixir + ei, cap("elixir"));
+    S.lastTick = now;
+    updStats();
+}
+setInterval(tick, 2000);
+
+// ==================== BATTLE ====================
+function genAI() {
+    const thl = Math.max(1, Math.min(5, S.townHall + Math.floor(Math.random() * 2) - 1));
+    const base = {
+        buildings: [{ type: "townHall", x: 14, y: 10, level: thl, hp: BDEF.townHall.hp[thl - 1], maxHp: BDEF.townHall.hp[thl - 1] }],
+        loot: { gold: 60 + Math.floor(Math.random() * 180) + thl * 60, elixir: 60 + Math.floor(Math.random() * 180) + thl * 60 }
+    };
+    const types = ["goldMine", "elixirCollector", "cannon", "archerTower", "wall", "goldStorage", "elixirStorage"];
+    const n = 6 + Math.floor(Math.random() * 10);
+    for (let i = 0; i < n; i++) {
+        const t = types[Math.floor(Math.random() * types.length)];
+        const d = bd(t);
+        const ml = Math.min(thl, d.costs.length);
+        const lv = Math.max(1, Math.floor(Math.random() * ml) + 1);
+        for (let a = 0; a < 50; a++) {
+            const x = Math.floor(Math.random() * (COLS - d.size));
+            const y = Math.floor(Math.random() * (ROWS - d.size));
+            if (!occAI(base.buildings, x, y, d.size)) {
+                base.buildings.push({ type: t, x, y, level: lv, hp: d.hp[lv - 1], maxHp: d.hp[lv - 1] });
+                break;
+            }
+        }
+    }
+    return base;
+}
+
+function occAI(list, x, y, sz) {
+    for (const b of list) {
+        const d = bd(b.type);
+        if (x < b.x + d.size && x + sz > b.x && y < b.y + d.size && y + sz > b.y) return true;
+    }
+    return false;
+}
+
+function findMatch() {
+    if (ttroops() === 0) { toast("Train troops first!"); return; }
+    closeAllMenus();
+    const ai = genAI();
+    B = {
+        aiBuildings: JSON.parse(JSON.stringify(ai.buildings)),
+        troops: [], projectiles: [], particles: [],
+        loot: ai.loot, timeLeft: 180, stars: 0,
+        destroyed: 0, total: ai.buildings.length,
+        thDestroyed: false, pick: null, deploy: {}, ended: false
+    };
+    for (const [k, v] of Object.entries(S.troops)) B.deploy[k] = v;
+
+    const dc = document.getElementById("deploy-container");
+    dc.innerHTML = "";
+    for (const [type, count] of Object.entries(B.deploy)) {
+        const d = TDEF[type];
+        const btn = document.createElement("button");
+        btn.className = "battle-deploy-btn";
+        btn.innerHTML = `<span class="bd-icon">${d.icon}</span><span style="font-size:9px;margin-top:2px;">${d.name}</span>`;
+        if (count > 0) btn.innerHTML += `<span class="bd-count">${count}</span>`;
+        else btn.classList.add("empty");
+        btn.dataset.type = type;
+        btn.onclick = () => pickTroop(type, btn);
+        dc.appendChild(btn);
+    }
+    document.getElementById("battle-overlay").classList.add("active");
+    updBattleUI();
+    bTimer = setInterval(() => {
+        if (B.ended) return;
+        B.timeLeft--;
+        if (B.timeLeft <= 0) endBattle(true);
+        updBattleUI();
+    }, 1000);
+    bAnim = requestAnimationFrame(battleLoop);
+}
+
+function pickTroop(type, btn) {
+    if (B.deploy[type] <= 0) return;
+    B.pick = type;
+    document.querySelectorAll(".battle-deploy-btn").forEach(b => b.classList.remove("picked"));
+    btn.classList.add("picked");
+}
+
+BC.addEventListener("click", e => {
+    if (!B || B.ended || !B.pick || B.deploy[B.pick] <= 0) return;
+    const r = BC.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const type = B.pick, d = TDEF[type];
+    B.troops.push({
+        type, x: mx, y: my, hp: d.hp, maxHp: d.hp,
+        damage: d.damage, speed: d.speed, range: d.range * GS,
+        target: d.target, state: "move", cd: 0, tgt: null, id: Math.random()
+    });
+    B.deploy[type]--;
+    const btn = document.querySelector(`.battle-deploy-btn[data-type="${type}"]`);
+    if (btn) {
+        const cntEl = btn.querySelector(".bd-count");
+        if (cntEl) cntEl.textContent = B.deploy[type];
+        if (B.deploy[type] <= 0) { btn.classList.add("empty"); B.pick = null; btn.classList.remove("picked"); }
+    }
+    for (let i = 0; i < 6; i++) B.particles.push({ x: mx, y: my, vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5, life: 25, color: d.color });
+});
+
+function battleLoop() {
+    if (!B || B.ended) return;
+    updateBattle();
+    drawBattle();
+    bAnim = requestAnimationFrame(battleLoop);
+}
+
+function updateBattle() {
+    B.troops.forEach(t => {
+        if (t.state === "dead") return;
+        const d = TDEF[t.type];
+        if (!t.tgt || t.tgt.hp <= 0) t.tgt = nearestTarget(t);
+        if (!t.tgt) { t.state = "idle"; return; }
+        const tb = t.tgt, td = bd(tb.type);
+        const tcx = (tb.x + td.size / 2) * GS, tcy = (tb.y + td.size / 2) * GS;
+        const dx = tcx - t.x, dy = tcy - t.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= t.range + (td.size * GS / 2)) {
+            t.state = "atk"; t.cd--;
+            if (t.cd <= 0) {
+                tb.hp -= t.damage; t.cd = 28;
+                for (let i = 0; i < 3; i++) B.particles.push({ x: tcx + (Math.random() - 0.5) * 18, y: tcy + (Math.random() - 0.5) * 18, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, life: 18, color: "#f87171" });
+                if (tb.hp <= 0) {
+                    for (let i = 0; i < 18; i++) B.particles.push({ x: tcx, y: tcy, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7, life: 45, color: ["#f87171", "#fbbf24", "#fb923c"][Math.floor(Math.random() * 3)] });
+                    B.destroyed++;
+                    if (tb.type === "townHall") B.thDestroyed = true;
+                    t.tgt = null;
+                    checkEnd();
+                }
+            }
+        } else {
+            t.state = "move";
+            const sp = t.speed * 1.8;
+            t.x += (dx / dist) * sp;
+            t.y += (dy / dist) * sp;
+        }
+    });
+
+    B.aiBuildings.forEach(b => {
+        if (b.hp <= 0) return;
+        const d = bd(b.type);
+        if (!d.damage) return;
+        b.cd = (b.cd || 0) - 1;
+        if (b.cd > 0) return;
+        const td = bd(b.type);
+        const rng = (d.range[b.level - 1] || d.range[0]) * GS;
+        const cx = (b.x + td.size / 2) * GS, cy = (b.y + td.size / 2) * GS;
+        let near = null, nd = Infinity;
+        B.troops.forEach(t => {
+            if (t.state === "dead") return;
+            const dst = Math.sqrt((t.x - cx) ** 2 + (t.y - cy) ** 2);
+            if (dst < rng && dst < nd) { near = t; nd = dst; }
+        });
+        if (near) {
+            const dmg = d.damage[b.level - 1] || d.damage[0];
+            near.hp -= dmg; b.cd = 40;
+            B.projectiles.push({ x: cx, y: cy, tx: near.x, ty: near.y, sp: 9, color: b.type === "cannon" ? "#475569" : "#ec4899" });
+            if (near.hp <= 0) {
+                near.state = "dead";
+                for (let i = 0; i < 12; i++) B.particles.push({ x: near.x, y: near.y, vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5, life: 28, color: "#60a5fa" });
+            }
+        }
+    });
+
+    B.projectiles = B.projectiles.filter(p => {
+        const dx = p.tx - p.x, dy = p.ty - p.y;
+        const dst = Math.sqrt(dx * dx + dy * dy);
+        if (dst < p.sp) return false;
+        p.x += (dx / dst) * p.sp; p.y += (dy / dst) * p.sp;
+        return true;
+    });
+
+    B.particles = B.particles.filter(p => { p.x += p.vx; p.y += p.vy; p.life--; return p.life > 0; });
+
+    const alive = B.troops.filter(t => t.state !== "dead").length;
+    const rem = Object.values(B.deploy).reduce((a, b) => a + b, 0);
+    if (alive === 0 && rem === 0 && B.troops.length > 0) setTimeout(() => endBattle(true), 800);
+}
+
+function nearestTarget(t) {
+    let near = null, nd = Infinity;
+    const d = TDEF[t.type];
+    B.aiBuildings.forEach(b => {
+        if (b.hp <= 0) return;
+        const td = bd(b.type);
+        const cx = (b.x + td.size / 2) * GS, cy = (b.y + td.size / 2) * GS;
+        const dst = Math.sqrt((t.x - cx) ** 2 + (t.y - cy) ** 2);
+        if (d.target === "defense") {
+            const def = b.type === "cannon" || b.type === "archerTower" || b.type === "townHall";
+            if (def && dst < nd) { near = b; nd = dst; }
+            else if (!near && dst < nd) { near = b; nd = dst; }
+        } else {
+            if (dst < nd) { near = b; nd = dst; }
+        }
+    });
+    return near;
+}
+
+function checkEnd() {
+    if (B.aiBuildings.filter(b => b.hp > 0).length === 0) setTimeout(() => endBattle(true), 400);
+}
+
+function drawBattle() {
+    BX.clearRect(0, 0, CW, CH);
+    BX.fillStyle = "#4a8a3f";
+    BX.fillRect(0, 0, CW, CH);
+    BX.fillStyle = "rgba(255,255,255,0.025)";
+    for (let i = 0; i < 60; i++) BX.fillRect(((i * 137.5 + 50) % CW), ((i * 89.7 + 30) % CH), 2, 2);
+    BX.strokeStyle = "rgba(255,255,255,0.05)";
+    BX.lineWidth = 1;
+    for (let x = 0; x <= CW; x += GS) { BX.beginPath(); BX.moveTo(x, 0); BX.lineTo(x, CH); BX.stroke(); }
+    for (let y = 0; y <= CH; y += GS) { BX.beginPath(); BX.moveTo(0, y); BX.lineTo(CW, y); BX.stroke(); }
+
+    B.aiBuildings.forEach(b => {
+        if (b.hp <= 0) return;
+        const d = bd(b.type);
+        const px = b.x * GS, py = b.y * GS, sz = d.size * GS;
+        BX.fillStyle = "rgba(0,0,0,0.3)";
+        BX.fillRect(px + 3, py + 4, sz, sz);
+        const eColors = { townHall: "#991b1b", goldMine: "#92400e", elixirCollector: "#6b21a8", goldStorage: "#92400e", elixirStorage: "#7c3aed", cannon: "#334155", archerTower: "#451a03", wall: "#4a3a2a" };
+        BX.fillStyle = eColors[b.type] || "#444";
+        BX.fillRect(px + 1, py + 1, sz - 2, sz - 2);
+        BX.font = `${d.size === 3 ? "22px" : "16px"} Arial`;
+        BX.textAlign = "center"; BX.textBaseline = "middle";
+        BX.fillText(d.icon, px + sz / 2, py + sz / 2);
+        if (b.hp < b.maxHp) {
+            BX.fillStyle = "#1f2937"; BX.fillRect(px + 3, py - 9, sz - 6, 4);
+            const p = b.hp / b.maxHp;
+            BX.fillStyle = p > 0.5 ? "#22c55e" : (p > 0.25 ? "#eab308" : "#ef4444");
+            BX.fillRect(px + 3, py - 9, (sz - 6) * p, 4);
+        }
+    });
+
+    B.troops.forEach(t => {
+        if (t.state === "dead") return;
+        const d = TDEF[t.type];
+        BX.fillStyle = "rgba(0,0,0,0.3)";
+        BX.beginPath(); BX.ellipse(t.x + 2, t.y + 10, 9, 5, 0, 0, Math.PI * 2); BX.fill();
+        BX.fillStyle = d.color;
+        BX.fillRect(t.x - 7, t.y - 9, 14, 16);
+        BX.fillStyle = d.light || d.color;
+        BX.fillRect(t.x - 5, t.y - 14, 10, 7);
+        BX.fillStyle = "#fff";
+        BX.fillRect(t.x - 3, t.y - 12, 2, 2);
+        BX.fillRect(t.x + 1, t.y - 12, 2, 2);
+        BX.fillStyle = "#000";
+        BX.fillRect(t.x - 2, t.y - 11, 1, 1);
+        BX.fillRect(t.x + 2, t.y - 11, 1, 1);
+        BX.fillStyle = d.shadow;
+        if (t.type === "archer") BX.fillRect(t.x + 6, t.y - 8, 3, 10);
+        else if (t.type === "giant") BX.fillRect(t.x - 10, t.y - 2, 4, 8);
+        else BX.fillRect(t.x + 5, t.y - 4, 5, 3);
+        if (t.hp < t.maxHp) {
+            BX.fillStyle = "#1f2937"; BX.fillRect(t.x - 11, t.y - 18, 22, 4);
+            BX.fillStyle = t.hp / t.maxHp > 0.5 ? "#22c55e" : "#ef4444";
+            BX.fillRect(t.x - 11, t.y - 18, 22 * (t.hp / t.maxHp), 4);
+        }
+    });
+
+    B.projectiles.forEach(p => {
+        BX.fillStyle = p.color;
+        BX.beginPath(); BX.arc(p.x, p.y, 4, 0, Math.PI * 2); BX.fill();
+        BX.fillStyle = "rgba(255,255,255,0.4)";
+        BX.beginPath(); BX.arc(p.x - 1, p.y - 1, 2, 0, Math.PI * 2); BX.fill();
+    });
+
+    B.particles.forEach(p => {
+        BX.globalAlpha = p.life / 45;
+        BX.fillStyle = p.color;
+        BX.fillRect(p.x - 2, p.y - 2, 4, 4);
+    });
+    BX.globalAlpha = 1;
+
+    BX.strokeStyle = "rgba(251, 191, 36, 0.25)";
+    BX.lineWidth = 2;
+    BX.setLineDash([10, 8]);
+    BX.strokeRect(2, 2, CW - 4, CH - 4);
+    BX.setLineDash([]);
+}
+
+function updBattleUI() {
+    if (!B) return;
+    document.getElementById("bh-time").textContent = B.timeLeft;
+    const dest = Math.floor((B.destroyed / B.total) * 100);
+    document.getElementById("bh-dest").textContent = dest;
+    let s = 0;
+    if (B.thDestroyed) s = 1;
+    if (dest >= 50) s = Math.max(s, 2);
+    if (dest >= 100) s = 3;
+    B.stars = s;
+    document.getElementById("bh-stars").textContent = s;
+}
+
+function endBattle(timeout = false) {
+    if (B.ended) return;
+    B.ended = true;
+    clearInterval(bTimer);
+    cancelAnimationFrame(bAnim);
+
+    const dest = Math.floor((B.destroyed / B.total) * 100);
+    let s = 0;
+    if (B.thDestroyed) s = 1;
+    if (dest >= 50) s = Math.max(s, 2);
+    if (dest >= 100) s = 3;
+
+    const win = s > 0;
+    const lp = dest / 100;
+    const gl = win ? Math.floor(B.loot.gold * lp) : 0;
+    const el = win ? Math.floor(B.loot.elixir * lp) : 0;
+    const tc = win ? s * 6 + Math.floor(dest / 20) : -6;
+
+    if (win) { S.gold = Math.min(S.gold + gl, cap("gold")); S.elixir = Math.min(S.elixir + el, cap("elixir")); }
+    S.trophies = Math.max(0, S.trophies + tc);
+
+    for (const type of Object.keys(S.troops)) {
+        S.troops[type] = B.deploy[type] || 0;
+        if (S.troops[type] <= 0) delete S.troops[type];
+    }
+
+    document.getElementById("rt-title").textContent = win ? "Victory!" : "Defeat";
+    document.getElementById("rt-title").className = win ? "result-title win" : "result-title loss";
+    document.getElementById("rt-stars").textContent = "⭐".repeat(s) + (s === 0 ? "💀" : "");
+    document.getElementById("rt-trophy").textContent = (tc >= 0 ? "+" : "") + tc;
+    document.getElementById("rt-trophy").style.color = tc >= 0 ? "#22c55e" : "#ef4444";
+    document.getElementById("rt-gold").textContent = gl;
+    document.getElementById("rt-elixir").textContent = el;
+
+    document.getElementById("battle-overlay").classList.remove("active");
+    document.getElementById("result-modal").classList.add("active");
+    updStats();
+}
+
+function closeResult() {
+    document.getElementById("result-modal").classList.remove("active");
+    B = null;
+    draw();
+}
+
+// ==================== SAVE/LOAD ====================
+function saveGame() {
+    localStorage.setItem("clashKingdoms_UI", JSON.stringify(S));
+    toast("Game saved!");
+}
+
+function loadGame() {
+    const data = localStorage.getItem("clashKingdoms_UI");
+    if (data) {
+        const L = JSON.parse(data);
+        S.gold = L.gold || 400; S.elixir = L.elixir || 400;
+        S.trophies = L.trophies || 0; S.townHall = L.townHall || 1;
+        S.buildings = L.buildings || S.buildings;
+        S.troops = L.troops || {};
+        S.showGrid = L.showGrid !== undefined ? L.showGrid : true;
+        toast("Game loaded!");
+        updStats(); draw();
+    } else toast("No save found!");
+}
+
+function resetGame() {
+    if (!confirm("Start new game? All progress lost!")) return;
+    S = { gold: 400, elixir: 400, trophies: 0, townHall: 1,
+        buildings: [{ type: "townHall", x: 15, y: 10, level: 1, hp: 200, maxHp: 200 }],
+        troops: {}, selectedBuild: null, showGrid: true, lastTick: Date.now() };
+    toast("New game started!");
+    updStats(); draw();
+}
+
+// ==================== INIT ====================
+function init() {
+    updStats();
+    draw();
+}
+
+init();
+</script>
+</body>
+</html>
