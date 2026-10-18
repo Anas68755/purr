@@ -2,318 +2,123 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🔥 الحقيقة أو الجرأة · 200+ سؤال</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🔥 الحقيقة أو الجرأة · متعدد اللاعبين</title>
     <style>
-        /* ── reset & base ── */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Tajawal', sans-serif;
             min-height: 100vh;
             background: linear-gradient(145deg, #0b0a1a 0%, #1a1035 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            margin: 0;
-            color: #f0eefe;
-            transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center;
+            padding: 16px; color: #f0eefe; transition: all 0.3s ease; overflow-x: hidden;
         }
-        body.lang-en {
-            direction: ltr;
-        }
-        body.lang-ar {
-            direction: rtl;
-        }
-
+        body.lang-en { direction: ltr; }
+        body.lang-ar { direction: rtl; }
         .game-container {
-            max-width: 680px;
-            width: 100%;
+            max-width: 680px; width: 100%;
             background: rgba(20, 18, 48, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-radius: 48px;
-            padding: 28px 24px 36px;
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 48px; padding: 28px 24px 36px;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-            transition: all 0.2s;
-            border: 1px solid rgba(255, 215, 0, 0.08);
+            border: 1px solid rgba(255, 215, 0, 0.08); position: relative;
         }
-
-        /* header */
         .title {
-            font-size: 2.4rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            text-align: center;
+            font-size: 2.4rem; font-weight: 800; letter-spacing: 2px; text-align: center;
             background: linear-gradient(135deg, #f5c542, #ff8a5c);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 0 30px rgba(255, 200, 50, 0.15);
-            margin-bottom: 4px;
-            line-height: 1.1;
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            text-shadow: 0 0 30px rgba(255, 200, 50, 0.15); margin-bottom: 4px; line-height: 1.1;
         }
         .sub {
-            text-align: center;
-            font-weight: 400;
-            font-size: 0.9rem;
-            color: #a89ec9;
-            letter-spacing: 1px;
-            margin-bottom: 24px;
-            border-bottom: 1px dashed rgba(255, 215, 0, 0.15);
-            padding-bottom: 14px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+            text-align: center; font-size: 0.9rem; color: #a89ec9; margin-bottom: 24px;
+            border-bottom: 1px dashed rgba(255, 215, 0, 0.15); padding-bottom: 14px;
+            display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;
         }
-        .sub span {
-            background: rgba(255, 215, 0, 0.08);
-            padding: 2px 12px;
-            border-radius: 40px;
-            font-weight: 600;
-            color: #f5c542;
+        .sub span { background: rgba(255, 215, 0, 0.08); padding: 2px 12px; border-radius: 40px; font-weight: 600; color: #f5c542; }
+        .controls-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+        .lang-toggle, .mp-toggle {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 40px; padding: 4px 6px; display: inline-flex; gap: 4px; align-items: center;
         }
-
-        /* language toggle */
-        .lang-toggle {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 40px;
-            padding: 4px 6px;
-            display: inline-flex;
-            gap: 4px;
-            align-items: center;
+        .lang-btn, .mp-btn {
+            background: transparent; border: none; padding: 6px 14px; border-radius: 30px;
+            font-size: 0.8rem; font-weight: 600; color: #7a6f9a; cursor: pointer; transition: all 0.2s; font-family: inherit;
         }
-        .lang-btn {
-            background: transparent;
-            border: none;
-            padding: 4px 14px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #7a6f9a;
-            cursor: pointer;
-            transition: all 0.2s;
-            touch-action: manipulation;
-            font-family: inherit;
+        .lang-btn.active, .mp-btn.active { background: rgba(255, 215, 0, 0.15); color: #f5c542; }
+        .mp-setup {
+            background: rgba(10, 8, 28, 0.6); border-radius: 20px; padding: 16px; margin-bottom: 20px;
+            border: 1px solid rgba(100, 255, 130, 0.15); display: none; flex-direction: column; gap: 10px;
         }
-        .lang-btn.active {
-            background: rgba(255, 215, 0, 0.15);
-            color: #f5c542;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.05);
+        .mp-setup.active { display: flex; }
+        .mp-input-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .mp-input {
+            flex: 1; min-width: 120px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 10px 14px; color: #fff; font-size: 0.9rem; font-family: inherit;
         }
-        .lang-btn:active {
-            transform: scale(0.92);
+        .mp-input:focus { outline: none; border-color: #f5c542; }
+        .mp-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .mp-connect-btn {
+            background: linear-gradient(145deg, #2f2a6b, #1d184a); color: #c8beff;
+            border: 1px solid rgba(120, 100, 255, 0.25); padding: 10px 20px; border-radius: 12px;
+            font-weight: bold; cursor: pointer; font-family: inherit;
         }
-
-        /* prompt card */
+        .mp-leave-btn {
+            background: linear-gradient(145deg, #6b2a4a, #4a1835); color: #ffc8d4;
+            border: 1px solid rgba(255, 100, 120, 0.25); padding: 10px 20px; border-radius: 12px;
+            font-weight: bold; cursor: pointer; font-family: inherit;
+        }
+        .mp-info { font-size: 0.8rem; color: #80ffa0; text-align: center; }
+        .mp-info b { color: #fff; }
+        .mp-info.err { color: #ff8080; }
         .prompt-card {
-            background: rgba(10, 8, 28, 0.6);
-            border-radius: 32px;
-            padding: 32px 20px 28px;
-            margin: 8px 0 22px;
-            min-height: 220px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid rgba(255, 215, 0, 0.06);
-            box-shadow: inset 0 8px 20px rgba(0, 0, 0, 0.4);
-            transition: all 0.25s ease;
+            background: rgba(10, 8, 28, 0.6); border-radius: 32px; padding: 32px 20px 28px; margin: 8px 0 22px;
+            min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid rgba(255, 215, 0, 0.06); transition: background 0.25s ease;
         }
         .prompt-type-badge {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            padding: 4px 16px;
-            border-radius: 40px;
-            background: rgba(255, 215, 0, 0.12);
-            color: #f5c542;
-            margin-bottom: 16px;
-            border: 1px solid rgba(255, 215, 0, 0.10);
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+            padding: 4px 16px; border-radius: 40px; background: rgba(255, 215, 0, 0.12); color: #f5c542; margin-bottom: 16px;
         }
         .prompt-text {
-            font-size: 1.6rem;
-            font-weight: 600;
-            line-height: 1.5;
-            text-align: center;
-            color: #f2edff;
-            word-break: break-word;
-            padding: 0 4px;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 1.6rem; font-weight: 600; line-height: 1.5; text-align: center; color: #f2edff;
+            word-break: break-word; padding: 0 4px; min-height: 80px; display: flex; align-items: center; justify-content: center;
         }
-        .prompt-number {
-            margin-top: 14px;
-            font-size: 0.75rem;
-            color: #5d5380;
-            letter-spacing: 0.5px;
-        }
-
-        /* buttons */
-        .action-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin: 20px 0 16px;
-        }
+        .prompt-number { margin-top: 14px; font-size: 0.75rem; color: #5d5380; }
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0 16px; }
         .btn {
-            border: none;
-            border-radius: 80px;
-            padding: 16px 10px;
-            font-weight: 700;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            background: rgba(30, 26, 60, 0.7);
-            color: #d6cef0;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            touch-action: manipulation;
-            user-select: none;
-            font-family: inherit;
+            border: none; border-radius: 80px; padding: 16px 10px; font-weight: 700; font-size: 1.1rem; cursor: pointer;
+            transition: all 0.15s ease; background: rgba(30, 26, 60, 0.7); color: #d6cef0; border: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none; font-family: inherit;
         }
-        .btn:active {
-            transform: scale(0.95);
+        .btn:active { transform: scale(0.95); }
+        .btn-truth { background: linear-gradient(145deg, #2f2a6b, #1d184a); color: #c8beff; }
+        .btn-dare { background: linear-gradient(145deg, #6b2a4a, #4a1835); color: #ffc8d4; }
+        .btn-random { background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.15); color: #f5d98a; grid-column: 1 / -1; padding: 14px; }
+        .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
+        .counter { font-size: 0.85rem; color: #6e6492; }
+        .counter strong { color: #c4b8ec; }
+        .btn-small { background: transparent; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 40px; padding: 6px 14px; font-size: 0.75rem; color: #7a6f9a; cursor: pointer; font-family: inherit; }
+        .chat-panel {
+            margin-top: 24px; background: rgba(10, 8, 28, 0.6); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.06);
+            overflow: hidden; display: none; flex-direction: column; height: 35vh; max-height: 320px;
         }
-        .btn-truth {
-            background: linear-gradient(145deg, #2f2a6b, #1d184a);
-            border-color: rgba(120, 100, 255, 0.25);
-            color: #c8beff;
-            box-shadow: 0 4px 14px rgba(90, 70, 255, 0.15);
-        }
-        .btn-truth:active {
-            box-shadow: 0 2px 8px rgba(90, 70, 255, 0.25);
-        }
-        .btn-dare {
-            background: linear-gradient(145deg, #6b2a4a, #4a1835);
-            border-color: rgba(255, 100, 120, 0.25);
-            color: #ffc8d4;
-            box-shadow: 0 4px 14px rgba(255, 70, 100, 0.15);
-        }
-        .btn-dare:active {
-            box-shadow: 0 2px 8px rgba(255, 70, 100, 0.25);
-        }
-        .btn-random {
-            background: rgba(255, 215, 0, 0.08);
-            border: 1px solid rgba(255, 215, 0, 0.15);
-            color: #f5d98a;
-            grid-column: 1 / -1;
-            padding: 14px;
-        }
-        .btn-random:active {
-            background: rgba(255, 215, 0, 0.16);
-        }
-
-        /* footer & misc */
-        .footer-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .counter {
-            font-size: 0.85rem;
-            color: #6e6492;
-            letter-spacing: 0.3px;
-        }
-        .counter strong {
-            color: #c4b8ec;
-            font-weight: 600;
-        }
-        .btn-small {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 40px;
-            padding: 6px 14px;
-            font-size: 0.75rem;
-            color: #7a6f9a;
-            cursor: pointer;
-            transition: 0.15s;
-            touch-action: manipulation;
-            font-family: inherit;
-        }
-        .btn-small:active {
-            background: rgba(255, 255, 255, 0.04);
-            color: #b8abda;
-        }
-
-        /* responsive */
+        .chat-panel.active { display: flex; }
+        .chat-header { padding: 12px 20px; background: rgba(0,0,0,0.2); font-weight: 700; color: #c8beff; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .chat-messages { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .chat-msg { max-width: 80%; padding: 8px 12px; border-radius: 16px; font-size: 0.9rem; line-height: 1.3; word-break: break-word; }
+        .chat-msg.system { align-self: center; background: rgba(255,255,255,0.05); color: #7a6f9a; font-size: 0.8rem; border-radius: 10px; text-align: center; }
+        .chat-msg.me { align-self: flex-end; background: linear-gradient(145deg, #2f2a6b, #1d184a); color: #fff; border-bottom-right-radius: 4px; }
+        .chat-msg.other { align-self: flex-start; background: rgba(255,255,255,0.08); color: #f0eefe; border-bottom-left-radius: 4px; }
+        .chat-msg .nick { font-size: 0.75rem; font-weight: 700; color: #f5c542; margin-bottom: 2px; display: block; }
+        .chat-input-area { display: flex; padding: 10px; gap: 8px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); }
+        .chat-input { flex: 1; background: rgba(255,255,255,0.05); border: none; border-radius: 20px; padding: 10px 16px; color: #fff; font-size: 0.9rem; font-family: inherit; }
+        .chat-input:focus { outline: none; background: rgba(255,255,255,0.1); }
+        .chat-send-btn { background: linear-gradient(145deg, #f5c542, #ff8a5c); border: none; border-radius: 20px; padding: 0 18px; color: #000; font-weight: 700; cursor: pointer; }
         @media (max-width: 480px) {
-            .game-container {
-                padding: 20px 16px 28px;
-                border-radius: 32px;
-            }
-            .title {
-                font-size: 1.9rem;
-            }
-            .prompt-text {
-                font-size: 1.3rem;
-                min-height: 70px;
-            }
-            .prompt-card {
-                padding: 24px 14px 20px;
-                min-height: 180px;
-            }
-            .btn {
-                padding: 14px 8px;
-                font-size: 0.95rem;
-            }
-            .sub {
-                font-size: 0.8rem;
-            }
-        }
-        @media (max-width: 380px) {
-            .title {
-                font-size: 1.6rem;
-            }
-            .prompt-text {
-                font-size: 1.1rem;
-            }
-            .action-grid {
-                gap: 8px;
-            }
-            .lang-btn {
-                font-size: 0.7rem;
-                padding: 3px 10px;
-            }
-        }
-
-        /* scrollable prompt list (hidden behind card) */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            border: 0;
-        }
-
-        /* RTL specific adjustments */
-        body.lang-ar .prompt-text {
-            font-family: 'Tajawal', 'Segoe UI', system-ui, sans-serif;
-        }
-        body.lang-ar .title {
-            letter-spacing: 1px;
+            .game-container { padding: 20px 16px 28px; border-radius: 32px; }
+            .title { font-size: 1.9rem; }
+            .prompt-text { font-size: 1.3rem; min-height: 70px; }
+            .btn { padding: 14px 8px; font-size: 0.95rem; }
         }
     </style>
 </head>
@@ -322,16 +127,72 @@
 <div class="game-container" role="main">
     <h1 class="title" id="titleMain">⚡ الحقيقة · الجرأة</h1>
     <div class="sub">
-        <span id="subBadge">🔥 200+ سؤال</span>
+        <span id="subBadge">🔥 300+ سؤال · جماعي</span>
+    </div>
+
+    <div class="controls-row">
         <div class="lang-toggle">
-            <button class="lang-btn active" id="langAr" data-lang="ar">🇸🇦 عربي</button>
-            <button class="lang-btn" id="langEn" data-lang="en">🇬🇧 English</button>
+            <button type="button" class="lang-btn active" id="langAr">🇸🇦 عربي</button>
+            <button type="button" class="lang-btn" id="langEn">🇬🇧 English</button>
+        </div>
+        <div class="mp-toggle">
+            <button type="button" class="mp-btn active" id="mpSolo">👤 فردي</button>
+            <button type="button" class="mp-btn" id="mpMulti">👥 جماعي</button>
         </div>
     </div>
 
-    <!-- prompt card -->
+    <div class="mp-setup" id="mpSetup">
+        <div class="mp-input-group">
+            <input type="text" id="nickInput" class="mp-input" placeholder="اسمك المستعار" maxlength="12">
+            <input type="text" id="roomInput" class="mp-input" placeholder="رمز الغرفة" maxlength="12">
+            <button type="button" class="mp-connect-btn" id="connectBtn">اتصال</button>
+            <button type="button" class="mp-leave-btn" id="leaveBtn" style="display:none;">مغادرة</button>
+        </div>
+        <div class="mp-info" id="mpInfo">أدخل اسمك ورمز غرفة (أو اترك الرمز فارغًا لإنشاء غرفة جديدة).</div>
+    </div>
+
     <div class="prompt-card" id="promptCard">
         <div class="prompt-type-badge" id="typeBadge">✦ جاهز</div>
+        <div class="prompt-text" id="promptText">اختر <strong style="color:#f5c542;">الحقيقة</strong> أو <strong style="color:#ff8a9e;">الجرأة</strong></div>
+        <div class="prompt-number" id="promptNumber"># —</div>
+    </div>
+
+    <div class="action-grid">
+        <button type="button" class="btn btn-truth" id="truthBtn">🔮 الحقيقة</button>
+        <button type="button" class="btn btn-dare" id="dareBtn">⚡ الجرأة</button>
+        <button type="button" class="btn btn-random" id="randomBtn">🎲 عشوائي</button>
+    </div>
+
+    <div class="footer-actions">
+        <span class="counter" id="counterDisplay"><strong>0</strong> مستخدم · 0ح 0ج</span>
+        <button type="button" class="btn-small" id="resetBtn">⟳ إعادة تعيين</button>
+    </div>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header" id="chatHeader">💬 دردشة الغرفة</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="chat-input" placeholder="اكتب رسالة...">
+            <button type="button" class="chat-send-btn" id="chatSendBtn">إرسال</button>
+        </div>
+    </div>
+</div>
+
+<!-- Using jsDelivr CDN for better global availability -->
+<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script>
+    (function() {
+        "use strict";
+        console.log("Script Start");
+
+        // Clear any previous room/chat data on reload to prevent auto-joining
+        try {
+            sessionStorage.removeItem('td_room');
+            sessionStorage.removeItem('td_chat_history');
+        } catch (e) {}
+
+        const TRUTHS_EN = [
+            "What's the most embarrassing thing you've ever done in public?","Have you ever lied to your best friend? What about?","What's the worst date you've ever been on?","What's a secret you've never told anyone?","Who in this room would you trust with your life?","What's the most illegal thing you've ever done?","Have you ever cheated on a test? How?","What's the biggest lie you've ever told?","What's the meanest thing you've ever said to someone?","Have you ever ghosted someone? Why?","What's your biggest fear in a relationship?","What's the most money you've ever found and kept?","Have you ever stolen anything? What?","What's a weird habit you have that nobody knows about?","What's the most awkward kiss you've ever had?","Have you ever fake-laughed at a joke?","What's the longest you've gone without showering?","What's the most childish thing you still do?","Have you ever creeped on someone's social media?","What's the worst advice you've ever given?","Have you ever pretended to like a gift?","What's something you're secretly proud of?","What's the most trouble you've ever been in at school/work?","Have you ever had a crush on a friend's partner?","What's the most boring thing about you?","Have you ever lied about your age?","What's the most embarrassing purchase you've made?","Have you ever eavesdropped on a conversation?","What's a fear you have that seems irrational?","What's the worst song you secretly love?","Have you ever regretted breaking up with someone?","What's the most useless talent you have?","Have you ever cried during a movie? Which one?","What's the most awkward thing you've said to a crush?","Have you ever made a fake social media account?","What's the biggest risk you've ever taken?","Have you ever hurt someone and not apologized?","What's a weird food combination you enjoy?","Have you ever stalked someone online?","What's the most expensive thing you've broken?","Have you ever cheated in a game?","What's the worst thing you've ever done for money?","Have you ever been jealous of a friend?","What's the most inappropriate thing you've laughed at?","Have you ever lied to get out of plans?","What's the worst haircut you've ever had?","Have you ever kissed someone and regretted it?","What's the most embarrassing nickname you've had?","Have you ever sent a text to the wrong person?","What's the most awkward family moment you've experienced?","Have you ever pretended to understand something you didn't?","What's the worst thing you've ever done while drunk?","Have you ever lied to a teacher or boss?","What's a guilty pleasure you have?","Have you ever been caught doing something you shouldn't?","What's the most embarrassing thing your parents have seen you do?","Have you ever had a dream that came true?","What's the worst thing you've ever eaten?","Have you ever lied about being sick?","What's the most impulsive thing you've ever done?","What's the worst thing you've ever done to a sibling?","Have you ever had a crush on a teacher?","What's the most embarrassing ringtone you've had?","Have you ever broken something and blamed someone else?","What's the worst thing you've ever said to a partner?","Have you ever shoplifted anything small?","What's the most childish thing you still get upset about?","Have you ever intentionally hurt someone's feelings?","What's the most embarrassing thing your pet has seen you do?","Have you ever been in a physical fight? What happened?","What's the weirdest thing you've ever collected?","Have you ever lied to get a job or promotion?","What's the worst thing you've ever done when angry?","Have you ever broken a promise? Which one?","What's the most embarrassing memory from high school?","Have you ever had a crush on a friend's ex?","What's the worst fashion choice you've ever made?","Have you ever cheated in a relationship?","What's the most scared you've ever been?","Have you ever pretended to know someone you didn't?","What's the worst thing you've ever done to a friend?","Have you ever lied to avoid a conflict?","What's the most embarrassing thing you've done for attention?","Have you ever gotten revenge on someone?","What's the worst thing you've ever smelled?","Have you ever had a nightmare that felt real?","What's the most boring movie you've ever watched fully?","Have you ever lied about your location?","What's the worst thing you've ever done at a party?","Have you ever been caught in a lie? What was it?","What's the most embarrassing thing you've ever worn?","Have you ever had a fake online identity?","What's the worst thing you've ever laughed at?","Have you ever ghosted someone you cared about?","What's the most embarrassing thing you've said to a waiter?","Have you ever lied to get out of a date?","What's the worst gift you've ever given?","Have you ever been jealous of a sibling?","What's the most embarrassing thing you've ever put online?","Have you ever pretended to be someone else?","What's the worst thing you've ever done to a parent?","Have you ever had a secret relationship?","What's the most embarrassing thing you've ever done on vacation?","Have you ever lied to impress someone?","What's the worst thing you've ever overheard?","Have you ever had a crush on a fictional character?","What's the most embarrassing thing you've ever bought?","Have you ever forgotten someone's name mid-conversation?","What's the worst thing you've ever done while driving?","Have you ever blamed a pet for something you did?","Have you ever faked a smile so well that even you believed it?","What is the most embarrassing thing you have done in front of a complete stranger?","Have you ever secretly hoped your friend would fail at something?","What is the worst lie you have ever told your parents?","Have you ever stalked someone online for more than three hours straight?","What is the most disgusting thing you have ever eaten and pretended to like?","Have you ever cheated in a board game and felt zero guilt?","What is the most selfish thing you have ever done in a relationship?","Have you ever ignored a message on purpose for days? Why?","What is the most cringey thing you have ever posted on social media?","Have you ever laughed at something tragic because you did not know how to react?","What is the worst financial decision you have ever made?","Have you ever lied about your age to get into somewhere or with someone?","What is the most awkward thing you have ever said to a waiter or cashier?","Have you ever broken something expensive and blamed it on someone else?","What is the most childish argument you have ever had as an adult?","Have you ever pretended to like a gift and then re-gifted it?","What is the worst thing you have ever done to get attention?","Have you ever eavesdropped on a conversation and got caught?","What is the most humiliating thing you have ever done while drunk?","Have you ever lied to your boss about being sick when you were perfectly fine?","What is the most bizarre food combination you secretly enjoy?","Have you ever had a crush on your best friend's ex?","What is the most illegal thing you have done and got away with?","Have you ever cried over a commercial or a stupid video?","What is the most awkward hug you have ever given or received?","Have you ever pretended to be busy to avoid talking to someone you know?","What is the worst advice you have ever followed?","Have you ever copied someone's homework or work and changed it slightly?","What is the most embarrassing ringtone you have ever had?","Have you ever accidentally sent a message to the wrong person? What did it say?","What is the most pathetic thing you have done for love or attention?","Have you ever lied about your location to avoid meeting someone?","What is the most overrated thing you pretended to love?","Have you ever been caught picking your nose in public?","What is the most regretful thing you have ever said to a partner?","Have you ever taken credit for someone else's idea at work or school?","What is the grossest habit you have that no one knows about?","Have you ever wished you were friends with a different group?","What is the most dangerous thing you have ever done for fun?","Have you ever lied about your salary or   <div class="prompt-type-badge" id="typeBadge">✦ جاهز</div>
         <div class="prompt-text" id="promptText">اختر <strong style="color:#f5c542;">الحقيقة</strong> أو <strong style="color:#ff8a9e;">الجرأة</strong></div>
         <div class="prompt-number" id="promptNumber"># —</div>
     </div>
