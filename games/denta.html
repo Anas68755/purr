@@ -926,9 +926,9 @@ function cloudFeatures(pos, n){
   const rstd=Math.sqrt(Math.max(mr2-mr*mr,0));
   const radialCV=clamp(rstd/mr,0,2)/2;
 
-  // density (points per normalized bbox volume, log)
+  // scale-invariant point spacing: vol^(1/3) / (sqrt(n)·diag) — invariant under uniform scaling
   const vol=Math.max(e0*e1*e2,1e-9);
-  const dens=Math.log10(1+n/vol)/6; // ~0..0.7
+  const dens=clamp(Math.pow(vol,1/3)/(Math.sqrt(n)*Math.max(diag,1e-9))*60,0,1);
 
   // anisotropy
   const [an1,an2]=pcaAnisotropy(pos,sIdx);
@@ -1009,7 +1009,7 @@ class MLP {
       for(let o=0;o<no;o++){
         let s=B[o]; const base=o*ni;
         for(let i=0;i<ni;i++) s+=W[base+i]*prev[i];
-        z[o] = (l===this.L-1) ? 1/(1+Math.exp(-s)) : (s>0?s:0);
+        z[o] = (l===this.L-1) ? 1/(1+Math.exp(-s)) : (s>0?s:0.02*s);   // leaky ReLU (anti dead-unit)
       }
       this.A.push(z);
     }
@@ -1022,6 +1022,7 @@ class MLP {
     for(let o=0;o<delta.length;o++) delta[o]=this.A[L][o]-target;
     for(let l=L-1;l>=0;l--){
       const prev=this.A[l], ni=this.s[l], no=this.s[l+1], W=this.W[l], vW=this.vW[l], vB=this.vB[l];
+      const Bl=this.B[l];                     // bias VECTOR of layer l
       const nd=new Float32Array(ni);
       for(let o=0;o<no;o++){
         const d=delta[o], base=o*ni;
@@ -1030,9 +1031,9 @@ class MLP {
           const g=d*prev[i], gi=base+i;
           vW[gi]=0.9*vW[gi]-lr*g; W[gi]+=vW[gi];
         }
-        vB[o]=0.9*vB[o]-lr*d; this.B[o]+=vB[o];
+        vB[o]=0.9*vB[o]-lr*d; Bl[o]+=vB[o];   // ← was this.B[o]+= (corrupted B into strings!)
       }
-      if(l>0){ for(let i=0;i<ni;i++){ if(this.A[l][i]<=0) nd[i]=0; } }
+      if(l>0){ for(let i=0;i<ni;i++){ if(this.A[l][i]<=0) nd[i]*=0.02; } }   // leaky slope
       delta=nd;
     }
     const a=clamp(this.A[L][0],1e-7,1-1e-7);
@@ -1047,7 +1048,9 @@ class MLP {
       shuffleArr(idx); loss=0;
       let batches=0;
       for(let b=0;b<n;b++){
-        loss+=this.backward(Y[idx[b]], lr); batches++;
+        const j=idx[b];
+        this.forward(X[j]);
+        loss+=this.backward(Y[j], lr); batches++;
         if((b&31)===0) await yieldUI();
       }
       loss/=batches; lr*=0.985;
@@ -1484,19 +1487,26 @@ function solveEssential8pt(p1, p2, idxs){
     const u2=(p2[k][0]-mx2)*s2, v2=(p2[k][1]-my2)*s2;
     Arows.push([u2*u1,u2*v1,u2,v2*u1,v2*v1,v2,u1,v1,1]);
   }
-  // A (n×9) → jacobi SVD → smallest right singular vector
+  // A (n×9) → jacobi SVD → smallest right singular vector (Hartley space)
   const Abuf=new Float64Array(n*9);
   for(let r=0;r<n;r++)for(let c=0;c<9;c++) Abuf[r*9+c]=Arows[r][c];
   const svd=jacobiSVD(Abuf, n, 9, 24);
   // v9 = column 8 of V (row-major storage VS[k][8]); E row-major
   const e=[];
   for(let k=0;k<9;k++) e.push(svd.V[k][8]);
-  return { E:mat3FromVec(e), T1:[s1,0,-s1*mx1, 0,s1,-s1*my1, 0,0,1], T2:[s2,0,-s2*mx2, 0,s2,-s2*my2, 0,0,1] };
+  const Enorm=mat3FromVec(e);
+  // denormalize (derivation: (T2·x2)ᵀ·Enorm·(T1·x1)=0 ⟹ E_orig ∝ T2ᵀ·Enorm·T1)
+  const T1=mat3FromVec([s1,0,-s1*mx1, 0,s1,-s1*my1, 0,0,1]);
+  const T2t=mat3FromVec([s2,0,0, 0,s2,0, -s2*mx2, -s2*my2, 1]);
+  const E=mat3Mul(T2t, mat3Mul(Enorm, T1));
+  return { E };
 }
 
 function sampson(E3, a, b){
-  const Ex=mat3Vec(E3,a), Et=mat3Vec(mat3T(E3),b);
-  const num=(b[0]*Ex[0]+b[1]*Ex[1]+b[2]*Ex[2]);
+  // a,b are 2D points [u,v] → homogeneous internally
+  const a3=[a[0],a[1],1], b3=[b[0],b[1],1];
+  const Ex=mat3Vec(E3,a3), Et=mat3Vec(mat3T(E3),b3);
+  const num=(b3[0]*Ex[0]+b3[1]*Ex[1]+b3[2]*Ex[2]);
   const den=Ex[0]*Ex[0]+Ex[1]*Ex[1]+Et[0]*Et[0]+Et[1]*Et[1];
   return num*num/Math.max(den,1e-20);
 }
@@ -1533,8 +1543,9 @@ function decomposeEssential(E3, p1, p2, idxs, maxCheck=36){
     let cnt=0;
     for(let k=0;k<checkN;k++){
       const i=idxs[k];
-      const d1=[p1[i][0],p1[i][1],1];
-      const d2=mat3Vec(Rt,[p2[i][0],p2[i][1],1]);
+      let d1=[p1[i][0],p1[i][1],1];
+      let d2=mat3Vec(Rt,[p2[i][0],p2[i][1],1]);
+      d1=vec3Unit(d1); d2=vec3Unit(d2);   // unit rays (formula assumes |d|=1)
       const dot12=d1[0]*d2[0]+d1[1]*d2[1]+d1[2]*d2[2];
       const e1=d1[0]*C2[0]+d1[1]*C2[1]+d1[2]*C2[2];
       const e2=d2[0]*C2[0]+d2[1]*C2[1]+d2[2]*C2[2];
@@ -1559,10 +1570,7 @@ function essentialRANSAC(p1, p2, iters=160){
     while(pick.length<8){ const k=(rnd()*n)|0; if(!pick.includes(k)) pick.push(k); }
     const sol=solveEssential8pt(p1,p2,pick);
     if(!sol) continue;
-    // denormalize E for scoring: E = T2^T * E * T1
-    const T1m=[[sol.T1[0],sol.T1[1],sol.T1[2]],[sol.T1[3],sol.T1[4],sol.T1[5]],[sol.T1[6],sol.T1[7],sol.T1[8]]];
-    const T2m=[[sol.T2[0],sol.T2[1],sol.T2[2]],[sol.T2[3],sol.T2[4],sol.T2[5]],[sol.T2[6],sol.T2[7],sol.T2[8]]];
-    const Efull=mat3Mul(mat3T(T2m),mat3Mul(sol.E,T1m));
+    const Efull=sol.E;
     const inl=[];
     for(let i=0;i<n;i++){ if(sampson(Efull,p1[i],p2[i])<thr*thr) inl.push(i); }
     if(inl.length>bestScore){ bestScore=inl.length; bestInl=inl; }
@@ -1571,9 +1579,7 @@ function essentialRANSAC(p1, p2, iters=160){
   // refine on inliers
   const sol=solveEssential8pt(p1,p2,bestInl);
   if(!sol) return null;
-  const T1m=[[sol.T1[0],sol.T1[1],sol.T1[2]],[sol.T1[3],sol.T1[4],sol.T1[5]],[sol.T1[6],sol.T1[7],sol.T1[8]]];
-  const T2m=[[sol.T2[0],sol.T2[1],sol.T2[2]],[sol.T2[3],sol.T2[4],sol.T2[5]],[sol.T2[6],sol.T2[7],sol.T2[8]]];
-  const Efull=mat3Mul(mat3T(T2m),mat3Mul(sol.E,T1m));
+  const Efull=sol.E;
   const inl=[];
   for(let i=0;i<n;i++){ if(sampson(Efull,p1[i],p2[i])<thr*thr) inl.push(i); }
   if(inl.length<24) return null;
@@ -1583,6 +1589,7 @@ function essentialRANSAC(p1, p2, iters=160){
 }
 
 /* ---------- ray-ray triangulation (prev-cam frame) ---------- */
+function vec3Unit(v){ const l=Math.hypot(v[0],v[1],v[2])||1e-12; return [v[0]/l,v[1]/l,v[2]/l]; }
 function triangulatePair(p1, p2, idxs, R, t){
   const Rt=mat3T(R);
   const C2=[-(Rt[0][0]*t[0]+Rt[0][1]*t[1]+Rt[0][2]*t[2]),
@@ -1592,15 +1599,15 @@ function triangulatePair(p1, p2, idxs, R, t){
   const ok=new Uint8Array(idxs.length);
   for(let k=0;k<idxs.length;k++){
     const i=idxs[k];
-    const d1=[p1[i][0],p1[i][1],1];
-    const d2=mat3Vec(Rt,[p2[i][0],p2[i][1],1]);
+    let d1=vec3Unit([p1[i][0],p1[i][1],1]);
+    let d2=vec3Unit(mat3Vec(Rt,[p2[i][0],p2[i][1],1]));
     const dot12=d1[0]*d2[0]+d1[1]*d2[1]+d1[2]*d2[2];
     const e1=d1[0]*C2[0]+d1[1]*C2[1]+d1[2]*C2[2];
     const e2=d2[0]*C2[0]+d2[1]*C2[1]+d2[2]*C2[2];
     const den=Math.max(1-dot12*dot12,0.02);
     const a=(e1-dot12*e2)/den, b=(dot12*e1-e2)/den;
     if(a<=0||b<=0||Math.abs(dot12)>0.985) continue;
-    // midpoint
+    // midpoint of closest points
     const X=[ (a*d1[0] + C2[0]+b*d2[0])/2, (a*d1[1] + C2[1]+b*d2[1])/2, (a*d1[2] + C2[2]+b*d2[2])/2 ];
     out[k*3]=X[0]; out[k*3+1]=X[1]; out[k*3+2]=X[2];
     ok[k]=1;
@@ -1628,8 +1635,8 @@ function laplacianVar(gray){
 
 const DW=120, DH=90;  // densification grid
 
-// project sparse 3D points (prev-cam frame) → IDW depth grid → backproject
-function densifyFrame(sparse, sparseN, gray, colorPix, colorsOn, R, t, poseR, poseT){
+// project sparse 3D points (prev-cam frame) → IDW depth grid → backproject to world
+function densifyFrame(sparse, sparseN, gray, colorPix, colorsOn, poseR, poseT){
   // 1) project sparse to prev-kf pixels
   const sp=[];
   for(let i=0;i<sparseN;i++){
@@ -1725,10 +1732,11 @@ function makeFuser(voxel){
 }
 
 /* ---------- coverage: sector occupancy (8 yaw × 3 pitch) ---------- */
-function updateSectors(fuser, cx,cy,cz){
+function updateSectors(pos, n, cx,cy,cz){
   const sec=new Int32Array(24);
-  for(const v of fuser.map.values()){
-    const dx=v.x-cx, dy=v.y-cy, dz=v.z-cz;
+  const stride=Math.max(1,Math.floor(n/15000));
+  for(let i=0;i<n;i+=stride){
+    const dx=pos[i*3]-cx, dy=pos[i*3+1]-cy, dz=pos[i*3+2]-cz;
     const yaw=Math.atan2(dz,dx);
     const pitch=Math.asin(clamp(dy/(Math.hypot(dx,dy,dz)+1e-9),-1,1));
     let yi=Math.floor(((yaw+Math.PI)/(2*Math.PI))*8); yi=clamp(yi,0,7);
@@ -1736,6 +1744,26 @@ function updateSectors(fuser, cx,cy,cz){
     sec[yi+pi*8]++;
   }
   return sec;
+}
+
+// fraction of the latest keyframe's points landing in NEW cells (gain ratio).
+// Saturation of this ratio over time ⇒ geometric coverage signal.
+function dynamicCoverage(pos, n, recentStart){
+  if(n<300) return 0;
+  const st=cloudStats(pos,n);
+  const diag=Math.max(Math.hypot(st.ex,st.ey,st.ez),1e-6);
+  const cell=Math.max(diag/48,1e-4);
+  const key=(x,y,z)=>Math.round(x/cell)+1024*Math.round(y/cell)+1048576*Math.round(z/cell);
+  const stride=Math.max(1,Math.floor(n/15000));
+  const old=new Set();
+  for(let i=0;i<recentStart;i+=stride) old.add(key(pos[i*3],pos[i*3+1],pos[i*3+2]));
+  const step=Math.max(1,Math.floor((n-recentStart)/3000)||1);
+  let touched=0, fresh=0;
+  for(let i=recentStart;i<n;i+=step){
+    touched++;
+    if(!old.has(key(pos[i*3],pos[i*3+1],pos[i*3+2]))) fresh++;
+  }
+  return touched? fresh/touched : 0;
 }
 
 /* ---------- statistical outlier removal (grid-accelerated) ---------- */
@@ -1895,6 +1923,7 @@ function exportSTL(positions, index){
    Three.js review scene + optional WebXR AR preview
    ================================================================ */
 let renderer=null, scene=null, camera3=null, controls=null, curPoints=null, curMesh=null, xrSupported=false;
+let modelCenter=[0,0,0];   // shared offset so points & mesh stay aligned
 
 function initThree(){
   if(renderer) return;
@@ -1931,6 +1960,7 @@ function showCloud(positions, colors, voxelMM){
   if(colors) geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
   const mat=new THREE.PointsMaterial({ size:Math.max(voxelMM*1.6,0.2), vertexColors:!!colors, color:colors?0xffffff:0x7fe0d4, sizeAttenuation:true });
   curPoints=new THREE.Points(geo,mat);
+  curPoints.position.set(modelCenter[0],modelCenter[1],modelCenter[2]);
   scene.add(curPoints);
   frameCamera(positions);
   setModelVisibility(true,false);
@@ -1946,6 +1976,7 @@ function showMesh(meshData){
   geo.computeVertexNormals();
   const mat=new THREE.MeshStandardMaterial({ color:0xbfe8e0, flatShading:true, roughness:0.55, metalness:0.05, side:THREE.DoubleSide });
   curMesh=new THREE.Mesh(geo,mat);
+  curMesh.position.set(modelCenter[0],modelCenter[1],modelCenter[2]);
   scene.add(curMesh);
   setModelVisibility(curPoints?true:false, true);
 }
@@ -1967,12 +1998,11 @@ function frameCamera(positions){
   controls.target.set(cx,cy,cz);
   camera3.position.set(cx+diag*0.9, cy+diag*0.7, cz+diag*0.9);
   camera3.near=diag/100; camera3.far=diag*20; camera3.updateProjectionMatrix();
-  if(curPoints||curMesh){
-    if(curPoints) curPoints.position.set(-cx,-cy,-cz);
-    if(curMesh) curMesh.position.set(-cx,-cy,-cz);
-    controls.target.set(0,0,0);
-    camera3.position.set(diag*0.9, diag*0.7, diag*0.9);
-  }
+  modelCenter=[-cx,-cy,-cz];
+  if(curPoints) curPoints.position.set(-cx,-cy,-cz);
+  if(curMesh) curMesh.position.set(-cx,-cy,-cz);
+  controls.target.set(0,0,0);
+  camera3.position.set(diag*0.9, diag*0.7, diag*0.9);
 }
 
 function setModelVisibility(pts, mesh){
@@ -2092,8 +2122,8 @@ function newScanSession(){
     running:true, paused:false, busy:false, lastT:0, startT:performance.now(),
     kfCount:0, prev:null,
     poseR:[[1,0,0],[0,1,0],[0,0,1]], poseT:[0,0,0],
-    fuser:makeFuser(q.voxel),
-    covGeo:0, covShow:0, secOcc:null, lastFeatures:null,
+    chunks:[], ptCount:0,        // raw world-space points (unit-baseline scale)
+    covGeo:0, covShow:0, refGain:null, secOcc:null, lastFeatures:null,
     stableT:0, rejStreak:0, adaptiveThr:22, done:false,
   };
 }
@@ -2105,20 +2135,21 @@ function recordBadFrame(sc, sharp){
   if(sc.lastFeatures && (++badTick%3===0)) S.replay.push({f:sc.lastFeatures, q:0});
 }
 
-function fusedFeatures(fuser){
-  const total=fuser.map.size;
-  const stride=Math.max(1, Math.floor(total/15000));
-  const buf=new Float32Array(Math.ceil(total/stride)*3);
-  let o=0,i=0;
-  for(const v of fuser.map.values()){ if(i++%stride) continue; buf[o*3]=v.x; buf[o*3+1]=v.y; buf[o*3+2]=v.z; o++; }
-  if(o<60) return null;
+function fusedFeaturesFromPts(pos, n){
+  if(n<60) return null;
+  const stride=Math.max(1, Math.floor(n/15000));
+  const cnt=Math.floor(n/stride);
+  const buf=new Float32Array(cnt*3);
+  let o=0;
+  for(let i=0;i<n;i+=stride){ buf[o*3]=pos[i*3]; buf[o*3+1]=pos[i*3+1]; buf[o*3+2]=pos[i*3+2]; o++; }
   const norm=normalizeCloudInto(buf,o);
   return cloudFeatures(norm.pos,o);
 }
-function centroidOf(fuser){
-  let x=0,y=0,z=0,n=0;
-  for(const v of fuser.map.values()){ x+=v.x; y+=v.y; z+=v.z; n++; if(n>20000) break; }
-  return n?{x:x/n,y:y/n,z:z/n}:{x:0,y:0,z:0};
+function centroidOfPts(pos, n){
+  let x=0,y=0,z=0,c=0;
+  const stride=Math.max(1,Math.floor(n/12000));
+  for(let i=0;i<n;i+=stride){ x+=pos[i*3]; y+=pos[i*3+1]; z+=pos[i*3+2]; c++; }
+  return c?{x:x/c,y:y/c,z:z/c}:{x:0,y:0,z:0};
 }
 
 const SIDE_BINS={ r:[3,4], f:[1,2], b:[5,6], l:[0,7] };
@@ -2193,8 +2224,10 @@ async function processFrame(){
     sn++;
   }
   const dense=densifyFrame(sparse, sn, sc.prev.gray, sc.prev.col, sc.cfg.colors, Rprev, Tprev);
-  if(dense){
-    for(let i=0;i<dense.length;i+=6) sc.fuser.add(dense[i],dense[i+1],dense[i+2],dense[i+3],dense[i+4],dense[i+5]);
+  const recentStart=sc.ptCount;
+  if(dense&&dense.length>=6){
+    sc.chunks.push(Float32Array.from(dense));
+    sc.ptCount+=dense.length/6;
   }
   // chain pose for the NEW keyframe: R_k=R·R_{k-1}, t_k=R·t_{k-1}+t
   sc.poseR=mat3Mul(pose.R, Rprev);
@@ -2206,15 +2239,16 @@ async function processFrame(){
   sc.prev={gray:fr.gray, col:fr.colData, kps, desc};
   sc.kfCount++; sc.rejStreak=0;
 
-  // ---- coverage + AI ----
-  if(sc.fuser.count()>=200 && sc.kfCount%2===0){
-    const feats=fusedFeatures(sc.fuser);
+  // ---- coverage + AI (on live packed points) ----
+  if(sc.ptCount>=300 && sc.kfCount%2===0){
+    const pos=packPoints(sc);
+    const feats=fusedFeaturesFromPts(pos, sc.ptCount);
     if(feats){
       sc.lastFeatures=feats;
       const covAI=AI.ready?AI.predictCoverage(feats):null;
-      const D=AI.meta.calibD||28;
-      const expected=Math.max(600, 0.183*Math.pow(D,3)/Math.pow(sc.cfg.voxel,3));
-      sc.covGeo=clamp(sc.fuser.count()/expected,0,1);
+      const rNow=dynamicCoverage(pos, sc.ptCount, recentStart);
+      if(sc.kfCount<=3 && rNow>0.05) sc.refGain=rNow;
+      sc.covGeo=sc.refGain?clamp(1-rNow/sc.refGain,0,1):0;
       const covBlend=(covAI!=null)?0.55*covAI+0.45*sc.covGeo:sc.covGeo;
       sc.covShow=sc.covShow*0.7+0.3*covBlend;
       S.replay.push({f:feats, cov:sc.covGeo, q:1});
@@ -2222,8 +2256,8 @@ async function processFrame(){
         const q=AI.predictQuality(feats);
         if(q!=null&&q<0.3) hint(t('hint_blur'));
       }
-      const c=centroidOf(sc.fuser);
-      sc.secOcc=updateSectors(sc.fuser,c.x,c.y,c.z);
+      const c=centroidOfPts(pos, sc.ptCount);
+      sc.secOcc=updateSectors(pos, sc.ptCount, c.x,c.y,c.z);
       updateSectorHint(sc);
     }
   }
@@ -2249,10 +2283,18 @@ function drawRing(pct){
 }
 function updateScanHUD(sc){
   $('statKf').textContent=sc.kfCount;
-  $('statPts').textContent=fmtNum(sc.fuser.count());
+  $('statPts').textContent=fmtNum(sc.ptCount);
   const pct=Math.round(sc.covShow*100);
   $('covPct').textContent=pct+'%';
   drawRing(sc.covShow);
+}
+function packPoints(sc){
+  const pos=new Float32Array(sc.ptCount*3);
+  let o=0;
+  for(const ch of sc.chunks){
+    for(let i=0;i<ch.length;i+=6){ pos[o*3]=ch[i]; pos[o*3+1]=ch[i+1]; pos[o*3+2]=ch[i+2]; o++; }
+  }
+  return pos;
 }
 
 function scanTick(ts){
@@ -2267,35 +2309,55 @@ function scanTick(ts){
 }
 
 /* ---------- finish & review ---------- */
-function finalizePoints(sc){
-  const n=sc.fuser.count();
-  const pos=new Float32Array(n*3), col=sc.cfg.colors?new Uint8Array(n*3):null;
+function finalizeScanData(sc){
+  // 1) pack raw world-space points
+  const n=sc.ptCount;
+  const posAll=new Float32Array(n*3), colAll=sc.cfg.colors?new Uint8Array(n*3):null;
   let o=0;
-  for(const v of sc.fuser.map.values()){
-    pos[o*3]=v.x; pos[o*3+1]=v.y; pos[o*3+2]=v.z;
-    if(col){ col[o*3]=v.r|0; col[o*3+1]=v.g|0; col[o*3+2]=v.b|0; }
-    o++;
+  for(const ch of sc.chunks){
+    for(let i=0;i<ch.length;i+=6){
+      posAll[o*3]=ch[i]; posAll[o*3+1]=ch[i+1]; posAll[o*3+2]=ch[i+2];
+      if(colAll){ colAll[o*3]=ch[i+3]|0; colAll[o*3+1]=ch[i+4]|0; colAll[o*3+2]=ch[i+5]|0; }
+      o++;
+    }
   }
-  const res=removeOutliers(pos,col,n,sc.cfg.voxel);
-  return res;
+  // 2) statistical outlier removal (world units)
+  const st0=cloudStats(posAll,n);
+  const cellW=Math.max(st0.diag/140,1e-5);
+  const cleaned=removeOutliers(posAll,colAll,n,cellW);
+  // 3) learn metric scale from the user's files (AI calibration)
+  const st=cloudStats(cleaned.pos,cleaned.n);
+  let worldScale=1;
+  if(AI.meta.calibD>1 && st.diag>1e-9) worldScale=AI.meta.calibD/st.diag;
+  for(let i=0;i<cleaned.n;i++){ cleaned.pos[i*3]*=worldScale; cleaned.pos[i*3+1]*=worldScale; cleaned.pos[i*3+2]*=worldScale; }
+  // 4) millimetre voxel fusion → dedup + decimation + final colors
+  const fuser=makeFuser(sc.cfg.voxel);
+  for(let i=0;i<cleaned.n;i++){
+    fuser.add(cleaned.pos[i*3],cleaned.pos[i*3+1],cleaned.pos[i*3+2],
+      colAll?cleaned.col[i*3]:200, colAll?cleaned.col[i*3+1]:200, colAll?cleaned.col[i*3+2]:200);
+  }
+  const m=fuser.map.size;
+  const pos=new Float32Array(m*3), col=sc.cfg.colors?new Uint8Array(m*3):null;
+  let k=0;
+  for(const v of fuser.map.values()){
+    pos[k*3]=v.x; pos[k*3+1]=v.y; pos[k*3+2]=v.z;
+    if(col){ col[k*3]=v.r|0; col[k*3+1]=v.g|0; col[k*3+2]=v.b|0; }
+    k++;
+  }
+  return { pos, col, n:m, occKeys:Array.from(fuser.map.keys()), worldScale };
 }
 async function finishScan(auto){
   const sc=S.scan;
   if(!sc||sc.done) return;
   sc.done=true; sc.running=false;
   try{
-    if(sc.fuser.count()<150){ toast(t('err_generic'),'warn'); cancelScan(); return; }
-    const res=finalizePoints(sc);
-    const st=cloudStats(res.pos,res.n);
-    let worldScale=1;
-    if(AI.meta.calibD>1 && st.diag>1e-6) worldScale=AI.meta.calibD/st.diag;
-    for(let i=0;i<res.n;i++){ res.pos[i*3]*=worldScale; res.pos[i*3+1]*=worldScale; res.pos[i*3+2]*=worldScale; }
-    S.result={ basePos:res.pos, colors:res.col, occKeys:Array.from(sc.fuser.map.keys()),
-               baseVoxel:sc.cfg.voxel, worldScale, hasColor:sc.cfg.colors };
+    if(sc.ptCount<300){ toast(t('err_generic'),'warn'); cancelScan(); return; }
+    const fin=finalizeScanData(sc);
+    S.result={ basePos:fin.pos, colors:fin.col, occKeys:fin.occKeys,
+               baseVoxel:sc.cfg.voxel, worldScale:fin.worldScale, hasColor:sc.cfg.colors };
     S.scaleMult=1;
     S.scan=null; stopCamera();
     if(S.replay.length>=40){
-      const nRep=S.replay.length;
       fineTuneOnline(S.replay).then(c=>{
         if(c) toast(t('learning_toast').replace('{n}',String(c)),'ok');
         updateAIBadges();
