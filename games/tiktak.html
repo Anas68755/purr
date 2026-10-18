@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>السيف والمطرقة - ساحة المعركة النهائية</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --glass: rgba(255, 255, 255, 0.05);
+            --neon-cyan: #00f3ff;
+            --neon-pink: #ff0055;
+            --neon-yellow: #f1c40f;
+            --neon-green: #2ecc71;
+            --neon-orange: #ff4500;
+            --bg-gradient: radial-gradient(circle at center, #16213e, #0f0f1a);
+            --cell-size: 100px;
+            --cell-gap: 8px;
+        }
+
+        body.theme-matrix {
+            --neon-cyan: #0fff0f; --neon-pink: #0fff0f; --neon-yellow: #ffffff;
+            --neon-green: #0fff0f; --bg-gradient: radial-gradient(circle at center, #0a1a0a, #000000);
+        }
+        body.theme-sunset {
+            --neon-cyan: #ff9a00; --neon-pink: #ff0055; --neon-yellow: #ffec00;
+            --neon-green: #ff5e00; --bg-gradient: radial-gradient(circle at center, #2a1a2e, #1a0f1a);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center; background: var(--bg-gradient); color: white;
+            min-height: 100vh; margin: 0; padding: 15px; overflow-x: hidden;
+            display: flex; flex-direction: column; align-items: center;
+            position: relative; transition: background 0.5s;
+        }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; opacity: 0.4; pointer-events: none; }
+        .bg-emoji { position: fixed; top: -100px; font-size: 3em; opacity: 0.05; z-index: -1; animation: fall linear infinite; pointer-events: none; }
+        @keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
+
+        /* Start Screen */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 15, 26, 0.95); z-index: 5000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.8s, visibility 0.8s; z-index: 5000;
+        }
+        #start-screen.hidden { opacity: 0; visibility: hidden; }
+        .start-title { font-size: 3.5em; color: var(--neon-cyan); text-shadow: 0 0 20px var(--neon-cyan); margin-bottom: 20px; animation: pulse 2s infinite alternate; }
+        .start-sub { font-size: 1.2em; color: var(--neon-yellow); margin-bottom: 40px; text-shadow: 0 0 10px var(--neon-yellow); }
+        .start-btn { font-size: 1.8em; padding: 15px 40px; background: transparent; border: 3px solid var(--neon-pink); color: var(--neon-pink); border-radius: 15px; cursor: pointer; transition: all 0.3s; box-shadow: 0 0 20px var(--neon-pink); text-transform: uppercase; font-weight: bold; }
+        .start-btn:hover { background: var(--neon-pink); color: white; transform: scale(1.1) translateY(-5px); box-shadow: 0 0 40px var(--neon-pink); }
+
+        h1 { margin: 10px 0 20px; font-size: 2.2em; text-transform: uppercase; letter-spacing: 2px; color: var(--neon-cyan); text-shadow: 0 0 15px var(--neon-cyan); z-index: 2; }
+
+        .glass-panel {
+            background: var(--glass); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px;
+            padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 100%; max-width: 480px; z-index: 2;
+        }
+
+        .name-inputs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .name-inputs input {
+            flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--neon-cyan);
+            border-radius: 8px; padding: 10px; color: white; text-align: center; font-size: 1em; transition: all 0.3s; cursor: text;
+        }
+        .name-inputs input:focus { outline: none; box-shadow: 0 0 10px var(--neon-cyan); transform: scale(1.02); }
+
+        .scoreboard { display: flex; justify-content: space-between; align-items: center; font-size: 1em; font-weight: bold; gap: 10px; }
+        .score-item { display: flex; flex-direction: column; align-items: center; flex: 1; transition: transform 0.3s; }
+        .score-item.active-turn { transform: scale(1.1); }
+        .score-value { font-size: 1.8em; margin-top: 5px; }
+        .streak { font-size: 0.8em; color: var(--neon-yellow); margin-top: 5px; }
+        .stats-center { display: flex; flex-direction: column; align-items: center; color: rgba(255,255,255,0.7); }
+
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+
+        button {
+            background: transparent; border: 2px solid var(--neon-cyan); color: var(--neon-cyan);
+            padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9em; transition: all 0.3s; font-weight: bold;
+        }
+        button:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); transform: translateY(-2px); }
+        button:active { transform: scale(0.95); }
+        button.active { background: var(--neon-cyan); color: #000; box-shadow: 0 0 15px var(--neon-cyan); }
+        button.reset-btn { border-color: var(--neon-pink); color: var(--neon-pink); width: 100%; margin-top: 10px; }
+        button.reset-btn:hover { background: var(--neon-pink); color: #fff; box-shadow: 0 0 15px var(--neon-pink); }
+        button.undo-btn { border-color: var(--neon-yellow); color: var(--neon-yellow); width: 100%; }
+        button.undo-btn:hover { background: var(--neon-yellow); color: #000; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: transparent; color: var(--neon-cyan); }
+
+        .powerups { display: flex; gap: 10px; justify-content: center; margin-top: 15px; flex-wrap: wrap; }
+        .power-btn {
+            font-size: 1.2em; background: rgba(0,0,0,0.3); border: 2px dashed var(--neon-yellow);
+            color: white; padding: 8px 12px; border-radius: 10px; transition: all 0.3s; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; min-width: 70px;
+        }
+        .power-btn:hover:not(:disabled) { background: var(--neon-yellow); color: #000; transform: scale(1.1); box-shadow: 0 0 15px var(--neon-yellow); }
+        .power-btn.active-power { background: var(--neon-yellow); color: #000; box-shadow: 0 0 15px var(--neon-yellow); }
+        .power-btn span { font-size: 0.7em; margin-top: 2px; }
+        .power-btn:disabled { opacity: 0.2; cursor: not-allowed; border-style: solid; }
+
+        .status { font-size: 1.5em; margin: 15px 0; color: var(--neon-yellow); text-shadow: 0 0 10px var(--neon-yellow); min-height: 35px; z-index: 2; transition: all 0.3s; }
+
+        #timer-container { width: 100%; max-width: 340px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 5px; margin: 0 auto 15px; overflow: hidden; display: none; z-index: 2; }
+        #timer-bar { height: 100%; width: 100%; background: var(--neon-green); transition: width 0.1s linear, background 0.3s; }
+
+        .board-wrapper { padding: 15px; border-radius: 20px; border: 2px solid transparent; transition: border-color 0.5s ease, box-shadow 0.5s ease, transform 0.1s ease; margin-bottom: 15px; z-index: 2; position: relative; transform-style: preserve-3d; }
+        .board-wrapper.sword-turn { border-color: var(--neon-cyan); box-shadow: 0 0 25px var(--neon-cyan), inset 0 0 10px var(--neon-cyan); }
+        .board-wrapper.hammer-turn { border-color: var(--neon-pink); box-shadow: 0 0 25px var(--neon-pink), inset 0 0 10px var(--neon-pink); }
+
+        .board { display: grid; grid-template-columns: repeat(3, var(--cell-size)); grid-template-rows: repeat(3, var(--cell-size)); gap: var(--cell-gap); justify-content: center; position: relative; transform-style: preserve-3d; }
+        
+        .win-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .win-line { stroke-width: 8; stroke-linecap: round; stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: drawLine 0.5s ease-out forwards; filter: drop-shadow(0 0 8px currentColor); }
+        @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+        .cell { background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 3em; transition: all 0.3s; position: relative; transform: translateZ(20px); cursor: pointer; }
+        .cell:hover:not(.taken):not(.lava) { background: rgba(255, 255, 255, 0.1); transform: scale(1.05) translateZ(30px); }
+        .cell.win { background: rgba(46, 204, 113, 0.3); border-color: var(--neon-green); box-shadow: 0 0 20px var(--neon-green); animation: pulse 1s infinite alternate; }
+        .cell.taken { cursor: not-allowed; }
+        .cell.targetable { animation: targetPulse 0.5s infinite alternate; border-color: var(--neon-yellow); }
+        .cell.lava { background: rgba(255, 69, 0, 0.2); border-color: var(--neon-orange); box-shadow: inset 0 0 20px var(--neon-orange); cursor: not-allowed; animation: lavaPulse 1s infinite alternate; }
+        @keyframes targetPulse { from { background: rgba(241, 196, 15, 0.2); } to { background: rgba(241, 196, 15, 0.5); } }
+        @keyframes lavaPulse { from { box-shadow: inset 0 0 10px var(--neon-orange); } to { box-shadow: inset 0 0 30px var(--neon-pink); } }
+
+        @keyframes pulse { from { transform: scale(1) translateZ(30px); } to { transform: scale(1.05) translateZ(40px); } }
+        @keyframes popIn { 0% { transform: scale(0) rotate(180deg); opacity: 0; } 70% { transform: scale(1.2) rotate(0deg); } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+        .icon { display: inline-block; animation: popIn 0.3s ease-out forwards; }
+
+        .emotes { display: flex; justify-content: center; gap: 10px; margin-top: 10px; z-index: 2; flex-wrap: wrap; }
+        .emote-btn { font-size: 1.5em; background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 45px; height: 45px; transition: transform 0.2s; cursor: pointer; }
+        .emote-btn:hover { transform: scale(1.2); background: rgba(255,255,255,0.2); }
+        .flying-emote { position: fixed; bottom: 10%; font-size: 4em; z-index: 1001; pointer-events: none; animation: floatUp 2s ease-out forwards; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-300px) scale(1.5); opacity: 0; } }
+
+        #flash { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; opacity: 0; pointer-events: none; z-index: 999; }
+        .particle { position: fixed; font-size: 2em; z-index: 1000; pointer-events: none; animation: fly 1s ease-out forwards; }
+        @keyframes fly { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; } }
+        @keyframes shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-10px, 10px); } 40% { transform: translate(10px, -10px); } 60% { transform: translate(-10px, -10px); } 80% { transform: translate(10px, 10px); } }
+        .shake { animation: shake 0.5s; }
+
+        .confetti { position: fixed; width: 10px; height: 10px; z-index: 2001; top: -10px; animation: confettiFall linear forwards; pointer-events: none; }
+        @keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0.5; } }
+
+        #champion-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; padding: 20px; text-align: center; }
+        #champion-overlay h2 { font-size: 3em; color: var(--neon-yellow); text-shadow: 0 0 20px var(--neon-yellow); animation: pulse 1s infinite alternate; margin-bottom: 20px; }
+        #champion-overlay p { font-size: 1.5em; margin-bottom: 30px; }
+
+        #battle-log { font-size: 0.9em; color: rgba(255,255,255,0.7); height: 60px; overflow-y: hidden; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 15px; padding-top: 10px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .log-entry { animation: logFadeIn 0.3s; margin: 2px 0; }
+        @keyframes logFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 4000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); border: 2px solid var(--neon-green); padding: 15px 20px; border-radius: 10px; color: var(--neon-green); font-weight: bold; animation: slideIn 0.5s, slideOut 0.5s 3s forwards; box-shadow: 0 0 15px var(--neon-green); display: flex; align-items: center; gap: 10px; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } }
+        @keyframes slideOut { to { transform: translateX(100%); opacity: 0; } }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background: var(--bg-color); padding: 30px; border-radius: 15px; border: 2px solid var(--neon-cyan); max-width: 400px; text-align: right; box-shadow: 0 0 30px var(--neon-cyan); }
+        .modal-content h3 { color: var(--neon-cyan); text-align: center; margin-top: 0; }
+        .modal-content ul { list-style: none; padding: 0; }
+        .modal-content li { margin: 10px 0; line-height: 1.6; }
+        .close-modal { background: var(--neon-pink); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 20px; font-size: 1.1em; font-weight: bold; }
+
+        @media (max-width: 480px) {
+            :root { --cell-size: 85px; --cell-gap: 6px; }
+            h1 { font-size: 1.8em; }
+            .cell { font-size: 2.5em; }
+            button { padding: 6px 8px; font-size: 0.8em; margin-bottom: 5px; }
+            #toast-container { right: 10px; bottom: 10px; }
+            .start-title { font-size: 2.5em; }
+        }
+        @media (max-width: 360px) { :root { --cell-size: 75px; } }
+    </style>
+</head>
+<body class="theme-cyberpunk">
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1 class="start-title">⚔️ السيف والمطرقة 🔨</h1>
+        <p class="start-sub">ساحة المعركة النهائية</p>
+        <button class="start-btn" onclick="startGame()">ابدأ المعركة 🚀</button>
+    </div>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="bg-emoji" style="left: 10%; animation-duration: 10s;">⚔️</div>
+    <div class="bg-emoji" style="left: 30%; animation-duration: 15s; animation-delay: 2s;">🔨</div>
+    <div class="bg-emoji" style="left: 70%; animation-duration: 12s; animation-delay: 5s;">💥</div>
+    <div class="bg-emoji" style="left: 90%; animation-duration: 18s; animation-delay: 1s;">⭐</div>
+
+    <h1>⚔️ السيف والمطرقة 🔨</h1>
+
+    <div class="glass-panel">
+        <div class="name-inputs">
+            <input type="text" id="name1" value="السيف" maxlength="10" oninput="updateNames()" aria-label="اسم اللاعب الأول">
+            <input type="text" id="name2" value="المطرقة" maxlength="10" oninput="updateNames()" aria-label="اسم اللاعب الثاني">
+        </div>
+        <div class="scoreboard">
+            <div class="score-item" id="item-X">
+                <span id="label1">⚔️ السيف</span>
+                <span class="score-value" id="scoreX">0</span>
+                <span class="streak" id="streakX">سلسلة: 0</span>
+            </div>
+            <div class="stats-center">
+                <span>🏆 البطولة</span>
+                <span class="score-value">3</span>
+                <span style="font-size: 0.8em; color: var(--neon-cyan);">تعادل: <span id="draws">0</span></span>
+            </div>
+            <div class="score-item" id="item-O">
+                <span id="label2">🔨 المطرقة</span>
+                <span class="score-value" id="scoreO">0</span>
+                <span class="streak" id="streakO">سلسلة: 0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel">
+        <div class="controls">
+            <button id="btn-2p" class="active" onclick="setMode('2p')">لاعبان</button>
+            <button id="btn-cpu" onclick="setMode('cpu')">الكمبيوتر</button>
+            <button id="btn-easy" class="active" onclick="setDifficulty('easy')">سهل</button>
+            <button id="btn-med" onclick="setDifficulty('med')">متوسط</button>
+            <button id="btn-hard" onclick="setDifficulty('hard')">صعب</button>
+            <button id="btn-timer" onclick="toggleTimer()">⏱️ المؤقت</button>
+            <button id="btn-lava" onclick="toggleLava()">🔥 الحمم</button>
+            <button id="btn-sound" class="active" onclick="toggleSound()">🔊 الصوت</button>
+            <button id="btn-music" onclick="toggleMusic()">🎵 الموسيقى</button>
+            <button onclick="setTheme('cyberpunk')" class="active" id="theme-cyber">نيون</button>
+            <button onclick="setTheme('matrix')" id="theme-matrix">مصفوفة</button>
+            <button onclick="setTheme('sunset')" id="theme-sunset">غروب</button>
+            <button onclick="toggleRules()" style="border-color: var(--neon-green); color: var(--neon-green);">❓ كيف تلعب</button>
+        </div>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite">دور السيف ⚔️</div>
+    <div id="timer-container"><div id="timer-bar"></div></div>
+
+    <div class="board-wrapper sword-turn" id="board-wrapper">
+        <div class="board" id="board">
+            <svg class="win-svg" id="win-svg"></svg>
+        </div>
+    </div>
+
+    <div class="glass-panel" style="margin-top:15px;">
+        <div class="powerups">
+            <button class="power-btn" id="power-bomb" onclick="selectPowerup('bomb')">
+                💣 <span>قنبلة (1)</span>
+            </button>
+            <button class="power-btn" id="power-magic" onclick="selectPowerup('magic')">
+                🪄 <span>سحر (1)</span>
+            </button>
+            <button class="power-btn" id="power-steal" onclick="selectPowerup('steal')">
+                🦹 <span>سارق (1)</span>
+            </button>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="undo-btn" id="undo-btn" onclick="undoMove()" style="flex: 1;">↩️ تراجع (متاح: 1)</button>
+            <button class="reset-btn" onclick="resetGame(false)" style="flex: 1; margin-top: 0;">🔄 جولة جديدة</button>
+        </div>
+        <button class="reset-btn" style="border-color: var(--neon-yellow); color: var(--neon-yellow); margin-top: 10px;" onclick="resetScores()">🗑️ تصفير البطولة</button>
+        <div id="battle-log"></div>
+    </div>
+
+    <div class="emotes">
+        <button class="emote-btn" onclick="sendEmote('🔥')">🔥</button>
+        <button class="emote-btn" onclick="sendEmote('😂')">😂</button>
+        <button class="emote-btn" onclick="sendEmote('😱')">😱</button>
+        <button class="emote-btn" onclick="sendEmote('🤔')">🤔</button>
+    </div>
+
+    <div id="toast-container"></div>
+    <div id="flash"></div>
+    <div id="champion-overlay">
+        <h2 id="champion-title">🏆 بطل البطولة!</h2>
+        <p id="champion-text"></p>
+        <button onclick="resetScores()" style="font-size: 1.5em; padding: 10px 30px; background: var(--neon-yellow); color: black; border-color: var(--neon-yellow);">لعب مجدداً</button>
+    </div>
+
+    <div class="modal-overlay" id="rules-modal" onclick="if(event.target === this) toggleRules()">
+        <div class="modal-content">
+            <h3>كيف تلعب؟</h3>
+            <ul>
+                <li>⚔️ <strong>السيف:</strong> يبدأ أولاً. هدفه رسم 3 رموز متتالية.</li>
+                <li>🔨 <strong>المطرقة:</strong> تلعب ثانياً. حاول منع السيف وتكوين خطك الخاص.</li>
+                <li>💣 <strong>القنبلة:</strong> فجر رمز خصمك (مرة واحدة).</li>
+                <li>🪄 <strong>السحر:</strong> حوّل رمز خصمك إلى رمزك (مرة واحدة).</li>
+                <li>🦹 <strong>السارق:</strong> اسرق إحدى قوى خصمك المتاحة (مرة واحدة).</li>
+                <li>↩️ <strong>التراجع:</strong> تراجع عن آخر حركة (مرة واحدة).</li>
+                <li>🔥 <strong>وضع الحمم:</strong> كل 3 أدوار تظهر حمم بركانية تسد خانية!</li>
+                <li>🏆 من يصل إلى 3 انتصارات أولاً يفوز بالبطولة!</li>
+            </ul>
+            <button class="close-modal" onclick="toggleRules()">فهمت!</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Start Screen & Audio Init ---
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            initAudio();
+        }
+
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        let isMuted = false;
+        let bgMusicInterval = null;
+        let musicNotes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+        let musicIndex = 0;
+
+        function playSound(freq, duration, type = 'sine', volume = 0.1) {
+            if (isMuted || !audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = type; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function toggleMusic() {
+            if (bgMusicInterval) {
+                clearInterval(bgMusicInterval); bgMusicInterval = null;
+                document.getElementById('btn-music').classList.remove('active');
+            } else {
+                bgMusicInterval = setInterval(() => {
+                    if (isMuted || !audioCtx) return;
+                    let osc = audioCtx.createOscillator();
+                    let gain = audioCtx.createGain();
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.type = 'triangle';
+                    osc.frequency.value = musicNotes[musicIndex];
+                    gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+                    musicIndex = (musicIndex + 1) % musicNotes.length;
+                }, 400);
+                document.getElementById('btn-music').classList.add('active');
+            }
+        }
+
+        function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+        // --- Game State ---
+        const playerSword = '⚔️';
+        const playerHammer = '🔨';
+        const lavaSymbol = '🌋';
+        
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = playerSword;
+        let isGameActive = true;
+        let gameMode = '2p';
+        let difficulty = 'easy';
+        let scores = { X: 0, O: 0, Draws: 0 };
+        let streaks = { X: 0, O: 0 };
+        let timerEnabled = false, timerInterval, timeLeft = 10;
+        let moveHistory = []; // Will track { type: 'move', index, player } OR { type: 'lava', index }
+        let undoCount = { X: 1, O: 1 };
+        let playerNames = { X: 'السيف', O: 'المطرقة' };
+        let powerups = { X: { bomb: 1, magic: 1, steal: 1 }, O: { bomb: 1, magic: 1, steal: 1 } };
+        let activePowerup = null;
+        let isCpuThinking = false;
+        let cpuTimer = null;
+        let lavaMode = false, turnsSinceLava = 0;
+        let achievements = { flawlessWin: false };
+        let usedPower = { X: { bomb: false, magic: false }, O: { bomb: false, magic: false } };
+
+        const statusDisplay = document.getElementById('status');
+        const boardElement = document.getElementById('board');
+        const boardWrapper = document.getElementById('board-wrapper');
+        const flashElement = document.getElementById('flash');
+        const timerContainer = document.getElementById('timer-container');
+        const timerBar = document.getElementById('timer-bar');
+        const undoBtn = document.getElementById('undo-btn');
+        const battleLog = document.getElementById('battle-log');
+        const winSvg = document.getElementById('win-svg');
+        const toastContainer = document.getElementById('toast-container');
+
+        const aiPersonalities = {
+            easy: { names: ['بندر', 'نوبيتا', 'مبتدئ'], emotes: ['😂', '😅', '🤪'] },
+            med: { names: ['روبوكوب', 'سونيك', 'محارب'], emotes: ['🤔', '😤', '👀'] },
+            hard: { names: ['التراسونيك', 'سكاي نت', 'الجدار'], emotes: ['😎', '💀', '🤖', '👁️'] }
+        };
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], 
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+            [0, 4, 8], [2, 4, 6]             
+        ];
+
+        function showToast(text, icon = '🏆') {
+            const toast = document.createElement('div');
+            toast.classList.add('toast');
+            toast.innerHTML = `<span style="font-size:1.5em">${icon}</span> ${text}`;
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function logEvent(text) {
+            const entry = document.createElement('div');
+            entry.classList.add('log-entry');
+            entry.innerText = text;
+            battleLog.prepend(entry);
+            while (battleLog.children.length > 3) battleLog.removeChild(battleLog.lastChild);
+        }
+
+        function updateNames() {
+            playerNames.X = document.getElementById('name1').value || 'السيف';
+            playerNames.O = document.getElementById('name2').value || 'المطرقة';
+            document.getElementById('label1').innerText = `⚔️ ${playerNames.X}`;
+            document.getElementById('label2').innerText = `🔨 ${playerNames.O}`;
+            updateStatus();
+        }
+
+        function createBoard() {
+            const svg = winSvg;
+            boardElement.innerHTML = '';
+            boardElement.appendChild(svg);
+            svg.innerHTML = '';
+
+            board.forEach((cell, index) => {
+                const cellElement = document.createElement('div');
+                cellElement.classList.add('cell');
+                if (cell) cellElement.classList.add('taken');
+                if (cell === lavaSymbol) cellElement.classList.add('lava');
+                cellElement.setAttribute('data-index', index);
+                
+                if (cell && cell !== lavaSymbol) {
+                    const iconSpan = document.createElement('span');
+                    iconSpan.classList.add('icon');
+                    iconSpan.innerText = cell;
+                    cellElement.appendChild(iconSpan);
+                } else if (cell === lavaSymbol) {
+                    cellElement.innerText = lavaSymbol;
+                }
+                
+                cellElement.addEventListener('click', () => handleCellClick(index));
+                boardElement.appendChild(cellElement);
+            });
+            updateGlow();
+            updatePowerupUI();
+            updateUndoBtn();
+        }
+
+        function updateGlow() {
+            document.getElementById('item-X').classList.toggle('active-turn', currentPlayer === playerSword && isGameActive);
+            document.getElementById('item-O').classList.toggle('active-turn', currentPlayer === playerHammer && isGameActive);
+
+            if (!isGameActive) { boardWrapper.classList.remove('sword-turn', 'hammer-turn'); return; }
+            if (currentPlayer === playerSword) { boardWrapper.classList.add('sword-turn'); boardWrapper.classList.remove('hammer-turn'); }
+            else { boardWrapper.classList.add('hammer-turn'); boardWrapper.classList.remove('sword-turn'); }
+        }
+
+        function updatePowerupUI() {
+            let key = currentPlayer === playerSword ? 'X' : 'O';
+            let isCpuTurn = (gameMode === 'cpu' && currentPlayer === playerHammer);
+            ['bomb', 'magic', 'steal'].forEach(p => {
+                const btn = document.getElementById(`power-${p}`);
+                btn.disabled = (powerups[key][p] === 0 || !isGameActive || isCpuTurn);
+                btn.querySelector('span').innerText = `${p === 'bomb' ? 'قنبلة' : p === 'magic' ? 'سحر' : 'سارق'} (${powerups[key][p]})`;
+            });
+        }
+
+        function selectPowerup(type) {
+            let key = currentPlayer === playerSword ? 'X' : 'O';
+            if (powerups[key][type] === 0 || !isGameActive) return;
+            
+            if (type === 'steal') {
+                useSteal();
+                return;
+            }
+
+            activePowerup = (activePowerup === type) ? null : type;
+            ['bomb', 'magic'].forEach(p => document.getElementById(`power-${p}`).classList.toggle('active-power', activePowerup === p));
+
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('targetable'));
+            if (activePowerup) {
+                if (activePowerup === 'bomb') {
+                    board.forEach((val, i) => { if(val !== '' && val !== lavaSymbol) document.querySelector(`[data-index="${i}"]`).classList.add('targetable'); });
+                } else if (activePowerup === 'magic') {
+                    let opp = currentPlayer === playerSword ? playerHammer : playerSword;
+                    board.forEach((val, i) => { if(val === opp) document.querySelector(`[data-index="${i}"]`).classList.add('targetable'); });
+                }
+            }
+        }
+
+        function useSteal() {
+            let key = currentPlayer === playerSword ? 'X' : 'O';
+            let oppKey = key === 'X' ? 'O' : 'X';
+            let available = [];
+            for(let p in powerups[oppKey]) { if(powerups[oppKey][p] > 0) available.push(p); }
+            
+            if (available.length > 0) {
+                let stolen = available[Math.floor(Math.random() * available.length)];
+                powerups[oppKey][stolen]--;
+                powerups[key][stolen]++;
+                powerups[key].steal--; // Consume steal power
+                logEvent(`🦹 ${playerNames[key]} سرق قوة (${stolen}) من ${playerNames[oppKey]}!`);
+                playSound(600, 0.2, 'square', 0.1);
+                vibrate(80);
+                showToast(`سرقت قوة ${stolen}!`, '🦹');
+                
+                activePowerup = null;
+                createBoard();
+                if (isGameActive) { 
+                    currentPlayer = currentPlayer === playerSword ? playerHammer : playerSword; 
+                    updateStatus(); startTimer(); 
+                }
+            } else {
+                logEvent(`🦹 لا يوجد ما يسرقه من ${playerNames[oppKey]}!`);
+                showToast(`لا يوجد ما يسرقه!`, '🤷');
+                // Return without consuming the power or switching turn
+                activePowerup = null;
+                createBoard();
+            }
+        }
+
+        function updateUndoBtn() {
+            let key = (gameMode === 'cpu') ? 'X' : (currentPlayer === playerSword ? 'X' : 'O');
+            undoBtn.innerText = `↩️ تراجع (متاح: ${undoCount[key]})`;
+            undoBtn.disabled = (undoCount[key] === 0 || moveHistory.length === 0 || !isGameActive || isCpuThinking);
+        }
+
+        function handleCellClick(index) {
+            if (!isGameActive || isCpuThinking || board[index] === lavaSymbol) return;
+
+            if (activePowerup) { usePowerup(index); return; }
+
+            if (board[index] !== '') return;
+            if (gameMode === 'cpu' && currentPlayer === playerHammer) return;
+
+            makeMove(index, currentPlayer);
+            
+            if (isGameActive && gameMode === 'cpu' && currentPlayer === playerHammer) {
+                isCpuThinking = true;
+                statusDisplay.innerText = "الكمبيوتر يفكر... 🤖";
+                updateUndoBtn();
+                cpuTimer = setTimeout(cpuMove, 800);
+            }
+        }
+
+        function usePowerup(index) {
+            let key = currentPlayer === playerSword ? 'X' : 'O';
+            let name = playerNames[key];
+            
+            if (activePowerup === 'bomb' && board[index] !== '' && board[index] !== lavaSymbol) {
+                powerups[key].bomb--;
+                logEvent(`💣 ${name} فجر قنبلة على الخانة ${index + 1}!`);
+                board[index] = '';
+                playSound(80, 0.5, 'sawtooth', 0.2); vibrate(100);
+                triggerSmallExplosion(index);
+                usedPower[key].bomb = true;
+            } else if (activePowerup === 'magic') {
+                let opp = currentPlayer === playerSword ? playerHammer : playerSword;
+                if (board[index] === opp) {
+                    powerups[key].magic--;
+                    logEvent(`🪄 ${name} سحر رمز الخصم وحوله إلى ${currentPlayer}!`);
+                    board[index] = currentPlayer;
+                    playSound(1000, 0.3, 'sine', 0.1); vibrate(50);
+                    usedPower[key].magic = true;
+                }
+            }
+
+            activePowerup = null;
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('targetable'));
+            checkResult();
+            if (isGameActive) {
+                currentPlayer = currentPlayer === playerSword ? playerHammer : playerSword;
+                updateStatus(); startTimer();
+            }
+            createBoard();
+        }
+
+        function makeMove(index, player) {
+            clearInterval(timerInterval);
+            board[index] = player;
+            moveHistory.push({ type: 'move', index, player });
+            playSound(player === playerSword ? 400 : 300, 0.1, 'square', 0.05);
+            vibrate(30);
+            logEvent(`${player} لعب في الخانة ${index + 1}`);
+            checkResult();
+            
+            if (isGameActive && lavaMode) {
+                turnsSinceLava++;
+                if (turnsSinceLava >= 3) {
+                    turnsSinceLava = 0;
+                    spawnLava();
+                }
+            }
+
+            if (isGameActive) {
+                currentPlayer = currentPlayer === playerSword ? playerHammer : playerSword;
+                updateStatus(); startTimer();
+            }
+            createBoard();
+        }
+
+        function spawnLava() {
+            let empty = board.map((val, i) => val === '' ? i : null).filter(val => val !== null);
+            if (empty.length > 0) {
+                let idx = empty[Math.floor(Math.random() * empty.length)];
+                board[idx] = lavaSymbol;
+                moveHistory.push({ type: 'lava', index: idx }); // Track lava for undo
+                logEvent('🌋 ظهرت حمم بركانية وسدت خانة!');
+                playSound(150, 0.5, 'sawtooth', 0.2);
+                vibrate(150);
+            }
+        }
+
+        function undoMove() {
+            if (moveHistory.length === 0 || !isGameActive || isCpuThinking) return;
+
+            // In CPU mode the human (Sword/X) is always the one requesting the undo,
+            // since the CPU never clicks the button itself.
+            let requestingKey = (gameMode === 'cpu') ? 'X' : (currentPlayer === playerSword ? 'X' : 'O');
+            if (undoCount[requestingKey] <= 0) return;
+
+            // Pops one "turn" off the history: a move, optionally preceded by a lava spawn.
+            // Returns which player made that move, or null if there was nothing to undo.
+            function popOneTurn() {
+                if (moveHistory.length === 0) return null;
+                let action = moveHistory.pop();
+                if (action.type === 'lava') {
+                    board[action.index] = '';
+                    if (moveHistory.length === 0) return null;
+                    action = moveHistory.pop();
+                }
+                board[action.index] = '';
+                return action.player;
+            }
+
+            let lastMover = popOneTurn();
+            if (lastMover === null) { updateUndoBtn(); return; }
+
+            if (gameMode === 'cpu' && lastMover === playerHammer) {
+                // The CPU's move was on top of the stack — undo it, then also undo
+                // the human's preceding move so control returns to the human's turn.
+                popOneTurn();
+                currentPlayer = playerSword;
+            } else {
+                currentPlayer = lastMover;
+            }
+
+            undoCount[requestingKey]--;
+            clearTimeout(cpuTimer);
+            isCpuThinking = false;
+            logEvent(`↩️ ${playerNames[requestingKey]} تراجع عن الحركة`);
+            playSound(150, 0.2, 'triangle', 0.1);
+            updateStatus();
+            startTimer();
+            createBoard();
+        }
+
+        function startTimer() {
+            if (!timerEnabled || !isGameActive) return;
+            clearInterval(timerInterval);
+            timeLeft = 10;
+            let last = Date.now();
+            timerBar.style.width = '100%';
+            timerBar.style.background = 'var(--neon-green)';
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                if (!document.hidden) timeLeft -= (now - last) / 1000;
+                last = now;
+                timerBar.style.width = (timeLeft * 10) + '%';
+                if (timeLeft <= 3) timerBar.style.background = 'var(--neon-pink)';
+                if (timeLeft <= 0) { clearInterval(timerInterval); timeOut(); }
+            }, 100);
+        }
+
+        function timeOut() {
+            isGameActive = false;
+            let winner = currentPlayer === playerSword ? playerHammer : playerSword;
+            let winnerKey = winner === playerSword ? 'X' : 'O';
+            statusDisplay.innerText = `⏱️ انتهى الوقت! الفائز ${winner}`;
+            logEvent(`⏱️ انتهى وقت ${playerNames[currentPlayer === playerSword ? 'X' : 'O']}!`);
+            if (winner === playerSword) { scores.X++; streaks.X++; streaks.O = 0; }
+            else { scores.O++; streaks.O++; streaks.X = 0; }
+            updateScores();
+            triggerEpicExplosion(); playExplosionSound();
+            checkAchievements(winnerKey);
+            checkChampion();
+            createBoard();
+        }
+
+        function cpuMove() {
+            isCpuThinking = false;
+            if (!isGameActive || currentPlayer !== playerHammer) return;
+            let moveIndex;
+            if (difficulty === 'easy') {
+                let available = board.map((val, i) => val === '' ? i : null).filter(val => val !== null);
+                moveIndex = available[Math.floor(Math.random() * available.length)];
+            } else if (difficulty === 'med') {
+                if (Math.random() > 0.5) moveIndex = findBestMove();
+                else {
+                    let available = board.map((val, i) => val === '' ? i : null).filter(val => val !== null);
+                    moveIndex = available[Math.floor(Math.random() * available.length)];
+                }
+            } else {
+                moveIndex = findBestMove();
+            }
+            if (moveIndex === undefined || moveIndex < 0) return;
+            makeMove(moveIndex, playerHammer);
+            
+            if (Math.random() < 0.15 && isGameActive) {
+                let emotes = aiPersonalities[difficulty].emotes;
+                setTimeout(() => sendEmote(emotes[Math.floor(Math.random() * emotes.length)], true), 300);
+            }
+        }
+
+        function findBestMove() {
+            let bestScore = -Infinity, move = -1;
+            for (let i = 0; i < board.length; i++) {
+                if (board[i] === '') {
+                    board[i] = playerHammer;
+                    let score = minimax(board, 0, false);
+                    board[i] = '';
+                    if (score > bestScore) { bestScore = score; move = i; }
+                }
+            }
+            return move;
+        }
+
+        function minimax(boardState, depth, isMaximizing) {
+            let result = checkWinner(boardState);
+            if (result !== null) {
+                if (result === playerHammer) return 10 - depth;
+                if (result === playerSword) return depth - 10;
+                return 0;
+            }
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < boardState.length; i++) {
+                    if (boardState[i] === '') {
+                        boardState[i] = playerHammer;
+                        let score = minimax(boardState, depth + 1, false);
+                        boardState[i] = '';
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < boardState.length; i++) {
+                    if (boardState[i] === '') {
+                        boardState[i] = playerSword;
+                        let score = minimax(boardState, depth + 1, true);
+                        boardState[i] = '';
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function checkResult() {
+            let roundWon = false, winCondition = null;
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                if (board[a] && board[a] !== lavaSymbol && board[a] === board[b] && board[a] === board[c]) {
+                    roundWon = true; winCondition = winningConditions[i]; break;
+                }
+            }
+            if (roundWon) {
+                let winnerKey = currentPlayer === playerSword ? 'X' : 'O';
+                statusDisplay.innerText = `🎉 فاز ${currentPlayer} (${playerNames[winnerKey]})!`;
+                logEvent(`🏆 ${playerNames[winnerKey]} يفوز بالجولة!`);
+                isGameActive = false;
+                winCondition.forEach(index => document.querySelector(`[data-index="${index}"]`).classList.add('win'));
+                drawWinLine(winCondition);
+                if (currentPlayer === playerSword) { scores.X++; streaks.X++; streaks.O = 0; }
+                else { scores.O++; streaks.O++; streaks.X = 0; }
+                updateScores();
+                triggerEpicExplosion(); playExplosionSound();
+                vibrate([200, 100, 200]);
+                checkAchievements(winnerKey);
+                checkChampion();
+                return;
+            }
+            if (!board.includes('')) {
+                statusDisplay.innerText = '🤝 تعادل!';
+                logEvent('🤝 تعادل!');
+                isGameActive = false;
+                streaks.X = 0; streaks.O = 0;
+                scores.Draws++;
+                updateScores();
+                playSound(200, 0.5, 'sawtooth', 0.1);
+            }
+        }
+
+        function checkAchievements(winnerKey) {
+            if (scores[winnerKey] === 3 && scores[winnerKey === 'X' ? 'O' : 'X'] === 0) {
+                if (!achievements.flawlessWin) showToast('انتصار ساحق! لم تخسر جولة واحدة', '✨');
+                achievements.flawlessWin = true;
+            }
+            if (usedPower[winnerKey].magic) showToast('انتصار بالسحر الأسود!', '🪄');
+            if (usedPower[winnerKey].bomb) showToast('انتصار بالدمار!', '💣');
+        }
+
+        function drawWinLine(winCondition) {
+            const cellSize = document.querySelector('.cell').offsetWidth;
+            const gap = 8;
+            const positions = {
+                0: [0,0], 1: [1,0], 2: [2,0],
+                3: [0,1], 4: [1,1], 5: [2,1],
+                6: [0,2], 7: [1,2], 8: [2,2]
+            };
+            const [start, , end] = winCondition;
+            const [sx, sy] = positions[start];
+            const [ex, ey] = positions[end];
+            
+            const x1 = sx * (cellSize + gap) + cellSize/2;
+            const y1 = sy * (cellSize + gap) + cellSize/2;
+            const x2 = ex * (cellSize + gap) + cellSize/2;
+            const y2 = ey * (cellSize + gap) + cellSize/2;
+            
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("stroke", "#2ecc71"); // Fixed Hex color for SVG
+            line.classList.add('win-line');
+            winSvg.appendChild(line);
+        }
+
+        function checkChampion() {
+            if (scores.X === 3 || scores.O === 3) {
+                let champ = scores.X === 3 ? `⚔️ ${playerNames.X}` : `🔨 ${playerNames.O}`;
+                document.getElementById('champion-text').innerText = `${champ} هو البطل!`;
+                document.getElementById('champion-overlay').style.display = 'flex';
+                triggerConfetti();
+            }
+        }
+
+        function checkWinner(boardState) {
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                if (boardState[a] && boardState[a] !== lavaSymbol && boardState[a] === boardState[b] && boardState[a] === boardState[c]) return boardState[a];
+            }
+            if (!boardState.includes('')) return 'Draw';
+            return null;
+        }
+
+        function updateStatus() {
+            if (!isGameActive) return;
+            let key = currentPlayer === playerSword ? 'X' : 'O';
+            statusDisplay.innerText = `دور ${currentPlayer} (${playerNames[key]})`;
+        }
+
+        function updateScores() {
+            document.getElementById('scoreX').innerText = scores.X;
+            document.getElementById('scoreO').innerText = scores.O;
+            document.getElementById('streakX').innerText = `سلسلة: ${streaks.X}`;
+            document.getElementById('streakO').innerText = `سلسلة: ${streaks.O}`;
+            document.getElementById('draws').innerText = scores.Draws;
+        }
+
+        function triggerSmallExplosion(cellIndex) {
+            const cell = document.querySelector(`[data-index="${cellIndex}"]`);
+            const rect = cell.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+            for (let i = 0; i < 15; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                p.innerText = ['💨', '💥', '🔥'][Math.floor(Math.random() * 3)];
+                p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+                const angle = Math.random() * Math.PI * 2, vel = Math.random() * 100 + 50;
+                p.style.setProperty('--tx', `${Math.cos(angle) * vel}px`);
+                p.style.setProperty('--ty', `${Math.sin(angle) * vel}px`);
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
+        function triggerEpicExplosion() {
+            flashElement.style.opacity = '0.8';
+            setTimeout(() => flashElement.style.opacity = '0', 100);
+            boardWrapper.classList.remove('shake');
+            void boardWrapper.offsetWidth;
+            boardWrapper.classList.add('shake');
+            const rect = boardElement.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+            const emojis = ['💥', '🔥', '💨', '⭐', '🎉'];
+            for (let i = 0; i < 40; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                p.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+                const angle = Math.random() * Math.PI * 2, vel = Math.random() * 300 + 100;
+                p.style.setProperty('--tx', `${Math.cos(angle) * vel}px`);
+                p.style.setProperty('--ty', `${Math.sin(angle) * vel}px`);
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
+        function triggerConfetti() {
+            const colors = ['#ff0055', '#00f3ff', '#f1c40f', '#2ecc71', '#ffffff'];
+            for (let i = 0; i < 200; i++) {
+                const c = document.createElement('div');
+                c.classList.add('confetti');
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                c.style.animationDelay = Math.random() + 's';
+                c.style.transform = `rotate(${Math.random() * 360}deg)`;
+                if (Math.random() > 0.5) c.style.borderRadius = '50%';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 6000);
+            }
+        }
+
+        function playExplosionSound() {
+            playSound(100, 0.2, 'sawtooth', 0.2);
+            setTimeout(() => playSound(50, 0.5, 'sawtooth', 0.15), 100);
+            setTimeout(() => playSound(80, 0.3, 'square', 0.1), 200);
+        }
+
+        function sendEmote(emoji, isCpu = false) {
+            const el = document.createElement('div');
+            el.classList.add('flying-emote');
+            el.innerText = emoji;
+            el.style.left = (Math.random() * 80 + 10) + '%';
+            document.body.appendChild(el);
+            playSound(800, 0.1, 'sine', 0.05);
+            setTimeout(() => el.remove(), 2000);
+            if (!isCpu) logEvent(`أرسلت ${emoji}`);
+            else logEvent(`الكمبيوتر يرسل ${emoji}`);
+        }
+
+        function toggleRules() {
+            const modal = document.getElementById('rules-modal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function toggleTimer() {
+            timerEnabled = !timerEnabled;
+            document.getElementById('btn-timer').classList.toggle('active', timerEnabled);
+            timerContainer.style.display = timerEnabled ? 'block' : 'none';
+            if (timerEnabled && isGameActive) startTimer();
+            else clearInterval(timerInterval);
+        }
+
+        function toggleLava() {
+            lavaMode = !lavaMode;
+            document.getElementById('btn-lava').classList.toggle('active', lavaMode);
+            resetGame(false);
+            if (lavaMode) showToast('تم تفعيل وضع الحمم البركانية!', '🔥');
+        }
+
+        function toggleSound() {
+            isMuted = !isMuted;
+            document.getElementById('btn-sound').innerText = isMuted ? "🔇 الصوت" : "🔊 الصوت";
+            document.getElementById('btn-sound').classList.toggle('active', !isMuted);
+        }
+
+        function setMode(mode) {
+            gameMode = mode;
+            document.getElementById('btn-2p').classList.toggle('active', mode === '2p');
+            document.getElementById('btn-cpu').classList.toggle('active', mode === 'cpu');
+            resetScores();
+        }
+
+        function setDifficulty(diff) {
+            difficulty = diff;
+            document.getElementById('btn-easy').classList.toggle('active', diff === 'easy');
+            document.getElementById('btn-med').classList.toggle('active', diff === 'med');
+            document.getElementById('btn-hard').classList.toggle('active', diff === 'hard');
+            if (gameMode === 'cpu') {
+                let names = aiPersonalities[diff].names;
+                playerNames.O = names[Math.floor(Math.random() * names.length)];
+                document.getElementById('name2').value = playerNames.O;
+                updateNames();
+                resetGame(false);
+            }
+        }
+
+        function setTheme(theme) {
+            document.body.className = `theme-${theme}`;
+            document.getElementById('theme-cyber').classList.toggle('active', theme === 'cyberpunk');
+            document.getElementById('theme-matrix').classList.toggle('active', theme === 'matrix');
+            document.getElementById('theme-sunset').classList.toggle('active', theme === 'sunset');
+        }
+
+        function resetGame(resetScore) {
+            clearInterval(timerInterval);
+            clearTimeout(cpuTimer);
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = playerSword;
+            isGameActive = true;
+            moveHistory = [];
+            undoCount = { X: 1, O: 1 };
+            powerups = { X: { bomb: 1, magic: 1, steal: 1 }, O: { bomb: 1, magic: 1, steal: 1 } };
+            activePowerup = null;
+            isCpuThinking = false;
+            turnsSinceLava = 0;
+            achievements = { flawlessWin: false };
+            usedPower = { X: { bomb: false, magic: false }, O: { bomb: false, magic: false } };
+            updateStatus();
+            createBoard();
+            if (timerEnabled) startTimer();
+            logEvent('--- جولة جديدة ---');
+        }
+
+        function resetScores() {
+            scores = { X: 0, O: 0, Draws: 0 };
+            streaks = { X: 0, O: 0 };
+            updateScores();
+            document.getElementById('champion-overlay').style.display = 'none';
+            resetGame(false);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (isCpuThinking) return;
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+            const key = parseInt(e.key);
+            if (key >= 1 && key <= 9) {
+                const mapping = {7:0, 8:1, 9:2, 4:3, 5:4, 6:5, 1:6, 2:7, 3:8};
+                handleCellClick(mapping[key]);
+            }
+        });
+
+        // --- Canvas Background & Cursor Trail (Optimized) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let mouseX = -100, mouseY = -100;
+        let trail = [];
+
+        function initCanvas() {
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight;
+            particles = [];
+            for(let i=0; i<50; i++) particles.push({
+                x: Math.random()*canvas.width, 
+                y: Math.random()*canvas.height, 
+                vx: (Math.random()-0.5)*0.5, 
+                vy: (Math.random()-0.5)*0.5
+            });
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            let color = currentPlayer === playerSword ? '0, 243, 255' : '255, 0, 85';
+            
+            // Draw background particles
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                ctx.fillStyle = `rgba(${color}, 0.5)`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                
+                particles.forEach(p2 => {
+                    let dist = Math.hypot(p.x-p2.x, p.y-p2.y);
+                    if(dist < 120) {
+                        ctx.strokeStyle = `rgba(${color}, ${0.2 - dist/600})`;
+                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                    }
+                });
+            });
+
+            // Draw Cursor Trail
+            trail.push({x: mouseX, y: mouseY});
+            if (trail.length > 15) trail.shift();
+            
+            for(let i=0; i<trail.length; i++) {
+                let t = trail[i];
+                let alpha = i / trail.length;
+                ctx.fillStyle = `rgba(${color}, ${alpha})`;
+                ctx.beginPath(); ctx.arc(t.x, t.y, 5 + i*0.5, 0, Math.PI*2); ctx.fill();
+            }
+
+            requestAnimationFrame(drawCanvas);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX; mouseY = e.clientY;
+        });
+        
+        // 3D Tilt Effect for Mobile & Desktop
+        function handleTilt(e) {
+            const rect = boardWrapper.getBoundingClientRect();
+            let x, y;
+            if (e.touches) {
+                x = e.touches[0].clientX - rect.left - rect.width / 2;
+                y = e.touches[0].clientY - rect.top - rect.height / 2;
+            } else {
+                x = e.clientX - rect.left - rect.width / 2;
+                y = e.clientY - rect.top - rect.height / 2;
+            }
+            const rotateX = (y / rect.height) * -10;
+            const rotateY = (x / rect.width) * 10;
+            boardWrapper.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        }
+
+        boardWrapper.addEventListener('mousemove', handleTilt);
+        boardWrapper.addEventListener('touchmove', handleTilt);
+        boardWrapper.addEventListener('mouseleave', () => {
+            boardWrapper.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+        });
+        boardWrapper.addEventListener('touchend', () => {
+            boardWrapper.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
+        });
+
+        // Initial Load
+        initCanvas();
+        drawCanvas();
+        createBoard();
+        logEvent('مرحباً بك في ساحة المعركة!');
+    </script>
+</body>
+</html>

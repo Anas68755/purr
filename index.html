@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>🎮 Gam Lub</title>
+<style>
+:root{--bg:#0b0a1a;--card:rgba(20,18,48,.88);--text:#f0eefe;--muted:#9288b8;--a:#f5c542;--b:#ff8a5c;--line:rgba(255,215,0,.16)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:100vh;min-height:100dvh;background:radial-gradient(ellipse at 50% 0%,#1a1035,var(--bg) 60%) fixed;color:var(--text);padding:20px}
+.hub{max-width:1000px;margin:0 auto}
+header{text-align:center;margin:8px 0 16px}
+h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:2px;background:linear-gradient(135deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--muted);margin-top:6px}
+.bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+.bar input{flex:1 1 220px;max-width:340px;padding:10px 16px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);font-size:.95rem}
+.bar input:focus,.bar button:focus-visible,.card:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.bar button{padding:10px 18px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;font-size:.9rem}
+.bar button[aria-pressed=true]{background:linear-gradient(135deg,var(--a),var(--b));color:var(--bg);font-weight:700}
+.stage{position:relative;height:min(560px,70vh);border-radius:28px;overflow:hidden;border:1px solid rgba(255,215,0,.08);background:radial-gradient(circle at 50% 45%,rgba(123,63,228,.12),transparent 65%);touch-action:none;cursor:grab}
+.stage.drag{cursor:grabbing}
+#gl,#layer{position:absolute;inset:0;width:100%;height:100%}
+#layer{pointer-events:none}
+.hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:.75rem;color:#6e6492;pointer-events:none;z-index:2000}
+.card{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;width:170px;height:160px;padding:14px;border-radius:22px;background:var(--card);border:1px solid var(--line);box-shadow:0 12px 36px rgba(0,0,0,.5);color:var(--text);text-decoration:none;user-select:none;-webkit-user-drag:none;transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:rgba(255,215,0,.45);box-shadow:0 0 28px rgba(245,197,66,.2),0 12px 36px rgba(0,0,0,.6)}
+.card .i{font-size:2.2rem;line-height:1}
+.card .n{font-weight:700;font-size:.95rem}
+.card .s{font-size:.66rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .p{margin-top:6px;padding:4px 18px;border-radius:99px;background:linear-gradient(135deg,var(--a),var(--b));color:var(--bg);font-weight:700;font-size:.75rem}
+.globe .card{position:absolute;top:0;left:0;margin:-80px 0 0 -85px;pointer-events:auto;will-change:transform,opacity}
+.grid-view .stage{display:none}
+#grid{display:none;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;justify-items:center}
+.grid-view #grid{display:grid}
+.empty{display:none;text-align:center;color:var(--muted);padding:30px}
+footer{text-align:center;color:#4a406a;font-size:.8rem;margin-top:22px}
+@media(max-width:640px){.card{width:136px;height:132px;padding:10px;border-radius:18px}.globe .card{margin:-66px 0 0 -68px}.card .i{font-size:1.8rem}}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+<div class="hub globe" id="hub">
+  <header><h1>🎮 Gam Lub</h1><p id="count"></p></header>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search games…" aria-label="Search games" autocomplete="off">
+    <button id="viewBtn" aria-pressed="false">▦ Grid view</button>
+  </div>
+  <div class="stage" id="stage"><canvas id="gl"></canvas><div id="layer"></div><div class="hint">✦ drag to spin · tap a card to play</div></div>
+  <div id="grid"></div>
+  <div class="empty" id="empty">No games match your search.</div>
+  <footer>✦ made with purrs</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+/* ── Add a game by adding one line here ── */
+const GAMES = [
+  ["Truth or Dare","🔥","200+ prompts · party","truda"],
+  ["Chess Cards","♟️","Chess game · Smart bot · Special cards","chard"],
+  ["Horror game","👹","ominous corridor","horror"],
+  ["Void Breaker","🚀","destroy them · upgrade yourself · never stop","voidbreaker"],
+  ["Calc Chall","🧮","solve math problems · beat the clock","calc-chall"],
+  ["Purr Clicker","🐱","click and have fun · collect purrs","purr-clicker"],
+  ["Shadow Rise","⚔️","كلاسيكية · وحش يخوض معارك دموية في عالم مفتوح · تحدي ملك البشر","survivor"],
+  ["Clash Kingdoms","🛡️","build your village · raid enemies","clash"],
+  ["Catch The Cat","😼","أمسك القطة وستصبح أسرع","purch"],
+  ["Tik Tak Toe","❌⭕","لعبة XO بأسلوب مميز","tiktak"],
+  ["Bat in the shadows","🦇","you're a bat so obviously don't touch the light","bat-in-the-shadows"],
+  ["الساحر الناجي","🗡️","لعبة هاردكور روجلايت · هجمات تلقائية · حشود لا نهائية","survivor-ar"],
+  ["CyberHack Sim","🌐","hacking simulator that makes you feel like a pro","cack"],
+  ["Russian Roulette","🤠","أكثر من 20 عقوبة متنوعة · لعب جماعي","revolver"],
+  ["2048","🔢","لعبة 2048 الشهيرة","2048"],
+  ["Neon Monopoly X","🔘","لعبة مونوبولي بقواعد جديدة قابلة للإضافة","monopoly"],
+  ["Keyboar","🐗","Focus and be fast · ركز وأسرع","keyboar"],
+  ["Echo Cartographer","🗣️","Echotic Maze Game","echo"]
+].map(([name,icon,sub,slug])=>({name,icon,sub,href:`games/${slug}.html`}));
+
+const $ = id => document.getElementById(id);
+const hub=$("hub"), stage=$("stage"), layer=$("layer"), grid=$("grid"), q=$("q");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* Real <a> links: work with keyboard, middle-click, and long-press */
+function makeCard(g){
+  const a=document.createElement("a");
+  a.className="card"; a.href=g.href; a.draggable=false;
+  a.setAttribute("aria-label",`Play ${g.name}`);
+  for(const [cls,txt] of [["i",g.icon],["n",g.name],["s",g.sub],["p","▶ Play"]]){
+    const d=document.createElement("div"); d.className=cls; d.textContent=txt;
+    if(cls==="n"||cls==="s") d.dir="auto";
+    a.appendChild(d);
+  }
+  return a;
+}
+
+const items = GAMES.map(g=>({g, globe:makeCard(g), flat:makeCard(g), visible:true, normal:null}));
+items.forEach(it=>grid.appendChild(it.flat));
+$("count").textContent=`${GAMES.length} games`;
+
+/* ── Search + view toggle ── */
+function layout(){
+  const vis=items.filter(i=>i.visible);
+  vis.forEach((it,i)=>{
+    const n=vis.length, y=n===1?0:1-(i/(n-1))*2, r=Math.sqrt(1-y*y), t=Math.PI*(3-Math.sqrt(5))*i;
+    it.normal=new THREE.Vector3(Math.cos(t)*r,y,Math.sin(t)*r);
+  });
+}
+function applyFilter(){
+  const t=q.value.trim().toLowerCase();
+  items.forEach(it=>{
+    it.visible=!t||(it.g.name+" "+it.g.sub).toLowerCase().includes(t);
+    it.flat.style.display=it.visible?"":"none";
+    if(it.visible&&!it.globe.isConnected) layer.appendChild(it.globe);
+    if(!it.visible&&it.globe.isConnected) it.globe.remove();
+  });
+  $("empty").style.display=items.some(i=>i.visible)?"none":"block";
+  if(window.THREE) layout();
+}
+q.addEventListener("input",applyFilter);
+
+const viewBtn=$("viewBtn");
+function setView(grid_){
+  hub.classList.toggle("grid-view",grid_); hub.classList.toggle("globe",!grid_);
+  viewBtn.setAttribute("aria-pressed",String(grid_));
+  viewBtn.textContent=grid_?"🌐 Globe view":"▦ Grid view";
+  try{localStorage.setItem("gamlub-view",grid_?"grid":"globe");}catch(e){}
+}
+viewBtn.addEventListener("click",()=>setView(!hub.classList.contains("grid-view")));
+
+/* ── Fallback when three.js can't load ── */
+if(typeof THREE==="undefined"){
+  viewBtn.hidden=true; setView(true);
+  items.forEach(it=>it.visible=true); applyFilter();
+  return;
+}
+
+let saved=null; try{saved=localStorage.getItem("gamlub-view");}catch(e){}
+setView(saved==="grid" || (saved===null && innerWidth<640));
+applyFilter();
+
+/* ── Globe ── */
+const R=1.05, CARD_R=R*2.35;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(50,1,.1,100); camera.position.z=5.4;
+const renderer=new THREE.WebGLRenderer({canvas:$("gl"),alpha:true,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const globe=new THREE.Group(); scene.add(globe);
+const wire=(geo,color,op)=>new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color,wireframe:true,transparent:true,opacity:op}));
+globe.add(
+  new THREE.Mesh(new THREE.SphereGeometry(R*.98,32,32),new THREE.MeshBasicMaterial({color:0x140f2c,transparent:true,opacity:.92})),
+  wire(new THREE.IcosahedronGeometry(R,3),0xf5c542,.65),
+  wire(new THREE.IcosahedronGeometry(R*1.01,1),0xff8a5c,.35),
+  new THREE.Mesh(new THREE.SphereGeometry(R*1.22,48,48),new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{a:{value:new THREE.Color(0xf5c542)},b:{value:new THREE.Color(0x7b3fe4)}},
+    vertexShader:"varying vec3 n,p;void main(){n=normalize(normalMatrix*normal);vec4 m=modelViewMatrix*vec4(position,1.);p=m.xyz;gl_Position=projectionMatrix*m;}",
+    fragmentShader:"varying vec3 n,p;uniform vec3 a,b;void main(){float r=pow(1.-abs(dot(normalize(-p),n)),2.6);gl_FragColor=vec4(mix(a,b,.5+.5*n.y),r*.9);}"
+  }))
+);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(R*1.7,.01,8,120),new THREE.MeshBasicMaterial({color:0xf5c542,transparent:true,opacity:.25}));
+ring.rotation.x=Math.PI/2.3; scene.add(ring);
+
+const sp=new Float32Array(900);
+for(let i=0;i<300;i++){const r=12+Math.random()*8,t=Math.random()*6.283,f=Math.acos(Math.random()*2-1);
+  sp.set([r*Math.sin(f)*Math.cos(t),r*Math.sin(f)*Math.sin(t),r*Math.cos(f)-4],i*3);}
+const sg=new THREE.BufferGeometry(); sg.setAttribute("position",new THREE.BufferAttribute(sp,3));
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({size:.04,color:0xfff3d0,transparent:true,opacity:.6})));
+
+/* ── Input: drag with inertia. Cards are real links, so a drag cancels the click. ── */
+const rot={x:.18,y:0}, vel={x:0,y:0}; let down=false,lx=0,ly=0,moved=0;
+stage.addEventListener("pointerdown",e=>{down=true;moved=0;lx=e.clientX;ly=e.clientY;stage.classList.add("drag");});
+stage.addEventListener("pointermove",e=>{
+  if(!down)return;
+  const dx=e.clientX-lx,dy=e.clientY-ly; moved+=Math.abs(dx)+Math.abs(dy);
+  if(moved>6) try{stage.setPointerCapture(e.pointerId);}catch(_){}
+  vel.y=dx*.006; vel.x=dy*.006; rot.y+=vel.y; rot.x=Math.max(-1.1,Math.min(1.1,rot.x+vel.x));
+  lx=e.clientX; ly=e.clientY;
+});
+const up=()=>{down=false;stage.classList.remove("drag");};
+addEventListener("pointerup",up); addEventListener("pointercancel",up);
+layer.addEventListener("click",e=>{ if(moved>6) e.preventDefault(); },true);
+
+/* ── Sizing ── */
+let W=1,H=1;
+function resize(){W=stage.clientWidth||1;H=stage.clientHeight||1;camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H,false);}
+new ResizeObserver(resize).observe(stage); resize();
+
+/* ── Loop: runs only while the globe is shown, on-screen and tab visible ── */
+const clock=new THREE.Clock(), euler=new THREE.Euler(), rn=new THREE.Vector3(), wp=new THREE.Vector3();
+const camDir=camera.position.clone().normalize();
+let raf=0, onScreen=true;
+new IntersectionObserver(([e])=>{onScreen=e.isIntersecting;kick();}).observe(stage);
+document.addEventListener("visibilitychange",kick);
+new MutationObserver(kick).observe(hub,{attributes:true,attributeFilter:["class"]});
+
+function kick(){ if(!raf && onScreen && !document.hidden && hub.classList.contains("globe")){clock.getDelta();raf=requestAnimationFrame(frame);} }
+function frame(){
+  raf=0;
+  if(!onScreen||document.hidden||!hub.classList.contains("globe")) return;
+  const dt=Math.min(clock.getDelta(),.1);
+  if(!down){ vel.x*=.92; vel.y*=.92; rot.y+=vel.y+(reduceMotion?0:dt*.06); rot.x=Math.max(-1.1,Math.min(1.1,rot.x+vel.x)); }
+  globe.rotation.set(rot.x,rot.y,0); if(!reduceMotion) ring.rotation.z+=dt*.05;
+  euler.set(rot.x,rot.y,0,"XYZ");
+  for(const it of items){
+    if(!it.visible||!it.normal) continue;
+    rn.copy(it.normal).applyEuler(euler);
+    wp.copy(rn).multiplyScalar(CARD_R).project(camera);
+    const f=rn.dot(camDir), s=it.globe.style;
+    s.transform=`translate3d(${((wp.x*.5+.5)*W).toFixed(1)}px,${((-wp.y*.5+.5)*H).toFixed(1)}px,0) scale(${(.72+f*.35).toFixed(3)})`;
+    s.opacity=Math.max(0,Math.min(1,(f+.05)/.4)).toFixed(2);
+    s.pointerEvents=f>.05?"auto":"none";
+    s.visibility=f>-.05?"visible":"hidden";   /* hidden cards leave the tab order too */
+    s.zIndex=Math.round(f*1000)+1000;
+  }
+  renderer.render(scene,camera);
+  raf=requestAnimationFrame(frame);
+}
+kick();
+})();
+</script>
+</body>
+</html>
