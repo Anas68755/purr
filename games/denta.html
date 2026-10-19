@@ -306,14 +306,6 @@ button,input{font-family:inherit}
     </div>
   </div>
 
-  <div class="muted" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-    <span data-i18n="units_lbl">وحدة ملفاتك:</span>
-    <select id="unitSel" class="chip" style="padding:.3rem .5rem">
-      <option value="1" selected data-i18n="unit_mm">مم</option>
-      <option value="10" data-i18n="unit_cm">سم</option>
-      <option value="1000" data-i18n="unit_m">م</option>
-    </select>
-  </div>
   <div class="zone" id="zone">
     <div class="z-ico">📥</div>
     <b data-i18n="import_lbl">استورد ملفاتك (PLY أو STL)</b>
@@ -426,12 +418,21 @@ button,input{font-family:inherit}
     </div>
   </div>
 </div>
+<div id="impRes" class="modal hidden">
+  <div class="mbox" style="text-align:start;max-height:72vh;overflow:auto">
+    <b data-i18n="imp_title">نتيجة استيراد الملفات</b>
+    <div id="impResList" style="margin:.6rem 0;display:flex;flex-direction:column;gap:.4rem"></div>
+    <div class="rowbtns" style="margin:0">
+      <button id="impResClose" class="btn ghost" data-i18n="imp_close">إغلاق</button>
+    </div>
+  </div>
+</div>
 
 <div id="arOverlay" class="hidden" style="position:fixed;inset:0;z-index:60;pointer-events:none">
   <button id="arExit" class="btn danger" style="position:absolute;top:calc(70px + env(safe-area-inset-top));inset-inline-start:14px;pointer-events:auto">✕ AR</button>
 </div>
 
-<input type="file" id="fileInput" accept=".ply,.stl" multiple hidden>
+<input type="file" id="fileInput" accept=".ply,.stl,.obj,.zip,application/octet-stream" multiple hidden>
 
 <script>
 window.__bootOK=false;
@@ -480,10 +481,10 @@ ar: {
   wiz_confirm:'٣ — تأكيد', summary_fmt:'الصيغة', summary_q:'الجودة', summary_color:'الألوان',
   scan_lock_note:'لا يمكن تغيير الصيغة أثناء الفحص', back:'رجوع', next:'التالي', start:'ابدأ',
   train_title:'🧠 مركز التدريب',
-  builtin_note:'الإعدادات الافتراضية عامة وقد لا تناسب حالتك. استورد ملفاتك الحقيقية (PLY/STL من ماسحك المخبري) ليتعلم الذكاء الاصطناعي البسيط منها: يقيس مقاساتك، يضبط عتبات الكشف، ويتنبأ بنسبة التغطية أثناء الفحص. كل التدريب يحدث داخل جهازك.',
+  builtin_note:'الإعدادات الافتراضية عامة وقد لا تناسب حالتك. استورد ملفاتك الحقيقية (PLY أو STL أو OBJ أو ZIP من ماسحك المخبري) ليتعلم الذكاء الاصطناعي البسيط منها: يقيس مقاساتك، يضبط عتبات الكشف، ويتنبأ بنسبة التغطية أثناء الفحص. كل التدريب يحدث داخل جهازك.',
   ai_status:'حالة الذكاء الاصطناعي', ai_state_untrained:'غير مدرَّب', ai_state_ready:'مدرَّب على ملفاتك',
   ai_samples:'عينات التدريب', ai_epochs:'دورات التدريب', ai_loss:'الخطأ الأخير', ai_calib:'المقياس المستفاد',
-  ai_calib_none:'—', import_lbl:'استورد ملفاتك (PLY أو STL)',
+  ai_calib_none:'—', import_lbl:'استورد ملفاتك (PLY / STL / OBJ / ZIP)',
   import_hint:'اسحب الملفات هنا أو اضغط للاختيار — يمكن اختيار عدة ملفات', import_pick:'اختيار ملفات',
   models:'نماذجك المرجعية', model_empty:'لا توجد ملفات بعد — استورد أول ملف لتبدأ التدريب',
   model_del:'حذف', reset_ai:'تصفير الذكاء', train_btn:'🚀 درِّب على ملفاتي',
@@ -517,8 +518,26 @@ ar: {
   learning_toast:'🧠 تعلمت الأداة من هذا الفحص (+{n} عينة)',
   confirm_exit:'إلغاء الفحص الحالي والعودة للرئيسية؟', yes:'نعم', no:'لا',
   err_cdn:'فشل تحميل مكتبة العرض ثلاثي الأبعاد — تحقق من الإنترنت',
-  unit_mm:'مم', unit_cm:'سم', unit_m:'م', units_lbl:'وحدة ملفاتك:', warn_units:'الحجم غير معتاد — تحقق من وحدة الملف', stat_dims:'الأبعاد', stat_pts:'نقطة', stat_tris:'مثلث',
+  unit_mm:'مم', stat_dims:'الأبعاد', stat_pts:'نقطة', stat_tris:'مثلث',
   low_mem:'تم تقليل دقة النقاط لتوفير الذاكرة',
+  imp_title:'نتيجة استيراد الملفات', imp_close:'إغلاق',
+  imp_toast_ok:'✔ تم استيراد {ok} ملف/ملفات بنجاح',
+  imp_toast_mix:'استُورد {ok} وفشل {bad} — التفاصيل بالأسفل',
+  det_ply_bin:'PLY ثنائي', det_ply_ascii:'PLY نصي', det_stl_bin:'STL ثنائي', det_stl_ascii:'STL نصي',
+  det_obj:'OBJ', det_zip_ply:'ZIP ← PLY', det_zip_stl:'ZIP ← STL', det_zip_obj:'ZIP ← OBJ',
+  rsn_empty:'الملف فارغ (0 بايت)',
+  rsn_read:'تعذرت قراءة الملف إلى الذاكرة — قد يكون كبيرًا جدًا',
+  rsn_unknown:'لم يتم التعرف على الصيغة — المدعوم: PLY / STL / OBJ / ZIP',
+  rsn_ply_hdr:'رأس ملف PLY غير سليم أو ناقص',
+  rsn_ply_xyz:'ملف PLY لا يحتوي إحداثيات X/Y/Z',
+  rsn_stl_bad:'ملف STL تالف أو حجمه لا يطابق بنية المثلثات',
+  rsn_few:'نقاط قليلة جدًا ({n}) — الحد الأدنى 120 نقطة',
+  rsn_degenerate:'الإحداثيات منحلة (كل النقاط متطابقة أو بلا شكل)',
+  rsn_corrupt:'بيانات غير سليمة — قيم غير عددية في الإحداثيات',
+  rsn_zip_none:'أرشيف ZIP لا يحتوي ملفات PLY/STL/OBJ',
+  rsn_zip_method:'ضغط غير مدعوم أو ملف مشفر — فك الضغط ثم أعد المحاولة',
+  rsn_storage:'تعذر حفظ النموذج — مساحة التخزين ممتلئة. احذف نماذج قديمة وأعد المحاولة',
+  rsn_generic:'خطأ غير متوقع أثناء الاستيراد',
 },
 en: {
   splash_title:'Dental Restoration 3D Scanner',
@@ -538,10 +557,10 @@ en: {
   wiz_confirm:'3 — Confirm', summary_fmt:'Format', summary_q:'Quality', summary_color:'Colors',
   scan_lock_note:'Format cannot be changed during a scan', back:'Back', next:'Next', start:'Start',
   train_title:'🧠 Training Center',
-  builtin_note:'Default settings are generic and may not fit your case. Import your real files (PLY/STL from your lab scanner) so the simple AI learns from them: your sizes, detection thresholds, and live coverage prediction. All training happens on-device.',
+  builtin_note:'Default settings are generic and may not fit your case. Import your real files (PLY / STL / OBJ / ZIP from your lab scanner) so the simple AI learns from them: your sizes, detection thresholds, and live coverage prediction. All training happens on-device.',
   ai_status:'AI status', ai_state_untrained:'Not trained', ai_state_ready:'Trained on your files',
   ai_samples:'Training samples', ai_epochs:'Training epochs', ai_loss:'Last loss', ai_calib:'Learned scale',
-  ai_calib_none:'—', import_lbl:'Import your files (PLY or STL)',
+  ai_calib_none:'—', import_lbl:'Import your files (PLY / STL / OBJ / ZIP)',
   import_hint:'Drag files here or tap to choose — multiple files allowed', import_pick:'Choose files',
   models:'Your reference models', model_empty:'No files yet — import your first file to start training',
   model_del:'Delete', reset_ai:'Reset AI', train_btn:'🚀 Train on my files',
@@ -574,8 +593,26 @@ en: {
   learning_toast:'🧠 The tool learned from this scan (+{n} samples)',
   confirm_exit:'Cancel the current scan and go home?', yes:'Yes', no:'No',
   err_cdn:'Failed to load the 3D rendering library — check your connection',
-  unit_mm:'mm', unit_cm:'cm', unit_m:'m', units_lbl:'File units:', warn_units:'Unusual size — check the file units', stat_dims:'Dimensions', stat_pts:'points', stat_tris:'triangles',
+  unit_mm:'mm', stat_dims:'Dimensions', stat_pts:'points', stat_tris:'triangles',
   low_mem:'Point density reduced to save memory',
+  imp_title:'Import results', imp_close:'Close',
+  imp_toast_ok:'✔ {ok} file(s) imported successfully',
+  imp_toast_mix:'{ok} imported, {bad} failed — see details below',
+  det_ply_bin:'binary PLY', det_ply_ascii:'ASCII PLY', det_stl_bin:'binary STL', det_stl_ascii:'ASCII STL',
+  det_obj:'OBJ', det_zip_ply:'ZIP → PLY', det_zip_stl:'ZIP → STL', det_zip_obj:'ZIP → OBJ',
+  rsn_empty:'File is empty (0 bytes)',
+  rsn_read:'Could not read the file into memory — it may be too large',
+  rsn_unknown:'Format not recognized — supported: PLY / STL / OBJ / ZIP',
+  rsn_ply_hdr:'Invalid or incomplete PLY header',
+  rsn_ply_xyz:'PLY file has no X/Y/Z coordinates',
+  rsn_stl_bad:'Corrupt STL — size does not match its triangle count',
+  rsn_few:'Too few points ({n}) — minimum is 120',
+  rsn_degenerate:'Degenerate coordinates (all points identical or shapeless)',
+  rsn_corrupt:'Corrupt data — non-numeric values in coordinates',
+  rsn_zip_none:'ZIP archive contains no PLY/STL/OBJ files',
+  rsn_zip_method:'Unsupported compression or encrypted — unzip and retry',
+  rsn_storage:'Could not save the model — storage is full. Delete old models and retry',
+  rsn_generic:'Unexpected error during import',
 }
 };
 let LANG = localStorage.getItem('dx3-lang') || 'ar';
@@ -595,6 +632,7 @@ function mulberry32(seed){ let a=seed>>>0; return function(){ a|=0; a=(a+0x6D2B7
 function shuffleArr(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; } }
 function median(arr){ if(!arr.length) return 0; const s=Array.from(arr).sort((a,b)=>a-b); const m=s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
 function fmtNum(n){ return n>=1e6 ? (n/1e6).toFixed(1)+'M' : (n>=1e3 ? (n/1e3).toFixed(1)+'k' : String(n|0)); }
+function fmtBytes(n){ return n>=1048576 ? (n/1048576).toFixed(1)+' MB' : (n>=1024 ? (n/1024).toFixed(1)+' KB' : n+' B'); }
 let toastTimer=null;
 function toast(msg, type){
   const el=$('toast'); el.textContent=msg; el.className='show'+(type?' '+type:'');
@@ -657,222 +695,442 @@ async function dbClear(store){
     rq.onsuccess=()=>res(); rq.onerror=()=>rej(rq.error); });
 }
 /* ================================================================
-   File parsers — user's own PLY / STL (on-device)
-   Rewritten: header-length bug (CRLF), typed binary reads, lists,
-   STL sniffing by exact size, ASCII numbers with signed exponents.
+   File parsers v2 — user's own PLY / STL / OBJ / ZIP (on-device)
+   Robust against: CRLF headers, BOM, uppercase keywords/props,
+   binary STL with "solid" header, truncated files, huge files
+   (byte-level scanning, no giant string splits).
    ================================================================ */
-const PLY_TYPES = {
-  char:'i8', int8:'i8', uchar:'u8', uint8:'u8',
-  short:'i16', int16:'i16', ushort:'u16', uint16:'u16',
-  int:'i32', int32:'i32', uint:'u32', uint32:'u32',
-  float:'f32', float32:'f32', double:'f64', float64:'f64'
-};
-const PLY_SIZE = { i8:1, u8:1, i16:2, u16:2, i32:4, u32:4, f32:4, f64:8 };
-
-// Parse the PLY header into elements/properties. Works with LF and CRLF.
-function plyHeader(u8){
-  const txt = latin1(u8.subarray(0, Math.min(u8.length, 256*1024)));
-  if(!/^ply\r?\n/.test(txt)) throw new Error('not a ply file');
-  const endM = /end_header\r?\n/.exec(txt);
-  if(!endM) throw new Error('no end_header');
-  const body = txt.slice(0, endM.index);
-  const fm = /^format\s+(ascii|binary_little_endian|binary_big_endian)\s+/m.exec(body);
-  if(!fm) throw new Error('bad ply format');
-  const elements = []; let cur = null;
-  for(const ln of body.split(/\r?\n/)){
-    const p = ln.trim().split(/\s+/);
-    if(p[0]==='element'){ cur = { name:p[1], count:parseInt(p[2],10)||0, props:[] }; elements.push(cur); }
-    else if(p[0]==='property' && cur){
-      if(p[1]==='list'){
-        const ct=PLY_TYPES[p[2]], it=PLY_TYPES[p[3]];
-        if(!ct||!it) throw new Error('unknown ply list type');
-        cur.props.push({ list:true, ctype:ct, itype:it, name:p[4] });
-      } else {
-        const t=PLY_TYPES[p[1]];
-        if(!t) throw new Error('unknown ply type '+p[1]);
-        cur.props.push({ list:false, type:t, name:p[2], isFloat:(t==='f32'||t==='f64') });
-      }
-    }
-  }
-  return { format:fm[1], elements, dataStart: endM.index + endM[0].length };
+class ImportErr extends Error{
+  constructor(code, info){ super('import:'+code); this.code=code; this.info=info||{}; }
 }
 
-function binRead(dv, o, t, le){
-  switch(t){
-    case 'i8':  return dv.getInt8(o);
-    case 'u8':  return dv.getUint8(o);
-    case 'i16': return dv.getInt16(o, le);
-    case 'u16': return dv.getUint16(o, le);
-    case 'i32': return dv.getInt32(o, le);
-    case 'u32': return dv.getUint32(o, le);
-    case 'f32': return dv.getFloat32(o, le);
-    case 'f64': return dv.getFloat64(o, le);
+/* ---------- byte-level helpers ---------- */
+function isWsByte(b){ return b===32||b===9||b===10||b===13||b===12||b===11; }
+// walk lines [start,end); cb(s,e) exclusive of \r\n; return true from cb to stop
+function scanLines(u8, start, cb){
+  const n=u8.length; let s=start;
+  while(s<n){
+    let e=s;
+    while(e<n && u8[e]!==10 && u8[e]!==13) e++;
+    if(cb(s,e)) return;
+    if(e<n && u8[e]===13) e++;
+    if(e<n && u8[e]===10) e++;
+    s=e;
   }
-  throw new Error('ply type');
+}
+function tokStr(u8, a, b){
+  let s='';
+  for(let i=a;i<b;i++) s+=String.fromCharCode(u8[i]);
+  return s;
+}
+function forEachTok(u8, s, e, cb){ // cb(tokStart, tokEnd)
+  let ts=-1;
+  for(let i=s;i<=e;i++){
+    const b=(i<e)?u8[i]:32;
+    if(isWsByte(b)){ if(ts>=0){ cb(ts,i); ts=-1; } }
+    else if(ts<0) ts=i;
+  }
+}
+function lineHasTok(u8, s, e, wordLower){ // first token equals word (case-insensitive)
+  let ts=-1, te=-1;
+  for(let i=s;i<e;i++){
+    if(isWsByte(u8[i])){ if(ts>=0){ te=i; break; } }
+    else if(ts<0) ts=i;
+  }
+  if(ts<0) return false;
+  if(te<0) te=e;
+  if(te-ts!==wordLower.length) return false;
+  for(let i=0;i<wordLower.length;i++){
+    const c=u8[ts+i]|0x20;
+    if(c!==wordLower.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+/* ---------- format sniffing (magic bytes) ---------- */
+function sniffFormat(u8){
+  let i=0;
+  if(u8[0]===0xEF&&u8[1]===0xBB&&u8[2]===0xBF) i=3; // BOM
+  if(u8[i]===0x70&&u8[i+1]===0x6C&&u8[i+2]===0x79){ // "ply"
+    const nb=u8[i+3];
+    if(nb===10||nb===13||nb===32||nb===9) return 'ply';
+  }
+  if(u8[0]===0x50&&u8[1]===0x4B&&(u8[2]===3||u8[2]===5||u8[2]===7)) return 'zip'; // PK\x03 / PK\x05 / PK\x07
+  // "solid" prefix → likely STL (checked further inside parser)
+  if((u8[0]|0x20)===0x73&&(u8[1]|0x20)===0x6F&&(u8[2]|0x20)===0x6C&&(u8[3]|0x20)===0x69&&(u8[4]|0x20)===0x64) return 'stl';
+  return null;
+}
+
+/* ================================================================
+   PLY
+   ================================================================ */
+const PLY_GET={
+  int8:(dv,o)=>dv.getInt8(o), char:(dv,o)=>dv.getInt8(o),
+  uint8:(dv,o)=>dv.getUint8(o), uchar:(dv,o)=>dv.getUint8(o),
+  int16:(dv,o,be)=>dv.getInt16(o,be), short:(dv,o,be)=>dv.getInt16(o,be),
+  uint16:(dv,o,be)=>dv.getUint16(o,be), ushort:(dv,o,be)=>dv.getUint16(o,be),
+  int32:(dv,o,be)=>dv.getInt32(o,be), int:(dv,o,be)=>dv.getInt32(o,be),
+  uint32:(dv,o,be)=>dv.getUint32(o,be), uint:(dv,o,be)=>dv.getUint32(o,be),
+  float32:(dv,o,be)=>dv.getFloat32(o,be), float:(dv,o,be)=>dv.getFloat32(o,be),
+  float64:(dv,o,be)=>dv.getFloat64(o,be), double:(dv,o,be)=>dv.getFloat64(o,be)
+};
+const PLY_SIZE={int8:1,char:1,uint8:1,uchar:1,int16:2,short:2,uint16:2,ushort:2,int32:4,int:4,uint32:4,uint:4,float32:4,float:4,float64:8,double:8};
+
+function findPLYDataStart(u8){
+  const lim=Math.min(u8.length, 256*1024);
+  const lc=b=>(b>=65&&b<=90)?b+32:b;   // ASCII lowercase (letters only — |0x20 corrupts '_')
+  // search case-insensitive "end_header"
+  outer:
+  for(let i=0;i<lim-10;i++){
+    if(lc(u8[i])!==0x65) continue;          // 'e'
+    const w='end_header';
+    for(let k=0;k<w.length;k++){ if(lc(u8[i+k])!==w.charCodeAt(k)) continue outer; }
+    let j=i+w.length;
+    while(j<lim && u8[j]!==10 && u8[j]!==13) j++;  // rest of the line (rare junk)
+    if(j<lim && u8[j]===13) j++;
+    if(j<lim && u8[j]===10) j++;
+    return j;                                   // byte right after header line ending
+  }
+  return -1;
+}
+
+function parsePLYHeader(u8){
+  const dataStart=findPLYDataStart(u8);
+  if(dataStart<0) return null;
+  const headTxt=latin1(u8.subarray(0, dataStart));
+  const lines=headTxt.split(/\r\n|\r|\n/);
+  const fmtM=/format\s+(ascii|binary_little_endian|binary_big_endian)\s+[\d.]+/i.exec(headTxt);
+  if(!fmtM) return null;
+  const els=[]; let cur=null;
+  for(const raw of lines){
+    const ln=raw.trim(); if(!ln) continue;
+    const p=ln.toLowerCase().split(/\s+/);
+    if(p[0]==='element'&&p.length>=3){
+      cur={name:p[1], count:parseInt(p[2],10)||0, props:[]}; els.push(cur); continue;
+    }
+    if(p[0]==='property'&&cur){
+      if(p[1]==='list'){ cur.props.push({list:true}); continue; }
+      if(p.length>=3) cur.props.push({name:p[2], type:p[1]});
+      continue;
+    }
+    if(p[0]==='end_header') break;
+  }
+  return { dataStart, fmt:fmtM[1].toLowerCase(), els };
 }
 
 function parsePLY(buf){
-  const u8 = new Uint8Array(buf);
-  const hdr = plyHeader(u8);
-  const vEl = hdr.elements.find(e=>e.name==='vertex');
-  if(!vEl) throw new Error('no vertex element');
-  if(vEl.count<=0) throw new Error('no vertices');
-  const names = vEl.props.map(p=>p.name);
-  const iX=names.indexOf('x'), iY=names.indexOf('y'), iZ=names.indexOf('z');
-  if(iX<0||iY<0||iZ<0 || vEl.props[iX].list || vEl.props[iY].list || vEl.props[iZ].list) throw new Error('no x/y/z');
-  const iR=names.indexOf('red'), iG=names.indexOf('green'), iB=names.indexOf('blue');
-  const hasColor = iR>=0 && iG>=0 && iB>=0 && !vEl.props[iR].list && !vEl.props[iG].list && !vEl.props[iB].list;
-
+  const u8=new Uint8Array(buf);
+  const H=parsePLYHeader(u8);
+  if(!H) throw new Error('not-ply');
+  if(H.fmt!=='ascii' && H.fmt!=='binary_little_endian' && H.fmt!=='binary_big_endian') throw new Error('not-ply');
+  // choose the element that carries x/y/z (usually "vertex"; tolerate other names)
+  let vel=null;
+  for(const el of H.els){
+    if(el.count<=0) continue;
+    const names=el.props.filter(p=>!p.list).map(p=>p.name);
+    if(names.includes('x')&&names.includes('y')&&names.includes('z')){ vel=el; break; }
+  }
+  if(!vel) throw new ImportErr('ply_xyz');
+  const flat=vel.props.filter(p=>!p.list);
+  const idxOf=n=>{ for(let i=0;i<flat.length;i++) if(flat[i].name===n) return i; return -1; };
+  const ix=idxOf('x'), iy=idxOf('y'), iz=idxOf('z');
+  const ir=idxOf('red'), ig=idxOf('green'), ib=idxOf('blue');
+  const hasColor=ir>=0&&ig>=0&&ib>=0;
+  const isBE=H.fmt==='binary_big_endian';
+  const isAscii=H.fmt==='ascii';
+  const nV=vel.count;
   const CAP=250000;
-  const step=Math.max(1, Math.ceil(vEl.count/CAP));
-  const outN=Math.ceil(vEl.count/step);
-  const pos=new Float32Array(outN*3);
-  const colF=hasColor? new Float32Array(outN*3) : null;
-  const colFloatCh=[false,false,false];   // channel stored as float in file?
-  const vals=new Float64Array(vEl.props.length);
-  let k=0;
+  const step=Math.max(1, Math.ceil(nV/CAP));
+  let outN=Math.floor(nV/step);
+  const pos=new Float32Array(Math.max(1,outN)*3);
+  const col=hasColor? new Uint8Array(Math.max(1,outN)*3) : null;
+  const colorIsFloat=hasColor && /float|double/.test((flat[ir]&&flat[ir].type)||'');
 
-  // reader abstraction: ascii token stream or binary cursor
-  const ascii = hdr.format==='ascii';
-  const le = hdr.format!=='binary_big_endian';
-  const dv = ascii ? null : new DataView(buf);
-  let off = hdr.dataStart;
-  let tokRe = ascii ? /\S+/g : null;
-  let txt = ascii ? latin1(u8.subarray(hdr.dataStart)) : null;
-  if(ascii) tokRe.lastIndex=0;
-  const nextTok=()=>{ const m=tokRe.exec(txt); if(!m) throw new Error('ply truncated'); return m[0]; };
-  const readVal=(t)=>{
-    if(ascii) return parseFloat(nextTok());
-    const v=binRead(dv, off, t, le); off+=PLY_SIZE[t]; return v;
+  const finish=(n)=>{
+    if(n<=0) throw new ImportErr('few',{n:0});
+    return { pos:pos.subarray(0,n*3), col:col?col.subarray(0,n*3):null, n, fmt:isAscii?'ply_ascii':'ply_bin' };
   };
-  const skipVal=(t)=>{ if(ascii) nextTok(); else off+=PLY_SIZE[t]; };
-  const rdCount=(t)=>{ if(ascii) return parseInt(nextTok(),10)||0; const v=binRead(dv,off,t,le); off+=PLY_SIZE[t]; return v; };
 
-  for(const el of hdr.elements){
-    const isV = el===vEl;
-    for(let i=0;i<el.count;i++){
-      const store = isV && (i%step===0) && k<outN;
-      for(let pi=0;pi<el.props.length;pi++){
-        const pr=el.props[pi];
-        if(pr.list){
-          const c=rdCount(pr.ctype);
-          for(let j=0;j<c;j++) skipVal(pr.itype);
-          continue;
-        }
-        if(store) vals[pi]=readVal(pr.type); else skipVal(pr.type);
+  if(isAscii){
+    const need=flat.length;
+    const want={}; want[ix]=0; want[iy]=1; want[iz]=2;
+    if(hasColor){ want[ir]=3; want[ig]=4; want[ib]=5; }
+    let rowIdx=0, out=0, stop=false;
+    const maxTok=Math.max(ix,iy,iz,ir,ig,ib);
+    scanLines(u8, H.dataStart, (s,e)=>{
+      // count tokens; skip lines with too few
+      let cnt=0; forEachTok(u8,s,e,()=>cnt++);
+      if(cnt<need) return stop;          // tolerate stray blank/comment lines
+      if(((rowIdx)%step)!==0){ rowIdx++; if(rowIdx>=nV){ stop=true; return true; } return stop; }
+      // parse wanted tokens
+      const vals=new Array(6).fill(NaN); let ti=0;
+      forEachTok(u8,s,e,(ts,te)=>{
+        const d=want[ti];
+        if(d!==undefined && ti<=maxTok) vals[d]=parseFloat(tokStr(u8,ts,te));
+        ti++;
+      });
+      pos[out*3]=vals[0]; pos[out*3+1]=vals[1]; pos[out*3+2]=vals[2];
+      if(col){
+        let r=vals[3],g=vals[4],b=vals[5];
+        if(colorIsFloat){ r*=255; g*=255; b*=255; }
+        col[out*3]=clamp(r,0,255); col[out*3+1]=clamp(g,0,255); col[out*3+2]=clamp(b,0,255);
       }
-      if(store){
-        pos[k*3]=vals[iX]; pos[k*3+1]=vals[iY]; pos[k*3+2]=vals[iZ];
-        if(colF){
-          colF[k*3]=vals[iR]; colF[k*3+1]=vals[iG]; colF[k*3+2]=vals[iB];
-          if(vEl.props[iR].isFloat) colFloatCh[0]=true;
-          if(vEl.props[iG].isFloat) colFloatCh[1]=true;
-          if(vEl.props[iB].isFloat) colFloatCh[2]=true;
-        }
-        k++;
-      }
-    }
-    if(isV) break;   // remaining elements (faces etc.) are not needed
+      out++; rowIdx++;
+      if(out>=outN || rowIdx>=nV){ stop=true; return true; }
+      return false;
+    });
+    return finish(out);
   }
-  if(k<=0) throw new Error('no vertices read');
 
-  let col=null;
-  if(colF){
-    // float colors: 0..1 → 0..255 (only if the channel's values are in 0..1)
-    col=new Uint8Array(k*3);
-    for(let ch=0;ch<3;ch++){
-      let mx=0; for(let i=0;i<k;i++){ const v=colF[i*3+ch]; if(v>mx) mx=v; }
-      const scale = (colFloatCh[ch] && mx<=1.0) ? 255 : 1;
-      for(let i=0;i<k;i++) col[i*3+ch]=clamp(colF[i*3+ch]*scale,0,255);
+  // binary
+  const dv=new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const stride=flat.reduce((a,p)=>a+(PLY_SIZE[p.type]||0),0);
+  if(stride<=0) throw new ImportErr('ply_hdr');
+  const avail=Math.floor((u8.length-H.dataStart)/stride);
+  if(avail<outN) outN=Math.max(0,Math.floor(avail/step));   // truncated file → read what exists
+  const off={}; let acc=0;
+  for(let i=0;i<flat.length;i++){ off[i]=acc; acc+=PLY_SIZE[flat[i].type]||0; }
+  const rd=(base,fi)=>{ const p=flat[fi]; return PLY_GET[p.type](dv, base+off[fi], !isBE); };
+  for(let vi=0; vi<outN; vi++){
+    const base=H.dataStart+(vi*step)*stride;
+    pos[vi*3]  =rd(base,ix);
+    pos[vi*3+1]=rd(base,iy);
+    pos[vi*3+2]=rd(base,iz);
+    if(col){
+      let r=rd(base,ir), g=rd(base,ig), b=rd(base,ib);
+      if(colorIsFloat){ r*=255; g*=255; b*=255; }
+      col[vi*3]=clamp(r,0,255); col[vi*3+1]=clamp(g,0,255); col[vi*3+2]=clamp(b,0,255);
     }
   }
-  return { pos: k===outN? pos : pos.slice(0,k*3), col, n:k };
+  return finish(outN);
 }
 
-/* ---- STL ---- */
-const STL_NUM = '([-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?)';
-function parseSTLAscii(u8){
-  const txt = latin1(u8);
-  const re = new RegExp('vertex\\s+'+STL_NUM+'\\s+'+STL_NUM+'\\s+'+STL_NUM, 'g');
-  let total=0; while(re.exec(txt)!==null) total++;
-  if(total===0) throw new Error('no vertices');
-  const CAP=750000;
-  const step=Math.max(1,Math.ceil(total/CAP));
-  const n=Math.ceil(total/step);
-  const pos=new Float32Array(n*3);
-  re.lastIndex=0;
-  let i=0,k=0,m;
-  while((m=re.exec(txt))!==null){
-    if(i%step===0 && k<n){
-      pos[k*3]=parseFloat(m[1]); pos[k*3+1]=parseFloat(m[2]); pos[k*3+2]=parseFloat(m[3]);
-      k++;
-    }
-    i++;
-  }
-  return { pos: k===n? pos : pos.slice(0,k*3), col:null, n:k };
-}
-
-function parseSTLBinary(buf, nT){
-  const dv=new DataView(buf);
-  nT=Math.min(nT, Math.floor((buf.byteLength-84)/50));
-  if(nT<=0) throw new Error('bad stl');
-  const total=nT*3, CAP=750000;
-  const step=Math.max(1,Math.ceil(total/CAP));
-  const n=Math.ceil(total/step);
-  const pos=new Float32Array(n*3);
-  for(let k=0;k<n;k++){
-    const vi=k*step, tri=(vi/3)|0, comp=vi%3;
-    const off=84+tri*50+12+comp*12;
-    pos[k*3]=dv.getFloat32(off,true);
-    pos[k*3+1]=dv.getFloat32(off+4,true);
-    pos[k*3+2]=dv.getFloat32(off+8,true);
-  }
-  return { pos, col:null, n };
-}
+/* ================================================================
+   STL
+   ================================================================ */
+const STL_CAP=750000; // vertices (250k triangles)
 
 function parseSTL(buf){
   const u8=new Uint8Array(buf);
-  if(u8.length<84) throw new Error('bad stl');
-  // 1) Exact size match with the triangle count = binary, regardless of header text
-  //    (many binary STLs, e.g. from SolidWorks, start their header with "solid")
-  const nT=new DataView(buf).getUint32(80,true);
-  if(nT>0 && 84+nT*50===u8.length) return parseSTLBinary(buf, nT);
-  // 2) Otherwise, ASCII if it starts with "solid"
-  const head=latin1(u8.subarray(0,Math.min(512,u8.length)));
-  if(/^\s*solid/i.test(head)){
-    try{ return parseSTLAscii(u8); }catch(e){ /* fall through to binary */ }
+  const len=u8.length;
+  // definitive binary check: size must match 84 + 50*nT
+  let binaryPlausible=false, nT=0;
+  if(len>=84){
+    nT=new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(80,true);
+    const need=84+50*nT;
+    if(nT>0 && need<=len && (len-need)<50) binaryPlausible=true;
   }
-  // 3) Fallback: binary with truncated/padded file
-  return parseSTLBinary(buf, nT);
+  const headTxt=latin1(u8.subarray(0,Math.min(512,len)));
+  const solidHead=/^\s*solid/i.test(headTxt);
+
+  if(!binaryPlausible && !solidHead) throw new Error('not-stl');
+
+  if(binaryPlausible || (!solidHead && len>=84 && !/\bfacet\b/i.test(headTxt))){
+    // ---- binary ----
+    if(nT<=0) throw new ImportErr('few',{n:0});
+    const dv=new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    const total=nT*3;
+    const step=Math.max(1,Math.ceil(total/STL_CAP));
+    let outN=Math.floor(total/step);
+    // guard truncation: last readable triangle
+    const maxTri=Math.floor((len-84)/50);
+    if(maxTri<nT) outN=Math.min(outN, maxTri*3);
+    const pos=new Float32Array(Math.max(1,outN)*3);
+    for(let i=0;i<outN;i++){
+      const vIdx=i*step;
+      const tri=(vIdx/3)|0, comp=vIdx%3;
+      const off=84+tri*50+12+comp*12;
+      pos[i*3]  =dv.getFloat32(off,true);
+      pos[i*3+1]=dv.getFloat32(off+4,true);
+      pos[i*3+2]=dv.getFloat32(off+8,true);
+    }
+    return { pos, col:null, n:outN, fmt:'stl_bin' };
+  }
+
+  // ---- ASCII (byte-level, two passes for uniform sampling) ----
+  let total=0;
+  scanLines(u8,0,(s,e)=>{
+    if(e-s>6 && e-s<256 && lineHasTok(u8,s,e,'vertex')) total++;
+    return total>=STL_CAP*3;
+  });
+  if(!total) throw new ImportErr('stl_bad');
+  const step=Math.max(1,Math.ceil(total/STL_CAP));
+  const outN=Math.floor(total/step);
+  const pos=new Float32Array(Math.max(1,outN)*3);
+  let row=0, out=0, stop=false;
+  scanLines(u8,0,(s,e)=>{
+    if(e-s>6 && e-s<256 && lineHasTok(u8,s,e,'vertex')){
+      if(row%step===0){
+        let k=0;
+        forEachTok(u8,s,e,(ts,te)=>{
+          if(k>=1&&k<=3) pos[out*3+k-1]=parseFloat(tokStr(u8,ts,te));
+          k++;
+        });
+        out++;
+        if(out>=outN){ stop=true; return true; }
+      }
+      row++;
+    }
+    return stop;
+  });
+  return finishSTL(pos,out);
+}
+function finishSTL(pos,n){
+  if(n<=0) throw new ImportErr('few',{n:0});
+  return { pos:pos.subarray(0,n*3), col:null, n, fmt:'stl_ascii' };
 }
 
-async function importUserFile(file, toMM=1){
-  const buf=await file.arrayBuffer();
-  const name=(file.name||'model').toLowerCase();
-  let parsed;
-  if(name.endsWith('.ply')) parsed=parsePLY(buf);
-  else if(name.endsWith('.stl')) parsed=parseSTL(buf);
-  else {
-    // sniff by content
-    try{ parsed=parsePLY(buf); }catch(e){ parsed=parseSTL(buf); }
+/* ================================================================
+   OBJ (vertices; faces ignored)
+   ================================================================ */
+const OBJ_CAP=250000;
+function parseOBJ(buf){
+  const u8=new Uint8Array(buf);
+  let total=0;
+  scanLines(u8,0,(s,e)=>{
+    if(e-s>4 && lineHasTok(u8,s,e,'v')) total++;
+    return total>=OBJ_CAP*8;
+  });
+  if(!total) throw new Error('not-obj');
+  const step=Math.max(1,Math.ceil(total/OBJ_CAP));
+  const outN=Math.floor(total/step);
+  const pos=new Float32Array(Math.max(1,outN)*3);
+  let row=0, out=0, stop=false;
+  scanLines(u8,0,(s,e)=>{
+    if(e-s>4 && lineHasTok(u8,s,e,'v')){
+      if(row%step===0){
+        let k=0;
+        forEachTok(u8,s,e,(ts,te)=>{
+          if(k>=1&&k<=3) pos[out*3+k-1]=parseFloat(tokStr(u8,ts,te));
+          k++;
+        });
+        out++;
+        if(out>=outN){ stop=true; return true; }
+      }
+      row++;
+    }
+    return stop;
+  });
+  if(out<=0) throw new Error('not-obj');
+  return { pos:pos.subarray(0,out*3), col:null, n:out, fmt:'obj' };
+}
+
+/* ================================================================
+   ZIP (unwrap first PLY/STL/OBJ entry — store or deflate)
+   ================================================================ */
+async function unzipModel(u8){
+  const len=u8.length;
+  let eocd=-1;
+  for(let i=len-22;i>=Math.max(0,len-66000);i--){
+    if(u8[i]===0x50&&u8[i+1]===0x4B&&u8[i+2]===0x05&&u8[i+3]===0x06){ eocd=i; break; }
   }
-  if(!parsed || parsed.n<500) throw new Error('too few points');
-  // store everything in millimetres so calibration is consistent
-  if(toMM!==1){ const P=parsed.pos; for(let i=0;i<parsed.n*3;i++) P[i]*=toMM; }
+  if(eocd<0) throw new ImportErr('zip_none');
+  const dv=new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const cdCount=dv.getUint16(eocd+10,true);
+  let p=dv.getUint32(eocd+16,true);
+  let best=null;
+  for(let k=0;k<cdCount&&p+46<=len;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true);
+    const flags=dv.getUint16(p+8,true);
+    const compSize=dv.getUint32(p+20,true);
+    const uncompSize=dv.getUint32(p+24,true);
+    const nameLen=dv.getUint16(p+28,true);
+    const extraLen=dv.getUint16(p+30,true);
+    const cmtLen=dv.getUint16(p+32,true);
+    const lho=dv.getUint32(p+42,true);
+    const name=tokStr(u8,p+46,p+46+nameLen);
+    if(/\.(ply|stl|obj)$/i.test(name) && !(flags&1)){
+      if(!best || uncompSize>best.uncompSize) best={name,method,compSize,uncompSize,lho};
+    }
+    p+=46+nameLen+extraLen+cmtLen;
+  }
+  if(!best) throw new ImportErr('zip_none');
+  if(best.lho+30>len || dv.getUint32(best.lho,true)!==0x04034b50) throw new ImportErr('zip_none');
+  const lNameLen=dv.getUint16(best.lho+26,true);
+  const lExtraLen=dv.getUint16(best.lho+28,true);
+  const dS=best.lho+30+lNameLen+lExtraLen;
+  const dE=dS+best.compSize;
+  if(dE>len) throw new ImportErr('zip_none');
+  const data=u8.subarray(dS,dE);
+  let buf;
+  if(best.method===0){
+    buf=data.slice().buffer;
+  } else if(best.method===8){
+    if(typeof DecompressionStream==='undefined') throw new ImportErr('zip_method');
+    try{
+      const ds=new DecompressionStream('deflate-raw');
+      const stream=new Blob([data]).stream().pipeThrough(ds);
+      buf=await new Response(stream).arrayBuffer();
+    }catch(e){ throw new ImportErr('zip_method'); }
+  } else throw new ImportErr('zip_method');
+  return { u8:new Uint8Array(buf), name:best.name };
+}
+
+/* ================================================================
+   Routing — sniff first, extension as hint, brute-force fallback
+   ================================================================ */
+async function parseAnyModel(u8, name){
+  const sniff=sniffFormat(u8);
+  const extM=/\.([a-z0-9]+)\s*$/i.exec(name||'');
+  const ext=extM?extM[1].toLowerCase():null;
+  const order=[];
+  if(sniff) order.push(sniff);
+  if(ext && !order.includes(ext) && ['ply','stl','obj','zip'].includes(ext)) order.push(ext);
+  for(const k of ['ply','stl','obj']) if(!order.includes(k)) order.push(k);
+  let lastPlain=null;
+  for(const kind of order){
+    try{
+      if(kind==='zip'){
+        const inner=await unzipModel(u8);
+        const res=await parseAnyModel(inner.u8, inner.name||'');
+        res.fmt='zip_'+res.fmt;
+        if(inner.name) res.name=inner.name.replace(/^\d+[ _-]*/,'')||res.name;
+        return res;
+      }
+      if(kind==='ply'){ const r=parsePLY(u8); return {parsed:r, name, fmt:r.fmt}; }
+      if(kind==='stl'){ const r=parseSTL(u8); return {parsed:r, name, fmt:r.fmt}; }
+      if(kind==='obj'){ const r=parseOBJ(u8); return {parsed:r, name, fmt:r.fmt}; }
+    }catch(e){
+      if(e instanceof ImportErr) throw e;   // format confirmed but unusable
+      lastPlain=e;                           // "not a <kind>" → try next
+    }
+  }
+  throw new ImportErr('unknown', {detail: lastPlain&&lastPlain.message});
+}
+
+async function importUserFile(file){
+  if(!file) throw new ImportErr('unknown');
+  let buf;
+  try{ buf=await file.arrayBuffer(); }
+  catch(e){ throw new ImportErr('read'); }
+  const u8=new Uint8Array(buf);
+  if(!u8.length) throw new ImportErr('empty');
+  const res=await parseAnyModel(u8, file.name||'model');
+  const parsed=res.parsed;
+  if(!parsed || parsed.n<120) throw new ImportErr('few',{n:parsed?parsed.n:0});
+  // sanity: coordinates must be finite numbers (catch silently-corrupted reads)
+  let checked=0, bad=0;
+  const chkStep=Math.max(1, Math.floor(parsed.n/512));
+  for(let i=0;i<parsed.n;i+=chkStep){
+    checked++;
+    const x=parsed.pos[i*3], y=parsed.pos[i*3+1], z=parsed.pos[i*3+2];
+    if(!isFinite(x)||!isFinite(y)||!isFinite(z)) bad++;
+  }
+  if(bad>checked*0.02) throw new ImportErr('corrupt',{bad,checked});
   const stats=cloudStats(parsed.pos, parsed.n);
+  if(!isFinite(stats.diag) || stats.diag<=1e-9) throw new ImportErr('degenerate');
   const feats=cloudFeatures(parsed.pos, parsed.n);
   return {
     id:'m'+Date.now()+Math.floor(Math.random()*1e4),
-    name:file.name||'model',
-    n:parsed.n, hasColor:!!parsed.col,
+    name:(res.name||file.name||'model').replace(/^\d+[ _-]+/,''),
+    n:parsed.n, hasColor:!!parsed.col, fmt:res.fmt,
     diagMM:+stats.diag.toFixed(2),
-    unitSuspect: stats.diag<5 || stats.diag>400,
     feats:Array.from(feats),
     pos:parsed.pos, col:parsed.col,
     addedAt:Date.now()
   };
 }
-
 /* ================================================================
    Cloud math — shared by training simulator AND live scanning
    (must stay identical in both paths so features match)
@@ -945,48 +1203,8 @@ function pcaAnisotropy(pos, idxs){
   return [clamp((l1-l2)/d1,0,1), clamp((l2-l3)/d1,0,1)];
 }
 
-// Bump when the feature definition changes: saved networks from another version are discarded.
-const FEAT_VER = 2;
-
-// Rotate a cloud into its own principal-axis frame (centred, sign-fixed), so the
-// shape features do not depend on how the object happened to be placed/scanned.
-function alignPCA(src, n){
-  const cap=4000, stride=Math.max(1,Math.floor(n/cap));
-  let cx=0,cy=0,cz=0,m=0;
-  for(let i=0;i<n;i+=stride){ cx+=src[i*3]; cy+=src[i*3+1]; cz+=src[i*3+2]; m++; }
-  cx/=m; cy/=m; cz/=m;
-  let a00=0,a01=0,a02=0,a11=0,a12=0,a22=0;
-  for(let i=0;i<n;i+=stride){
-    const x=src[i*3]-cx, y=src[i*3+1]-cy, z=src[i*3+2]-cz;
-    a00+=x*x; a01+=x*y; a02+=x*z; a11+=y*y; a12+=y*z; a22+=z*z;
-  }
-  const apply=v=>[a00*v[0]+a01*v[1]+a02*v[2], a01*v[0]+a11*v[1]+a12*v[2], a02*v[0]+a12*v[1]+a22*v[2]];
-  const nrm=v=>{ const l=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; };
-  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-  const orthoV1=(v)=>{ const d=dot(v,v1); return nrm([v[0]-d*v1[0], v[1]-d*v1[1], v[2]-d*v1[2]]); };
-  let v1=nrm([0.7,0.3,0.2]); for(let k=0;k<30;k++) v1=nrm(apply(v1));
-  let v2=orthoV1(nrm([0.2,0.8,0.4])); for(let k=0;k<30;k++) v2=orthoV1(apply(v2));
-  const v3=nrm([v1[1]*v2[2]-v1[2]*v2[1], v1[2]*v2[0]-v1[0]*v2[2], v1[0]*v2[1]-v1[1]*v2[0]]);
-  // sign convention: third moment along each axis must be >= 0
-  const axes=[v1,v2,v3];
-  for(const ax of axes){
-    let sk=0;
-    for(let i=0;i<n;i+=stride){ const d=(src[i*3]-cx)*ax[0]+(src[i*3+1]-cy)*ax[1]+(src[i*3+2]-cz)*ax[2]; sk+=d*d*d; }
-    if(sk<0){ ax[0]=-ax[0]; ax[1]=-ax[1]; ax[2]=-ax[2]; }
-  }
-  const out=new Float32Array(n*3);
-  for(let i=0;i<n;i++){
-    const x=src[i*3]-cx, y=src[i*3+1]-cy, z=src[i*3+2]-cz;
-    out[i*3]  =x*v1[0]+y*v1[1]+z*v1[2];
-    out[i*3+1]=x*v2[0]+y*v2[1]+z*v2[2];
-    out[i*3+2]=x*v3[0]+y*v3[1]+z*v3[2];
-  }
-  return out;
-}
-
-// 12-dim normalized shape descriptor (scale- and rotation-invariant) — used everywhere
-function cloudFeatures(pos0, n){
-  const pos=alignPCA(pos0, n);
+// 12-dim normalized shape descriptor (scale-invariant) — used everywhere
+function cloudFeatures(pos, n){
   const st=cloudStats(pos,n);
   const ext=[st.ex,st.ey,st.ez].sort((a,b)=>a-b);
   const e0=Math.max(ext[0],1e-9), e1=Math.max(ext[1],1e-9), e2=Math.max(ext[2],1e-9);
@@ -1168,7 +1386,7 @@ const AI = {
   async load(){
     try{
       const st=await dbGet('ai','state');
-      if(st && st.meta && st.meta.featVer===FEAT_VER){
+      if(st && st.meta){
         this.meta=st.meta;
         if(st.cov) this.cov=MLP.fromJSON(st.cov);
         if(st.qual) this.qual=MLP.fromJSON(st.qual);
@@ -1325,7 +1543,7 @@ async function trainFromModels(models, ui){
 
   // 2) train both nets
   AI.cov=new MLP([12,16,8,1], 7);
-  const lossCov=await AI.cov.train(X, Y, { epochs:140, lr:0.012, onEpoch:(e,l,E)=>{
+  const lossCov=await AI.cov.train(X, Y, { epochs:140, lr:0.06, onEpoch:(e,l,E)=>{
     ui.prog(0.47+0.45*(e/E)); ui.loss(l.toFixed(4));
   }});
   await yieldUI();
@@ -1335,7 +1553,7 @@ async function trainFromModels(models, ui){
   for(const v of YQ) v>0.5?nGood++:nBad++;
   AI.qual=new MLP([12,16,8,1], 99);
   if(XQ.length>=12){
-    await AI.qual.train(XQ, YQ, { epochs:120, lr:0.002, onEpoch:(e,l,E)=>{
+    await AI.qual.train(XQ, YQ, { epochs:120, lr:0.05, onEpoch:(e,l,E)=>{
       ui.prog(0.92+0.07*(e/E));
     }});
   } else {
@@ -1347,7 +1565,6 @@ async function trainFromModels(models, ui){
   AI.meta.epochs=(AI.meta.epochs||0)+140+(AI.qual?120:0);
   AI.meta.loss=+lossCov.toFixed(4);
   AI.meta.src='user-files';
-  AI.meta.featVer=FEAT_VER;
   AI.meta.updatedAt=Date.now();
   AI.ready=!!AI.cov;
   await AI.save();
@@ -1366,11 +1583,11 @@ async function fineTuneOnline(replay){
   }
   const before=AI.meta.samples||0;
   if(X.length>=25){
-    await AI.cov.train(X, Y, { epochs:35, lr:0.008 });
+    await AI.cov.train(X, Y, { epochs:35, lr:0.035 });
     AI.meta.epochs+=35;
   }
   if(AI.qual && XQ.length>=20){
-    await AI.qual.train(XQ, YQ, { epochs:30, lr:0.0002 });
+    await AI.qual.train(XQ, YQ, { epochs:30, lr:0.03 });
     AI.meta.epochs+=30;
   }
   AI.meta.samples=before+replay.length;
@@ -2338,7 +2555,7 @@ async function processFrame(){
       sc.covGeo=sc.refGain?clamp(1-rNow/sc.refGain,0,1):0;
       const covBlend=(covAI!=null)?0.55*covAI+0.45*sc.covGeo:sc.covGeo;
       sc.covShow=sc.covShow*0.7+0.3*covBlend;
-      S.replay.push({f:feats, cov:sc.covGeo, q:null}); // no real quality label for live frames: do not teach the quality net 'always good'
+      S.replay.push({f:feats, cov:sc.covGeo, q:1});
       if(AI.ready){
         const q=AI.predictQuality(feats);
         if(q!=null&&q<0.3) hint(t('hint_blur'));
@@ -2548,24 +2765,63 @@ function renderModels(){
     list.appendChild(it);
   }
 }
+function reasonText(code, info){
+  const map={empty:'rsn_empty',read:'rsn_read',unknown:'rsn_unknown',ply_hdr:'rsn_ply_hdr',ply_xyz:'rsn_ply_xyz',stl_bad:'rsn_stl_bad',few:'rsn_few',degenerate:'rsn_degenerate',corrupt:'rsn_corrupt',zip_none:'rsn_zip_none',zip_method:'rsn_zip_method'};
+  let s=t(map[code]||'rsn_generic');
+  if(code==='few'&&info&&typeof info.n==='number') s=s.replace('{n}', fmtNum(info.n));
+  return s;
+}
+function fmtLabel(k){
+  const map={ply_bin:'det_ply_bin',ply_ascii:'det_ply_ascii',stl_bin:'det_stl_bin',stl_ascii:'det_stl_ascii',obj:'det_obj',zip_ply:'det_zip_ply',zip_stl:'det_zip_stl',zip_obj:'det_zip_obj'};
+  if(k&&map[k]) return t(map[k]);
+  if(k&&k.indexOf('zip_')===0){           // composed key from ZIP recursion, e.g. zip_ply_bin
+    const m2={ply_bin:'ply',ply_ascii:'ply',stl_bin:'stl',stl_ascii:'stl',obj:'obj'};
+    const s=m2[k.slice(4)];
+    if(s) return t('det_zip_'+s);
+  }
+  return '';
+}
 async function importFiles(fileList){
-  let okN=0;
-  const files=Array.from(fileList); // copy first: the input's FileList is cleared right after this call
-  const toMM=parseFloat(($('unitSel')||{}).value)||1;
-  const warnNames=[];
-  for(const f of files){
+  const results=[]; let okN=0;
+  for(const f of Array.from(fileList)){
+    const row={name:(f&&f.name)||'—', size:(f&&f.size)||0, ok:false, msg:''};
     try{
-      const rec=await importUserFile(f, toMM);
-      await dbPut('models', rec);
+      const rec=await importUserFile(f);
+      try{ await dbPut('models', rec); }
+      catch(e){ console.warn('dbPut failed', f.name, e);
+        row.msg=reasonText('storage'); results.push(row); continue; }
       S.models.push(rec);
       recalibrate(S.models);
-      okN++;
-      if(rec.unitSuspect) warnNames.push(rec.name);
-    }catch(e){ console.warn('import failed:', f.name, e); toast(t('err_parse')+' ('+f.name+': '+(e.message||e)+')','bad'); }
+      okN++; row.ok=true;
+      const parts=[fmtLabel(rec.fmt), fmtNum(rec.n)+' '+t('stat_pts')];
+      if(rec.diagMM) parts.push(rec.diagMM+' '+t('unit_mm'));
+      row.msg=parts.filter(Boolean).join(' · ');
+    }catch(e){
+      console.warn('import failed:', f&&f.name, e);
+      row.msg=(e&&e.code)?reasonText(e.code,e&&e.info):((e&&e.message)?e.message:reasonText('generic'));
+    }
+    results.push(row);
   }
-  if(okN) { renderModels(); updateAIBadges(); toast('✔ '+okN,'ok'); }
-  // show warnings last so the summary toast does not hide them
-  if(warnNames.length) setTimeout(()=>toast(t('warn_units')+' — '+warnNames.join(', '),'warn'), okN?2900:0);
+  if(okN){ renderModels(); updateAIBadges(); }
+  showImportResults(results, okN);
+}
+function showImportResults(rows, okN){
+  const list=$('impResList'); list.innerHTML='';
+  for(const r of rows){
+    const d=document.createElement('div');
+    d.style.cssText='display:flex;flex-direction:column;gap:2px;padding:.45rem .55rem;border:1px solid var(--line);border-radius:10px';
+    const a=document.createElement('div');
+    a.textContent=(r.ok?'✔ ':'✘ ')+r.name;
+    a.style.cssText='font-weight:600;color:'+(r.ok?'var(--acc)':'#ff8f9a');
+    const b=document.createElement('div');
+    b.className='muted'; b.style.fontSize='.78rem';
+    b.textContent=(r.size?'('+fmtBytes(r.size)+') ':'')+r.msg;
+    d.appendChild(a); d.appendChild(b); list.appendChild(d);
+  }
+  $('impRes').classList.remove('hidden');
+  const bad=rows.length-okN;
+  if(!bad) toast(t('imp_toast_ok').replace('{ok}',okN),'ok');
+  else if(okN) toast(t('imp_toast_mix').replace('{ok}',okN).replace('{bad}',bad),'warn');
 }
 function updateAIBadges(){
   const ready=AI.ready;
@@ -2724,6 +2980,7 @@ function wireEvents(){
   };
   $('btnPick').onclick=e=>{ e.stopPropagation(); $('fileInput').click(); };
   $('fileInput').onchange=e=>{ if(e.target.files.length) importFiles(e.target.files); e.target.value=''; };
+  $('impResClose').onclick=()=>$('impRes').classList.add('hidden');
   $('btnTrain').onclick=runTraining;
   $('btnResetAI').onclick=async()=>{
     if(!await askConfirm(t('reset_ai_confirm'))) return;
