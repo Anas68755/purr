@@ -22,38 +22,33 @@
 
   #orb-labels { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
 
+  /* Decorative-only labels — never intercept pointer events */
   .orb-label {
     position: absolute;
     transform: translate(-50%, -100%);
-    pointer-events: auto;
-    cursor: pointer;
+    pointer-events: none;
     text-align: center;
-    padding: 8px 14px;
-    background: rgba(8, 12, 22, 0.72);
-    border: 1px solid rgba(130, 170, 220, 0.35);
+    padding: 6px 12px;
+    background: rgba(8, 12, 22, 0.28);
+    border: 1px solid rgba(130, 170, 220, 0.15);
     border-radius: 8px;
-    color: #d8e4f0;
+    color: rgba(216, 228, 240, 0.72);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 12px;
     letter-spacing: .02em;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    transition: background .18s ease, border-color .18s ease,
-                box-shadow .18s ease, transform .18s ease, opacity .28s ease;
+    transition: opacity .30s ease, background .22s ease, border-color .22s ease;
     white-space: nowrap;
     user-select: none;
     opacity: 0;
   }
-  .orb-label:hover,
   .orb-label.active {
-    background: rgba(22, 32, 52, 0.92);
-    border-color: rgba(180, 215, 255, 0.85);
-    box-shadow: 0 0 24px rgba(130, 185, 255, 0.45),
-                0 0 4px rgba(180, 220, 255, 0.6) inset;
-    transform: translate(-50%, -100%) scale(1.06);
+    background: rgba(18, 28, 48, 0.42);
+    border-color: rgba(160, 200, 250, 0.30);
   }
-  .orb-label .title { font-weight: 600; font-size: 13px; color: #eaf2ff; }
-  .orb-label .desc  { opacity: 0.62; font-size: 11px; margin-top: 2px; }
+  .orb-label .title { font-weight: 600; font-size: 13px; color: rgba(234, 242, 255, 0.82); }
+  .orb-label .desc  { opacity: 0.52; font-size: 11px; margin-top: 2px; }
 
   #fade {
     position: fixed; inset: 0; background: #000; pointer-events: none;
@@ -130,13 +125,11 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x02030a, 0.052);
 
-// Front 3/4 view, pulled back slightly & lowered so the whole seated
-// figure + widened orb ring fit inside the default frame.
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.05, 300);
 camera.position.set(2.50, 0.85, -3.40);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1.00, 0.72);
+controls.target.set(0, 1.00, 1.00);
 controls.enableDamping   = true;
 controls.dampingFactor   = 0.055;
 controls.enablePan       = false;
@@ -294,7 +287,6 @@ scene.add(rim);
   scene.add(grp);
 })();
 
-/* ── Narrowed stone BENCH (was a broad disk that buried the legs) ── */
 (function buildLedge() {
   const g = new THREE.CylinderGeometry(1.0, 1.15, 0.55, 18, 4);
   const p = g.attributes.position;
@@ -309,13 +301,12 @@ scene.add(rim);
   }
   g.computeVertexNormals();
   const m = new THREE.Mesh(g, MAT.rockNear);
-  m.scale.set(1.50, 1, 0.70);          // wide in X, shallow in Z
-  m.position.set(0, 0.19, 1.80);        // pushed back so legs hang over
+  m.scale.set(1.50, 1, 0.70);
+  m.position.set(0, 0.19, 1.80);
   m.receiveShadow = true;
   m.castShadow = true;
   scene.add(m);
 
-  // rubble foundation — must NOT occlude feet (kept short in Z)
   const b = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.75, 0.5, 14, 2), MAT.rock);
   b.scale.set(1.50, 1, 0.50);
   b.position.set(0, -0.15, 1.80);
@@ -390,7 +381,6 @@ class ChainBuilder {
 const figure = new THREE.Group();
 scene.add(figure);
 
-/* ── 6a. TORSO (translucent-chest shader) ── */
 const torsoUniforms = {
   uLightDir:   { value: new THREE.Vector3(0.10, 0.94, 0.32).normalize() },
   uLightColor: { value: new THREE.Color(0.82, 0.90, 1.0) },
@@ -466,7 +456,6 @@ torsoGroup.rotation.x = -0.42;
 torsoGroup.add(torso);
 figure.add(torsoGroup);
 
-/* ── 6b. HEART ── */
 const heartGroup = new THREE.Group();
 heartGroup.position.set(0, 0.45, 0.005);
 torsoGroup.add(heartGroup);
@@ -516,7 +505,6 @@ const heartLight = new THREE.PointLight(0xff2b38, 0.85, 0.75, 2.0);
 heartLight.position.set(0, 0.02, 0.02);
 heartGroup.add(heartLight);
 
-/* ── 6c. TORSO CHAINS ── */
 const torsoChains = new ChainBuilder();
 torsoChains.ring(0.42, 0.246, 0.196, 0, 0.008, 0.052, 0.021, 0.012);
 torsoChains.ring(0.30, 0.226, 0.182, 0, 0.006, -0.046, 0.021, -0.010);
@@ -547,7 +535,6 @@ heartChains.curve([
 const heartChainMesh = heartChains.build(MAT.ironDark);
 if (heartChainMesh) heartGroup.add(heartChainMesh);
 
-/* ── 6d. HOOD + MASK ── */
 const head = new THREE.Group();
 head.position.set(0, 0.86, -0.030);
 head.rotation.x = -0.155;
@@ -636,7 +623,6 @@ for (const s of [-1, 1]) {
   maskGroup.add(eye);
 }
 
-/* ── 6e. ARMS + FISTS ── */
 const JOINT = new THREE.SphereGeometry(1, 14, 10);
 function joint(pos, r, mat) {
   const m = new THREE.Mesh(JOINT, mat);
@@ -701,7 +687,6 @@ function buildFist(yCenter) {
 figure.add(buildFist(1.040));
 figure.add(buildFist(0.900));
 
-/* ── 6f. LEGS ── */
 const legR = { hip: new THREE.Vector3( 0.150, 0.560, 1.220), knee: new THREE.Vector3( 0.230, 0.520, 0.820), ankle: new THREE.Vector3( 0.248, 0.080, 0.615) };
 const legL = { hip: new THREE.Vector3(-0.150, 0.560, 1.220), knee: new THREE.Vector3(-0.230, 0.520, 0.820), ankle: new THREE.Vector3(-0.248, 0.080, 0.615) };
 
@@ -728,7 +713,6 @@ function buildLeg(Lg) {
 figure.add(buildLeg(legR));
 figure.add(buildLeg(legL));
 
-/* ── 6g. THE ARABIAN SWORD ── */
 const sword = new THREE.Group();
 sword.position.set(0, 0.790, 0.575);
 sword.rotation.y = -0.40;
@@ -932,7 +916,7 @@ core.position.set(0, 4.5, 0.72);
 core.renderOrder = 3;
 scene.add(core);
 
-/* ═══ 9. DUST MOTES — reduced density + slower fall ══════════════ */
+/* ═══ 9. DUST MOTES ══════════════════════════════════════════════ */
 const DUST_N = 900;
 const dPos   = new Float32Array(DUST_N * 3);
 const dSize  = new Float32Array(DUST_N);
@@ -993,6 +977,7 @@ scene.add(dust);
 
 /* ═══════════════════════════════════════════════════════════════════════
    ★★★  10. FLYING NAVIGATION ORBS  ★★★
+   ─── Full circle around the seated figure, labels decorative-only ───
    ═══════════════════════════════════════════════════════════════════════ */
 
 const labelLayer = document.getElementById('orb-labels');
@@ -1087,12 +1072,8 @@ scene.add(orbGroup);
   const N = ORBS.length;
   if (N === 0) return;
 
-  // Arc range depends on orb count so 1 orb = centered, 2 = flanking,
-  // 3+ = wide dome.
-  let arcStart, arcSpan;
-  if (N === 1)      { arcStart = 0;                 arcSpan = 0; }
-  else if (N === 2) { arcStart = -Math.PI / 3;      arcSpan = Math.PI * 2 / 3; }
-  else              { arcStart = -Math.PI * 0.72;   arcSpan = Math.PI * 1.44;   }
+  const CIRCLE_CX = 0.0;
+  const CIRCLE_CZ = 1.15;
 
   for (let i = 0; i < N; i++) {
     const [title, emoji, desc, file] = ORBS[i];
@@ -1129,36 +1110,19 @@ scene.add(orbGroup);
     group.add(hit);
     orbHitTargets.push(hit);
 
+    /* Decorative-only label — no listeners, no pointer interaction */
     const label = document.createElement('div');
     label.className = 'orb-label';
-    label.style.opacity = '0';
-    label.style.pointerEvents = 'none';
     label.innerHTML = `<div class="title">${title}</div><div class="desc">${desc}</div>`;
-    label.addEventListener('pointerdown', (e) => e.stopPropagation());
-    label.addEventListener('click', (e) => {
-      e.stopPropagation();
-      navigateTo(file);
-    });
-    label.addEventListener('pointerenter', () => {
-      label.classList.add('active');
-      const o = orbObjects[i];
-      if (o) o.hovered = true;
-    });
-    label.addEventListener('pointerleave', () => {
-      label.classList.remove('active');
-      const o = orbObjects[i];
-      if (o) o.hovered = false;
-    });
     labelLayer.appendChild(label);
 
-    /* ── Wider, tiered arc ── */
-    const tN   = N === 1 ? 0.5 : i / (N - 1);
-    const a    = arcStart + tN * arcSpan;
+    /* Full circle layout — i = 0 starts at the front */
+    const a    = (i / N) * Math.PI * 2 - Math.PI / 2;
     const tier = i % 2;
-    const Rr   = 2.25 + tier * 0.30;                       // 2.25 / 2.55
-    const hx   = Math.sin(a) * Rr;
-    const hz   = -0.35 + Math.cos(a) * Rr * 0.42;
-    const hy   = 1.62 + tier * 0.34 + (1.0 - Math.abs(Math.sin(a))) * 0.32;
+    const Rr   = 1.85 + tier * 0.25;
+    const hx   = CIRCLE_CX + Math.cos(a) * Rr;
+    const hz   = CIRCLE_CZ + Math.sin(a) * Rr;
+    const hy   = 0.88 + tier * 0.20;
 
     group.position.set(hx, hy, hz);
     group.scale.setScalar(0.0);
@@ -1175,7 +1139,6 @@ scene.add(orbGroup);
   }
 })();
 
-/* ── raycasting ── */
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerInCanvas = false;
@@ -1295,10 +1258,8 @@ function animate() {
 
     if (labelPos.z > 1 || s < 0.05) {
       o.label.style.opacity = '0';
-      o.label.style.pointerEvents = 'none';
     } else {
       o.label.style.opacity = '1';
-      o.label.style.pointerEvents = 'auto';
       const sx = ( labelPos.x * 0.5 + 0.5) * innerWidth;
       const sy = (-labelPos.y * 0.5 + 0.5) * innerHeight;
       o.label.style.left = sx + 'px';
