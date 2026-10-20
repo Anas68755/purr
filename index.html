@@ -1050,17 +1050,20 @@ function makeGlassMaterial(color) {
 
 const ORB_PALETTE = [0x7ab8ff, 0xb88bff, 0x7affc4, 0xffb86e, 0xff7abc, 0x9eff7a];
 
+const GAMES_DIR = 'games/';   // folder that holds the game files
+
 function navigateTo(file) {
   if (!file) return;
   let url = file;
   if (/^https?:\/\//.test(file) || file.startsWith('/') ||
       file.startsWith('./') || file.startsWith('../') ||
       file.startsWith('#') || file.startsWith('?')) {
-    url = file;
-  } else if (!file.includes('.')) {
-    url = file + '.html';
+    url = file;                                   // used as-is
+  } else {
+    url = file.includes('/') ? file : GAMES_DIR + file;   // bare id -> games/<id>
+    if (!/\.[a-z0-9]+$/i.test(url)) url += '.html';       // add extension if missing
   }
-  window.location.href = url;
+  window.location.href = encodeURI(url);
 }
 
 const orbObjects = [];
@@ -1154,9 +1157,28 @@ renderer.domElement.addEventListener('pointerleave', () => {
   orbObjects.forEach(o => { o.hovered = false; o.label.classList.remove('active'); });
   renderer.domElement.style.cursor = 'grab';
 });
-renderer.domElement.addEventListener('click', () => {
-  if (!pointerInCanvas) return;
-  raycaster.setFromCamera(mouse, camera);
+/* Click / tap: hit-test from the event's own coordinates (works on touch,
+   where no hover pointermove happens first), and ignore drags (orbit). */
+let downX = 0, downY = 0, downT = 0, downValid = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  downX = e.clientX; downY = e.clientY; downT = performance.now(); downValid = true;
+  /* keep hover/mouse in sync for touch */
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downValid) return;
+  downValid = false;
+  const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+  if (moved > 8) return;                 // it was a drag, not a click
+  const rect = renderer.domElement.getBoundingClientRect();
+  const m = new THREE.Vector2(
+     ((e.clientX - rect.left) / rect.width)  * 2 - 1,
+    -((e.clientY - rect.top)  / rect.height) * 2 + 1
+  );
+  scene.updateMatrixWorld(true);
+  raycaster.setFromCamera(m, camera);
   const hits = raycaster.intersectObjects(orbHitTargets, false);
   if (hits.length === 0) return;
   const idx = hits[0].object.userData.orbIndex;
