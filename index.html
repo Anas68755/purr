@@ -1067,7 +1067,6 @@ function navigateTo(file) {
 }
 
 const orbObjects = [];
-const orbHitTargets = [];
 const orbGroup = new THREE.Group();
 scene.add(orbGroup);
 
@@ -1105,14 +1104,6 @@ scene.add(orbGroup);
     emojiSprite.renderOrder = 11;
     group.add(emojiSprite);
 
-    const hit = new THREE.Mesh(
-      new THREE.SphereGeometry(0.30, 10, 8),
-      new THREE.MeshBasicMaterial({ visible: false })
-    );
-    hit.userData.orbIndex = i;
-    group.add(hit);
-    orbHitTargets.push(hit);
-
     /* Decorative-only label — no listeners, no pointer interaction */
     const label = document.createElement('div');
     label.className = 'orb-label';
@@ -1142,47 +1133,64 @@ scene.add(orbGroup);
   }
 })();
 
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+/* ── Orb picking (screen-space) ───────────────────────────────────────
+   The old invisible hit-spheres overlapped each other (the ring is seen
+   edge-on), so the nearest sphere "stole" clicks, and they did nothing on
+   touch. Instead we project every orb to the screen and pick the one whose
+   centre is closest to the pointer, with a generous minimum touch size.   */
+const ptr = { x: -9999, y: -9999 };
 let pointerInCanvas = false;
+const _v = new THREE.Vector3();
+const MIN_HIT_PX = 30;           // minimum clickable radius, in CSS pixels
+
+function pickOrb(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const px = clientX - rect.left, py = clientY - rect.top;
+  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+  camera.updateMatrixWorld();
+  let best = -1, bestScore = Infinity;
+  for (let i = 0; i < orbObjects.length; i++) {
+    const o = orbObjects[i];
+    if (o.group.scale.x < 0.35) continue;                  // still growing in
+    _v.copy(o.group.position).applyMatrix4(camera.matrixWorldInverse);
+    const depth = -_v.z;
+    if (depth <= 0.05) continue;                           // behind the camera
+    _v.copy(o.group.position).project(camera);
+    const sx = (_v.x * 0.5 + 0.5) * rect.width;
+    const sy = (-_v.y * 0.5 + 0.5) * rect.height;
+    const worldR = 0.26 * o.group.scale.x;
+    const rPx = Math.max(MIN_HIT_PX, (worldR / (depth * tanHalf)) * (rect.height / 2));
+    const d = Math.hypot(px - sx, py - sy);
+    if (d > rPx) continue;
+    const score = d / rPx + depth * 0.001;                 // closest to centre wins
+    if (score < bestScore) { bestScore = score; best = i; }
+  }
+  return best;
+}
 
 renderer.domElement.addEventListener('pointermove', (e) => {
   pointerInCanvas = true;
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  ptr.x = e.clientX; ptr.y = e.clientY;
 });
 renderer.domElement.addEventListener('pointerleave', () => {
   pointerInCanvas = false;
+  ptr.x = ptr.y = -9999;
   orbObjects.forEach(o => { o.hovered = false; o.label.classList.remove('active'); });
   renderer.domElement.style.cursor = 'grab';
 });
-/* Click / tap: hit-test from the event's own coordinates (works on touch,
-   where no hover pointermove happens first), and ignore drags (orbit). */
-let downX = 0, downY = 0, downT = 0, downValid = false;
+
+/* Click / tap — ignore drags (camera orbit) */
+let downX = 0, downY = 0, downValid = false;
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  downX = e.clientX; downY = e.clientY; downT = performance.now(); downValid = true;
-  /* keep hover/mouse in sync for touch */
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  downX = e.clientX; downY = e.clientY; downValid = true;
+  ptr.x = e.clientX; ptr.y = e.clientY;
 });
 renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downValid) return;
   downValid = false;
-  const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
-  if (moved > 8) return;                 // it was a drag, not a click
-  const rect = renderer.domElement.getBoundingClientRect();
-  const m = new THREE.Vector2(
-     ((e.clientX - rect.left) / rect.width)  * 2 - 1,
-    -((e.clientY - rect.top)  / rect.height) * 2 + 1
-  );
-  scene.updateMatrixWorld(true);
-  raycaster.setFromCamera(m, camera);
-  const hits = raycaster.intersectObjects(orbHitTargets, false);
-  if (hits.length === 0) return;
-  const idx = hits[0].object.userData.orbIndex;
-  if (idx != null && orbObjects[idx]) navigateTo(orbObjects[idx].file);
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 10) return;   // was a drag
+  const idx = pickOrb(e.clientX, e.clientY);
+  if (idx >= 0) navigateTo(orbObjects[idx].file);
 });
 
 /* ═══ 11. POST-PROCESSING ════════════════════════════════════════ */
@@ -1229,21 +1237,13 @@ function animate() {
   MAT.heart.emissiveIntensity = 0.85 + 0.45 * pulse;
 
   if (pointerInCanvas) {
-    raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(orbHitTargets, false);
-    let anyHover = false;
-    if (hits.length > 0) {
-      const idx = hits[0].object.userData.orbIndex;
-      orbObjects.forEach((o, j) => {
-        const isHover = (j === idx);
-        o.hovered = isHover;
-        o.label.classList.toggle('active', isHover);
-        if (isHover) anyHover = true;
-      });
-    } else {
-      orbObjects.forEach(o => { o.hovered = false; o.label.classList.remove('active'); });
-    }
-    renderer.domElement.style.cursor = anyHover ? 'pointer' : 'grab';
+    const idx = pickOrb(ptr.x, ptr.y);
+    orbObjects.forEach((o, j) => {
+      const isHover = (j === idx);
+      o.hovered = isHover;
+      o.label.classList.toggle('active', isHover);
+    });
+    renderer.domElement.style.cursor = idx >= 0 ? 'pointer' : 'grab';
   }
 
   const now = performance.now();
