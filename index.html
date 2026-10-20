@@ -95,7 +95,24 @@ import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
    • "#anchor" or "?q=1"    → used as-is
    ═══════════════════════════════════════════════════════════════════════ */
 const ORBS = [
-  ["Truth or Dare",  "🔥", "200+ prompts · party",  "truda"],
+  ["Truth or Dare", "🔥", "200+ prompts · party", "truda"],
+  ["Chess Cards", "♟️", "Chess game · Smart bot · Special cards","chard"],
+  ["Horror game", "👹", "ominous corridor","horror"],
+  ["Void Breaker", "🚀", "destroy them · upgrade yourself · never stop","voidbreaker"],
+  ["Calc Chall", "🧮", "solve math problems · beat the clock","calc-chall"],
+  ["Purr Clicker", "🐱","click and have fun · collect purrs","purr-clicker"],
+  ["Shadow Rise", "⚔️","كلاسيكية · وحش يخوض معارك دموية في عالم مفتوح · تحدي ملك البشر","survivor"],
+  ["Clash Kingdoms", "🛡️","build your village · raid enemies","clash"],
+  ["Catch The Cat", "😼","أمسك القطة وستصبح أسرع","purch"],
+  ["Tik Tak Toe", "❌⭕","لعبة XO بأسلوب مميز","tiktak"],
+  ["Bat in the shadows", "🦇","you're a bat so obviously don't touch the light","bat-in-the-shadows"],
+  ["الساحر الناجي","🗡️","لعبة هاردكور روجلايت · هجمات تلقائية · حشود لا نهائية", "survivor-ar"],
+  ["CyberHack Sim","🌐","hacking simulator that makes you feel like a pro","cack"],
+  ["Russian Roulette","🤠","أكثر من 20 عقوبة متنوعة · لعب جماعي","revolver"],
+  ["2048","🔢","لعبة 2048 الشهيرة","2048"],
+  ["Neon Monopoly X","🔘","لعبة مونوبولي بقواعد جديدة قابلة للإضافة","monopoly"],
+  ["Keyboar","🐗","Focus and be fast · ركز وأسرع","keyboar"],
+  ["Echo Cartographer","🗣️","Echotic Maze Game","echo"],
   // ─── add new orbs below in the same format ───
 ];
 /* ═══════════════════════════════════════════════════════════════════════ */
@@ -916,7 +933,7 @@ core.renderOrder = 3;
 scene.add(core);
 
 /* ═══ 9. DUST MOTES — reduced density + slower fall ══════════════ */
-const DUST_N = 700;
+const DUST_N = 900;
 const dPos   = new Float32Array(DUST_N * 3);
 const dSize  = new Float32Array(DUST_N);
 const dPhase = new Float32Array(DUST_N);
