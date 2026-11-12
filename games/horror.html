@@ -144,6 +144,8 @@
     .hidden { display: none !important; }
     .credits { font-size: 0.7rem; opacity: 0.5; margin-top: 18px; pointer-events: none; }
     #gear{position:absolute;top:12px;right:12px;z-index:120;pointer-events:auto;width:40px;height:40px;border:1px solid #ff3333;background:rgba(60,0,0,.5);color:#ff5555;font-size:20px;cursor:pointer}
+    #restart-hud{position:absolute;top:12px;right:60px;z-index:120;pointer-events:auto;width:40px;height:40px;border:1px solid #ff3333;background:rgba(60,0,0,.5);color:#ff5555;font-size:22px;cursor:pointer}
+    #restart-hud:hover,#restart-hud:active{background:rgba(120,0,0,.7);color:#ffaaaa;box-shadow:0 0 14px rgba(255,0,0,.6)}
     #settings{z-index:700;overflow:auto}
     #settings .panel{width:min(470px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:9px;font-size:13px;color:#ff8888}
     #settings h3{margin:10px 0 2px;letter-spacing:3px;font-size:13px;color:#ff4444;border-bottom:1px solid #5a1010}
@@ -207,6 +209,7 @@
 
   <div id="hud" class="hidden">
     <button id="gear" title="Settings">⚙</button>
+    <button id="restart-hud" title="Restart level">⟲</button>
     <div id="sanity-wrap">
       <div id="sanity-label">SANITY</div>
       <div id="sanity-bar-bg"><div id="sanity-bar"></div></div>
@@ -235,6 +238,7 @@
     </p>
     <div class="enter">— TAP / CLICK TO ENTER —</div>
     <button class="btn" id="open-settings">⚙ SETTINGS</button>
+    <button class="btn" id="pause-restart">⟲ RESTART</button>
     <div class="credits">headphones recommended · volume warning</div>
   </div>
 
@@ -981,6 +985,9 @@
         flashlightOn = !flashlightOn;
         flashlight.intensity = flashlightOn ? 3.0 : 0;
       }
+      if (e.code === 'KeyR' && !e.repeat && started && !settingsOpen) {
+        restartLevel();
+      }
     });
     window.addEventListener('keyup', (e) => {
       if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
@@ -1135,7 +1142,15 @@
     }
 
     startOverlay.addEventListener('click', startGame);
-    document.getElementById('restart-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', restartLevel);
+    document.getElementById('restart-hud').addEventListener('click', (e) => {
+      e.stopPropagation();
+      restartLevel();
+    });
+    document.getElementById('pause-restart').addEventListener('click', (e) => {
+      e.stopPropagation();
+      restartLevel();
+    });
 
     controls.addEventListener('lock', () => {
       paused = false;
@@ -1157,8 +1172,24 @@
       sprinting = false;
       idleT = 0;
       monTwitchT = 0;
+      monsterFadeT = 0;
       doorSlamTimer = 8 + Math.random() * 12;
+      strobeTimer = 0;
+      flitTimer = 6 + Math.random() * 10;
+      flitActive = 0;
+      stalkerFadeT = 0;
+      spawnCueTimer = 0;
       eyes.forEach(e => scene.remove(e)); eyes.length = 0;
+      if (typeof flit !== 'undefined') flit.visible = false;
+      if (typeof stalker !== 'undefined' && typeof stalkerMat !== 'undefined') {
+        stalker.position.set(0, 0, -45);
+        stalker.traverse(o => {
+          if (o.material && o.material !== stalkerMat) {
+            o.material.opacity = 0.85;
+            o.visible = true;
+          }
+        });
+      }
       distance = 0;
       survivedTime = 0;
       maxDistance = 0;
@@ -1166,17 +1197,47 @@
       monsterState.active = false;
       monsterState.attacking = false;
       monsterState.watchTime = 0;
-      monsterState.respawnTimer = 6;
-      monsterState.attackId++; 
+      monsterState.respawnTimer = 3 + Math.random() * 2;
+      monsterState.inFront = false;
+      monsterState.attackId++;
       monsterGroup.visible = false;
       monsterGroup.position.set(0, 0, 50);
       monsterGroup.scale.setScalar(1);
+      monsterLight.intensity = 0;
+      flashlightOn = true;
+      flashlight.intensity = 3.0;
       camera.position.set(0, 1.8, 10);
       camera.rotation.set(0, 0, 0);
+      camera.fov = baseFov;
+      camera.updateProjectionMatrix();
       pitch = 0;
       for (let i = 0; i < segments.length; i++) {
         segments[i].group.position.set(0, 0, 0);
         segments[i].z = -i * SEG_LEN;
+      }
+      sanityBar.style.width = '100%';
+      if (staminaBar) { staminaBar.style.width = '100%'; staminaBar.classList.remove('low'); }
+      vignette.className = '';
+      vignette.style.opacity = '1';
+      if (bloodOverlayEl) bloodOverlayEl.style.opacity = '0';
+      if (grainEl) grainEl.style.opacity = '0.06';
+      if (scanlinesEl) scanlinesEl.style.opacity = '0.12';
+      const bf = document.getElementById('blood-flash');
+      if (bf) bf.classList.remove('fire');
+    }
+
+    function restartLevel() {
+      resetGame();
+      started = true;
+      dead = false;
+      paused = false;
+      settingsOpen = false;
+      deathOverlay.classList.add('hidden');
+      startOverlay.classList.add('hidden');
+      settingsEl.classList.add('hidden');
+      hud.classList.remove('hidden');
+      if (!isMobile) {
+        try { controls.lock(); } catch (e) {}
       }
     }
 
