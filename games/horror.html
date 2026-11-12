@@ -155,9 +155,52 @@
     #blackout{position:absolute;inset:0;z-index:95;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}
     #flash-msg{position:absolute;left:0;right:0;top:38%;z-index:300;text-align:center;font-size:2rem;letter-spacing:6px;color:#b00;text-shadow:0 0 14px #f00;opacity:0;pointer-events:none;transition:opacity .25s}
     #note{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);z-index:300;max-width:80%;text-align:center;padding:10px 16px;border:1px solid #6a1a1a;background:rgba(0,0,0,.7);color:#d9b;font-style:italic;opacity:0;pointer-events:none;transition:opacity .6s}
+
+    /* ===== ENHANCEMENTS ===== */
+    #grain {
+      position:absolute; inset:0; z-index:88; pointer-events:none;
+      mix-blend-mode:overlay; opacity:0; transition:opacity 1.2s;
+      animation:grainShift .18s steps(3) infinite;
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.7  0 0 0 0 0.55  0 0 0 0 0.4  0 0 0 0.7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+    @keyframes grainShift {
+      0%{background-position:0 0} 33%{background-position:-4px 3px}
+      66%{background-position:5px -2px} 100%{background-position:-2px 4px}
+    }
+    #scanlines {
+      position:absolute; inset:0; z-index:89; pointer-events:none;
+      opacity:0; transition:opacity 1.2s;
+      background:repeating-linear-gradient(0deg,
+        rgba(0,0,0,0.25) 0px, rgba(0,0,0,0.25) 1px,
+        transparent 1px, transparent 3px);
+    }
+    #blood-overlay {
+      position:absolute; inset:0; z-index:86; pointer-events:none;
+      opacity:0; transition:opacity 1.4s;
+      background:
+        radial-gradient(circle at 8% 18%, rgba(120,0,0,0.55) 0%, transparent 26%),
+        radial-gradient(circle at 92% 74%, rgba(100,0,0,0.45) 0%, transparent 30%),
+        radial-gradient(circle at 44% 96%, rgba(90,0,0,0.4) 0%, transparent 34%),
+        radial-gradient(circle at 82% 8%, rgba(110,0,0,0.35) 0%, transparent 24%);
+    }
+    #stamina-wrap { margin-top:10px; }
+    #stamina-label { font-size:10px; opacity:0.8; margin-bottom:4px; }
+    #stamina-bar-bg {
+      width:100%; height:6px; background:rgba(40,5,5,0.7);
+      border:1px solid #553300; box-shadow:0 0 6px rgba(255,140,0,0.25);
+    }
+    #stamina-bar {
+      height:100%; width:100%;
+      background:linear-gradient(90deg,#ff8844,#ffcc66);
+      transition:width 0.12s, background 0.3s;
+    }
+    #stamina-bar.low { background:linear-gradient(90deg,#661100,#aa2200); }
   </style>
 </head>
 <body>
+  <div id="grain"></div>
+  <div id="scanlines"></div>
+  <div id="blood-overlay"></div>
   <div id="vignette"></div>
   <div id="blood-flash"></div>
   <div id="blackout"></div><div id="flash-msg"></div><div id="note"></div>
@@ -167,6 +210,10 @@
     <div id="sanity-wrap">
       <div id="sanity-label">SANITY</div>
       <div id="sanity-bar-bg"><div id="sanity-bar"></div></div>
+      <div id="stamina-wrap">
+        <div id="stamina-label">STAMINA</div>
+        <div id="stamina-bar-bg"><div id="stamina-bar"></div></div>
+      </div>
     </div>
     <div id="stats">
       <div>DISTANCE <span class="val" id="distance">0</span>m</div>
@@ -216,8 +263,8 @@
     //  SCENE / RENDERER / CAMERA
     // ════════════════════════════════════════════════════════════════════
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0303, 0.035); // Denser, darker fog
-    scene.background = new THREE.Color(0x050101);
+    scene.fog = new THREE.FogExp2(0x1a0d09, 0.020);
+    scene.background = new THREE.Color(0x0e0705);
 
     const camera = new THREE.PerspectiveCamera(76, window.innerWidth / window.innerHeight, 0.1, 300);
     camera.rotation.order = 'YXZ';
@@ -336,11 +383,11 @@
     // ════════════════════════════════════════════════════════════════════
     //  LIGHTING (Creepier & Darker)
     // ════════════════════════════════════════════════════════════════════
-    scene.add(new THREE.AmbientLight(0x110303, 0.15)); // Very low ambient
-    scene.add(new THREE.HemisphereLight(0x220808, 0x000000, 0.1)); // Dark red hemi
+    scene.add(new THREE.AmbientLight(0x4a3528, 0.55));
+    scene.add(new THREE.HemisphereLight(0x7a5a3e, 0x1a0e0a, 0.5));
 
-    const horrorLight = new THREE.PointLight(0xff2222, 4, 80);
-    horrorLight.position.set(0, 8, 20);
+    const horrorLight = new THREE.PointLight(0xff8855, 8, 120, 1.5);
+    horrorLight.position.set(0, 10, 20);
     scene.add(horrorLight);
 
     // Flashlight (Spotlight attached to camera)
@@ -350,6 +397,11 @@
     flashlight.target.position.set(0, 0, -1);
     camera.add(flashlight);
     camera.add(flashlight.target);
+
+    // Soft warm glow around the player so nearby floor and walls are always visible
+    const playerFill = new THREE.PointLight(0x7a5030, 1.8, 10, 1.4);
+    playerFill.position.set(0, 0.3, 0);
+    camera.add(playerFill);
 
     // ════════════════════════════════════════════════════════════════════
     //  TEXTURES & MATERIALS
@@ -535,15 +587,15 @@
       housing.position.set(0, 15.8, zPos);
       group.add(housing);
 
-      const bulbMat = new THREE.MeshStandardMaterial({ color: 0x441111, emissive: 0xff1100, emissiveIntensity: 0.6 });
+      const bulbMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, emissive: 0xffbb77, emissiveIntensity: 1.6 });
       const bulb = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.7), bulbMat);
       bulb.rotation.x = Math.PI / 2;
       bulb.position.set(0, 15.68, zPos);
       group.add(bulb);
 
-      // Dim, creepy red light
-      const light = new THREE.PointLight(0xff3322, 0.8, 18);
-      light.position.set(0, 14.5, zPos);
+      // Warm overhead light — bright enough to see the floor
+      const light = new THREE.PointLight(0xffbb88, 4.0, 50, 1.5);
+      light.position.set(0, 14.2, zPos);
       group.add(light);
 
       const roll = Math.random();
@@ -652,25 +704,78 @@
     // ════════════════════════════════════════════════════════════════════
     const monsterGroup = new THREE.Group();
     const monsterMat = new THREE.MeshStandardMaterial({
-      color: 0x080808, roughness: 1, emissive: 0x110000, emissiveIntensity: 0.5
+      color: 0x050505, roughness: 1, emissive: 0x120000, emissiveIntensity: 0.6
     });
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 6, 8), monsterMat);
-    body.position.y = 3;
+    const toothMat = new THREE.MeshStandardMaterial({
+      color: 0xd8c9b0, roughness: 0.45, emissive: 0x1a0000, emissiveIntensity: 0.4
+    });
+    const voidMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+    // Elongated, hunched torso
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.55, 6.5, 10), monsterMat);
+    body.position.y = 3.25;
+    body.rotation.x = 0.06;
     monsterGroup.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 10), monsterMat);
-    head.position.y = 6.6;
+
+    // Elongated head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 14), monsterMat);
+    head.scale.set(0.82, 1.5, 0.82);
+    head.position.y = 6.95;
     monsterGroup.add(head);
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 4 });
-    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), eyeMat);
-    eyeL.position.set(-0.2, 6.7, 0.45);
-    monsterGroup.add(eyeL);
-    const eyeR = eyeL.clone(); eyeR.position.x = 0.2; monsterGroup.add(eyeR);
-    const armGeo = new THREE.CylinderGeometry(0.09, 0.14, 3.4, 6);
-    const armL = new THREE.Mesh(armGeo, monsterMat);
-    armL.position.set(-0.6, 3.8, 0); armL.rotation.z = 0.35;
-    monsterGroup.add(armL);
-    const armR = armL.clone(); armR.position.x = 0.6; armR.rotation.z = -0.35;
-    monsterGroup.add(armR);
+
+    // Gaping black mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.55, 0.25), voidMat);
+    mouth.position.set(0, 6.55, 0.36);
+    monsterGroup.add(mouth);
+
+    // Two rows of jagged teeth
+    const teethGroup = new THREE.Group();
+    const toothGeo = new THREE.ConeGeometry(0.035, 0.12, 4);
+    for (let i = 0; i < 6; i++) {
+      const tTop = new THREE.Mesh(toothGeo, toothMat);
+      tTop.position.set(-0.13 + i * 0.052, 6.81, 0.42);
+      tTop.rotation.x = Math.PI;
+      teethGroup.add(tTop);
+      const tBot = new THREE.Mesh(toothGeo, toothMat);
+      tBot.position.set(-0.13 + i * 0.052, 6.29, 0.42);
+      teethGroup.add(tBot);
+    }
+    monsterGroup.add(teethGroup);
+
+    // Hollow glowing eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+    const eyeGeo = new THREE.SphereGeometry(0.085, 12, 12);
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.17, 7.08, 0.40);
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.17;
+    monsterGroup.add(eyeL, eyeR);
+    const eyeGlowL = new THREE.PointLight(0xff0000, 0.7, 3); eyeGlowL.position.copy(eyeL.position); monsterGroup.add(eyeGlowL);
+    const eyeGlowR = new THREE.PointLight(0xff0000, 0.7, 3); eyeGlowR.position.copy(eyeR.position); monsterGroup.add(eyeGlowR);
+
+    // Four long, jointed arms
+    const armGeo = new THREE.CylinderGeometry(0.055, 0.11, 4.2, 6);
+    const clawGeo = new THREE.ConeGeometry(0.09, 0.30, 5);
+    const arms = [];
+    function makeArm(x, y, z, rotZ, rotX) {
+      const a = new THREE.Mesh(armGeo, monsterMat);
+      a.position.set(x, y, z);
+      a.rotation.z = rotZ;
+      a.rotation.x = rotX;
+      const claw = new THREE.Mesh(clawGeo, monsterMat);
+      claw.position.set(0, -2.15, 0);
+      claw.rotation.x = Math.PI;
+      a.add(claw);
+      monsterGroup.add(a);
+      arms.push(a);
+    }
+    makeArm(-0.55, 4.3, 0.00,  0.55, 0.10);
+    makeArm( 0.55, 4.3, 0.00, -0.55, 0.10);
+    makeArm(-0.58, 3.0, 0.06,  1.00, -0.15);
+    makeArm( 0.58, 3.0, 0.06, -1.00, -0.15);
+
+    monsterGroup.userData.arms = arms;
+    monsterGroup.userData.head = head;
+    monsterGroup.userData.teeth = teethGroup;
+
     const monsterLight = new THREE.PointLight(0xff0000, 0, 10);
     monsterLight.position.set(0, 6.5, 0.5);
     monsterGroup.add(monsterLight);
@@ -678,13 +783,44 @@
     monsterGroup.visible = false;
     scene.add(monsterGroup);
 
+    // ════════════════════════════════════════════════════════════════════
+    //  SHADOW STALKER — silhouette far down the corridor, always watching
+    // ════════════════════════════════════════════════════════════════════
+    const stalkerMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const stalkerEyeMat = new THREE.MeshBasicMaterial({ color: 0xff1111, transparent: true, opacity: 0.85 });
+    const stalker = new THREE.Group();
+    const sBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 1.6, 4, 8), stalkerMat);
+    sBody.position.y = 1.05;
+    stalker.add(sBody);
+    const sHead = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), stalkerMat);
+    sHead.position.y = 2.15;
+    stalker.add(sHead);
+    const sEyeL = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), stalkerEyeMat);
+    sEyeL.position.set(-0.06, 2.18, -0.19);
+    stalker.add(sEyeL);
+    const sEyeR = sEyeL.clone(); sEyeR.position.x = 0.06;
+    stalker.add(sEyeR);
+    stalker.position.set(0, 0, -45);
+    scene.add(stalker);
+
+    // ════════════════════════════════════════════════════════════════════
+    //  SHADOW FLIT — a figure that streaks across the corridor
+    // ════════════════════════════════════════════════════════════════════
+    const flit = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 2.2, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.9 })
+    );
+    flit.visible = false;
+    scene.add(flit);
+
     const monsterState = {
       active: false,
-      speed: 2.2,
+      speed: 6,
       watchTime: 0,
-      respawnTimer: 6,
+      respawnTimer: 3 + Math.random() * 2,
       attacking: false,
-      attackId: 0
+      attackId: 0,
+      inFront: false
     };
 
     // ════════════════════════════════════════════════════════════════════
@@ -707,18 +843,140 @@
       color: 0xaa8866, size: 0.09, transparent: true, opacity: 0.6,
       blending: THREE.AdditiveBlending, depthWrite: false
     });
-    const dust = new THREE.Points(dustGeo, dustMat);
+        const dust = new THREE.Points(dustGeo, dustMat);
     scene.add(dust);
+
+    // ════════════════════════════════════════════════════════════════════
+    //  WALL GRAFFITI (dripping blood messages)
+    // ════════════════════════════════════════════════════════════════════
+    const GRAFFITI_MSGS = ['HELP ME', 'BEHIND YOU', 'TURN BACK', "IT'S IN THE WALLS", "DON'T BLINK", 'NO EXIT', 'RUN'];
+    function makeGraffitiTexture(text) {
+      const w = 512, h = 256;
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      ctx.font = 'bold 78px "Courier New", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#7d0000';
+      ctx.fillText(text, w/2, h/2 - 8);
+      ctx.fillStyle = '#5a0000';
+      for (let i = 0; i < 22; i++) {
+        const x = 30 + Math.random() * (w - 60);
+        const len = 15 + Math.random() * 110;
+        ctx.fillRect(x, h/2 + 4, 2 + Math.random() * 3, len);
+      }
+      ctx.fillStyle = 'rgba(30,0,0,0.5)';
+      for (let i = 0; i < 40; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random()*w, Math.random()*h, 1 + Math.random()*2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+    const graffitiTexs = GRAFFITI_MSGS.map(makeGraffitiTexture);
+    function addGraffiti(wallX, zPos, facing) {
+      const t = graffitiTexs[Math.floor(Math.random() * graffitiTexs.length)];
+      const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, opacity: 0.9 });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.5), mat);
+      m.position.set(wallX + facing * 0.06, 5 + Math.random() * 3, zPos + (Math.random() - 0.5) * SEG_LEN * 0.6);
+      m.rotation.y = facing > 0 ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(m);
+    }
+    for (let i = 0; i < 14; i++) {
+      const side = Math.random() < 0.5 ? 1 : -1;
+      addGraffiti(side * 10, -10 - i * 22 - Math.random() * 10, -side);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ENVIRONMENTAL PROPS (chairs, boxes, hanging bulbs)
+    // ════════════════════════════════════════════════════════════════════
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.95 });
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.95 });
+    function addChair(x, z) {
+      const g = new THREE.Group();
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 1.1), chairMat);
+      seat.position.y = 1.0; g.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, 0.12), chairMat);
+      back.position.set(0, 1.65, -0.5); g.add(back);
+      const legGeo = new THREE.BoxGeometry(0.1, 1.0, 0.1);
+      [[-0.45,-0.45],[0.45,-0.45],[-0.45,0.45],[0.45,0.45]].forEach(([lx,lz]) => {
+        const leg = new THREE.Mesh(legGeo, chairMat);
+        leg.position.set(lx, 0.5, lz); g.add(leg);
+      });
+      g.position.set(x, 0, z);
+      g.rotation.y = Math.random() * Math.PI * 2;
+      if (Math.random() < 0.4) { g.rotation.z = Math.PI / 2; g.position.y = 0.55; }
+      scene.add(g);
+    }
+    function addBox(x, z) {
+      const s = 0.8 + Math.random() * 0.6;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), boxMat);
+      b.position.set(x, s/2, z);
+      b.rotation.y = Math.random() * Math.PI * 2;
+      scene.add(b);
+    }
+    for (let i = 0; i < 10; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const z = -20 - i * 30 - Math.random() * 15;
+      if (Math.random() < 0.5) addChair(side * (6 + Math.random() * 2), z);
+      else addBox(side * (7 + Math.random() * 1.5), z);
+    }
+
+    const hangingBulbs = [];
+    function addHangingBulb(x, z) {
+      const g = new THREE.Group();
+      const cord = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.015, 0.015, 3, 6),
+        new THREE.MeshBasicMaterial({ color: 0x080808 })
+      );
+      cord.position.y = 14.5; g.add(cord);
+      const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffcc88 });
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), bulbMat);
+      bulb.position.y = 13; g.add(bulb);
+      const light = new THREE.PointLight(0xffaa55, 0.6, 8);
+      light.position.y = 13; g.add(light);
+      g.position.set(x, 0, z);
+      scene.add(g);
+      hangingBulbs.push({ group: g, light, bulbMat, phase: Math.random() * 10 });
+    }
+    for (let i = 0; i < 4; i++) {
+      addHangingBulb((Math.random() - 0.5) * 4, -30 - i * 60);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  EYES IN THE DARK (activated at low sanity)
+    // ════════════════════════════════════════════════════════════════════
+    const eyes = [];
+    function spawnEyesPair() {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const z = camera.position.z - 10 - Math.random() * 25;
+      const x = side * (4 + Math.random() * 4);
+      const y = 3 + Math.random() * 5;
+      const g = new THREE.Group();
+      const matA = new THREE.MeshBasicMaterial({ color: 0xff2222, transparent: true, opacity: 1 });
+      const matB = matA.clone();
+      const a = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), matA);
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), matB);
+      a.position.x = -0.18; b.position.x = 0.18;
+      g.add(a, b);
+      g.position.set(x, y, z);
+      g.userData = { t: 0, life: 3 + Math.random() * 4, blink: 1 + Math.random() * 2 };
+      scene.add(g);
+      eyes.push(g);
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  CONTROLS — KEYBOARD
     // ════════════════════════════════════════════════════════════════════
-    const keys = { forward: false, back: false, left: false, right: false };
+    const keys = { forward: false, back: false, left: false, right: false, sprint: false };
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
       if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.back = true;
       if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
       if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.sprint = true;
       if (e.code === 'KeyF' && !e.repeat) {
         flashlightOn = !flashlightOn;
         flashlight.intensity = flashlightOn ? 3.0 : 0;
@@ -729,6 +987,7 @@
       if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.back = false;
       if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
       if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.sprint = false;
     });
 
     // ════════════════════════════════════════════════════════════════════
@@ -831,16 +1090,31 @@
     const vignette = document.getElementById('vignette');
     const bloodFlash = document.getElementById('blood-flash');
     const sanityBar = document.getElementById('sanity-bar');
+    const staminaBar = document.getElementById('stamina-bar');
     const distanceEl = document.getElementById('distance');
     const timeEl = document.getElementById('time');
     const deathStats = document.getElementById('death-stats');
+    const grainEl = document.getElementById('grain');
+    const scanlinesEl = document.getElementById('scanlines');
+    const bloodOverlayEl = document.getElementById('blood-overlay');
 
     let started = false;
     let dead = false;
     let sanity = 100;
+    let stamina = 100;
     let distance = 0;
     let survivedTime = 0;
     let maxDistance = 0;
+    let sprinting = false;
+    let idleT = 0;
+    let monTwitchT = 0;
+    let monsterFadeT = 0;
+    let doorSlamTimer = 8 + Math.random() * 12;
+    let strobeTimer = 0;
+    let flitTimer = 6 + Math.random() * 10;
+    let flitActive = 0;
+    let stalkerFadeT = 0;
+    let spawnCueTimer = 0;
 
     function showStartOverlay(text) {
       startOverlay.querySelector('.enter').textContent = text;
@@ -879,6 +1153,12 @@
     function resetGame() {
       twistReset();
       sanity = 100;
+      stamina = 100;
+      sprinting = false;
+      idleT = 0;
+      monTwitchT = 0;
+      doorSlamTimer = 8 + Math.random() * 12;
+      eyes.forEach(e => scene.remove(e)); eyes.length = 0;
       distance = 0;
       survivedTime = 0;
       maxDistance = 0;
@@ -918,16 +1198,25 @@
 
     function spawnMonster() {
       const camForward = camera.getWorldDirection(new THREE.Vector3());
-      const behind = camForward.clone().multiplyScalar(-1);
-      const spawnDist = 25 + Math.random() * 15;
-      monsterGroup.position.copy(camera.position).add(behind.multiplyScalar(spawnDist));
-      monsterGroup.position.x = Math.max(-9, Math.min(9, monsterGroup.position.x));
+      const inFront = Math.random() < 0.45;
+      const dir = inFront ? camForward.clone() : camForward.clone().multiplyScalar(-1);
+      const spawnDist = inFront ? 28 + Math.random() * 10 : 24 + Math.random() * 10;
+      monsterGroup.position.copy(camera.position).add(dir.multiplyScalar(spawnDist));
+      monsterGroup.position.x = Math.max(-8, Math.min(8, monsterGroup.position.x));
       monsterGroup.position.y = 0;
       monsterGroup.visible = true;
+      monsterGroup.scale.setScalar(1);
+      monsterGroup.lookAt(camera.position.x, 0, camera.position.z);
       monsterState.active = true;
       monsterState.watchTime = 0;
-      monsterState.speed = 1.8 + Math.random() * 1.6;
+      monsterState.inFront = inFront;
+      // In front: moderate approach. Behind: fast enough to catch a walker (6 m/s).
+      monsterState.speed = inFront ? 3.5 : 7.5 + Math.random() * 1.5;
+      monsterFadeT = 0;
       monsterLight.intensity = 1;
+      // Audible cue so the player knows it spawned
+      spawnCueTimer = 0.4;
+      playSfx(pickVariant('distant', 3), 0.7, 0.05);
     }
 
     function triggerJumpscare() {
@@ -943,9 +1232,19 @@
       playStinger();
       horrorLight.intensity = S.calmFlash ? 10 : 30;
       horrorLight.color.setHex(0xffffff);
+
+      // Screen-tear glitch on the blood-flash layer
+      if (bloodFlash) {
+        bloodFlash.style.transform = 'scale(1.03) skewX(1.5deg)';
+        setTimeout(() => { bloodFlash.style.transform = ''; }, 120);
+      }
       
       _toMonster.subVectors(monsterGroup.position, camera.position);
       camera.rotation.y = Math.atan2(_toMonster.x, _toMonster.z);
+      
+      // Zoom-in squeeze
+      const fovStart = camera.fov;
+      const fovEnd = Math.max(35, baseFov - 30);
       
       const lungeStart = monsterGroup.position.clone();
       const lungeEnd = camera.position.clone().add(new THREE.Vector3(0, -0.5, 0));
@@ -956,13 +1255,19 @@
         if (monsterState.attackId !== myAttackId) return;
         const t = Math.min(1, (performance.now() - lungeT0) / lungeDur);
         monsterGroup.position.lerpVectors(lungeStart, lungeEnd, t);
-        monsterGroup.scale.setScalar(1 + t * 1.5);
+        monsterGroup.scale.setScalar(1 + t * 1.8);
+        camera.fov = fovStart + (fovEnd - fovStart) * t;
+        camera.updateProjectionMatrix();
+        camera.rotation.z = (Math.random() - 0.5) * 0.05 * (1 - t);
         if (t < 1) {
           requestAnimationFrame(lungeAnim);
         } else {
           setTimeout(() => {
             if (monsterState.attackId !== myAttackId) return;
             monsterGroup.scale.setScalar(1);
+            camera.fov = baseFov;
+            camera.updateProjectionMatrix();
+            camera.rotation.z = 0;
             triggerDeath();
           }, 200);
         }
@@ -986,7 +1291,7 @@
     //  ANIMATION LOOP
     // ════════════════════════════════════════════════════════════════════
     const clock = new THREE.Clock();
-    const MOVE_SPEED = 6;
+    let MOVE_SPEED = 6;
     let footstepTimer = 0;
     let time = 0;
     let scareTimer = 0;
@@ -1136,6 +1441,30 @@
         strafe += moveVec.x;
         const moveMag = Math.min(1, Math.hypot(fwd, strafe));
 
+        // ── Sprint & stamina ──
+        const mobileSprint = Math.hypot(moveVec.x, moveVec.z) > 0.85;
+        const wantSprint = (keys.sprint || mobileSprint) && moveMag > 0.2;
+        sprinting = wantSprint && stamina > 2;
+        if (sprinting) {
+          stamina = Math.max(0, stamina - dt * 28);
+          sanity = Math.max(0, sanity - dt * 0.6 * DIFF[S.diff].drain);
+          MOVE_SPEED = 10.5;
+        } else {
+          stamina = Math.min(100, stamina + dt * 16);
+          MOVE_SPEED = 6;
+        }
+        if (staminaBar) {
+          staminaBar.style.width = stamina + '%';
+          staminaBar.classList.toggle('low', stamina < 25);
+        }
+
+        // ── Speed-based FOV ──
+        const fovTarget = baseFov + (sprinting && moveMag > 0.2 ? 8 : 0);
+        if (Math.abs(camera.fov - fovTarget) > 0.15) {
+          camera.fov += (fovTarget - camera.fov) * 0.12;
+          camera.updateProjectionMatrix();
+        }
+
         const prevZ = camera.position.z;
         controls.moveForward(fwd * MOVE_SPEED * dt);
         controls.moveRight(strafe * MOVE_SPEED * dt);
@@ -1147,18 +1476,21 @@
           if (distance > maxDistance) maxDistance = distance;
         }
 
-        // ── Head bob ──
+        // ── Head bob & idle breathing ──
         if (moveMag > 0.15) {
-          bobPhase += dt * moveMag * 9;
+          idleT = 0;
+          bobPhase += dt * moveMag * (sprinting ? 13 : 9);
           const bobY = Math.sin(bobPhase * 2) * 0.06 * (S.bob ? 1 : 0);
           camera.position.y = 1.8 + bobY;
           footstepTimer -= dt;
           if (footstepTimer <= 0) {
             playFootstep();
-            footstepTimer = 0.42 / moveMag;
+            footstepTimer = (sprinting ? 0.28 : 0.42) / moveMag;
           }
         } else {
-          camera.position.y += (1.8 - camera.position.y) * 0.1;
+          idleT += dt;
+          const breathY = Math.sin(idleT * 1.4) * 0.012;
+          camera.position.y += ((1.8 + breathY) - camera.position.y) * 0.12;
           footstepTimer = 0;
         }
 
@@ -1170,16 +1502,24 @@
           }
         }
 
-        // ── Horror light flicker ──
-        if (horrorLight.intensity < 8) {
-          horrorLight.intensity = 3.5 + Math.sin(time * 9) * 0.6 + (Math.random() - 0.5) * 0.6;
+        // ── Horror light: steady, no pulse ──
+        if (horrorLight.intensity < 12) {
+          horrorLight.intensity = 8;
         }
 
-        // ── Flashlight flicker (worse at low sanity) ──
+        // ── Flashlight flicker + random strobes ──
         if (flashlightOn) {
           let flicker = 1.0;
           if (sanity < 50) flicker = 0.8 + Math.random() * 0.4;
+          if (strobeTimer > 0) {
+            strobeTimer -= dt;
+            flicker *= 0.03;
+          } else if (Math.random() < dt * 0.10) {
+            strobeTimer = 0.10 + Math.random() * 0.18;
+          }
           flashlight.intensity = 3.0 * flicker;
+        } else {
+          strobeTimer = 0;
         }
 
         // ── Ceiling lights ──
@@ -1201,42 +1541,48 @@
             }
             level = fx.isOn ? 1 : 0.04;
           }
-          const sanityFactor = Math.max(0.3, sanity / 100);
-          fx.light.intensity = Math.max(0.05, 0.8 * level * sanityFactor);
-          fx.bulbMat.emissiveIntensity = Math.max(0.08, 0.6 * level * sanityFactor);
+          const sanityFactor = Math.max(0.55, sanity / 100);
+          fx.light.intensity = Math.max(0.3, 4.0 * level * sanityFactor);
+          fx.bulbMat.emissiveIntensity = Math.max(0.25, 1.6 * level * sanityFactor);
           if (level > 0.3) litCount++;
         }
 
         // ── Monster logic ──
         if (!monsterState.active) {
           monsterState.respawnTimer -= dt;
-          const spawnBoost = (100 - sanity) / 100 * 3;
-          if (monsterState.respawnTimer <= 0 && sanity < 90) {
+          if (monsterState.respawnTimer <= 0 && sanity < 95) {
             spawnMonster();
-            monsterState.respawnTimer = 12 - spawnBoost + Math.random() * 6;
+            monsterState.respawnTimer = 4 + Math.random() * 4;
           }
         } else if (!monsterState.attacking) {
           const inView = isMonsterInView();
           if (inView) {
+            // OBSERVED: the monster freezes in place. Sanity drains. Stare long enough and it fades.
             monsterState.watchTime += dt;
             monsterLight.intensity = Math.max(0.3, monsterLight.intensity - dt * 2);
-            const back = camera.getWorldDirection(new THREE.Vector3());
-            monsterGroup.position.add(back.multiplyScalar(-1.5 * dt));
-            monsterGroup.position.y = 0;
-            sanity -= dt * 4;
+            sanity -= dt * 2.5 * DIFF[S.diff].drain;
             if (monsterState.watchTime > 2.5) {
-              monsterGroup.visible = false;
-              monsterState.active = false;
-              monsterState.respawnTimer = 8 + Math.random() * 8;
-              monsterLight.intensity = 0;
+              monsterFadeT += dt;
+              monsterGroup.scale.setScalar(Math.max(0.01, 1 - monsterFadeT * 2));
+              if (monsterFadeT > 0.55) {
+                monsterGroup.visible = false;
+                monsterState.active = false;
+                monsterState.respawnTimer = 4 + Math.random() * 4;
+                monsterLight.intensity = 0;
+                monsterFadeT = 0;
+                playSfx('whisper' + Math.floor(Math.random() * 3), 0.7, 0.03);
+              }
             }
           } else {
+            // UNOBSERVED: it advances. Faster the lower your sanity, faster if lights are out.
             monsterState.watchTime = Math.max(0, monsterState.watchTime - dt * 0.5);
+            monsterFadeT = 0;
+            monsterGroup.scale.setScalar(1);
             monsterLight.intensity = Math.min(2, monsterLight.intensity + dt * 1.5);
             _toMonster.subVectors(camera.position, monsterGroup.position);
             const dist = _toMonster.length();
             _toMonster.normalize();
-            const sp = monsterState.speed * (1 + (100 - sanity) / 150) * DIFF[S.diff].speed * (blackout.t > 0 ? 1.3 : 1);
+            const sp = monsterState.speed * (1 + (100 - sanity) / 200) * DIFF[S.diff].speed * (blackout.t > 0 ? 1.4 : 1);
             monsterGroup.position.add(_toMonster.multiplyScalar(sp * dt));
             monsterGroup.position.y = 0;
             monsterGroup.lookAt(camera.position.x, monsterGroup.position.y, camera.position.z);
@@ -1246,8 +1592,93 @@
           }
         }
 
+        // ── Monster twitchy animation ──
+        if (monsterGroup.visible && !monsterState.attacking) {
+          monTwitchT += dt;
+          const twitch = Math.sin(monTwitchT * 24) > 0.85 ? (Math.random() - 0.5) * 0.15 : 0;
+          const h = monsterGroup.userData.head;
+          if (h) { h.rotation.z = twitch; h.rotation.y = Math.sin(monTwitchT * 3.3) * 0.15; }
+          const arms = monsterGroup.userData.arms;
+          if (arms) {
+            arms.forEach((a, i) => {
+              const k = monTwitchT * (5 + i * 1.3) + i;
+              a.rotation.x = Math.sin(k) * 0.35 + twitch * 0.5;
+              a.rotation.z = (i < 2 ? 1 : -1) * (0.55 + Math.sin(k * 0.7) * 0.2);
+            });
+          }
+          const tg = monsterGroup.userData.teeth;
+          if (tg) tg.position.y = Math.sin(monTwitchT * 18) * 0.01;
+        }
+
+        // ── Eyes in the dark ──
+        if (sanity < 65 && Math.random() < dt * 0.4 && eyes.length < 6) spawnEyesPair();
+        for (let i = eyes.length - 1; i >= 0; i--) {
+          const e = eyes[i];
+          e.userData.t += dt;
+          e.lookAt(camera.position.x, e.position.y, camera.position.z);
+          const lifeT = e.userData.t / e.userData.life;
+          if (lifeT >= 1) { scene.remove(e); eyes.splice(i, 1); continue; }
+          const fade = Math.min(1, Math.min(lifeT * 4, (1 - lifeT) * 4));
+          e.children.forEach(c => { c.material.opacity = fade; });
+          e.userData.blink -= dt;
+          if (e.userData.blink <= 0) {
+            e.scale.y = 0.05;
+            setTimeout(() => { if (e.parent) e.scale.y = 1; }, 90);
+            e.userData.blink = 2 + Math.random() * 3;
+          }
+        }
+
+        // ── Hanging bulbs sway & flicker ──
+        for (const hb of hangingBulbs) {
+          hb.group.rotation.z = Math.sin(time * 0.7 + hb.phase) * 0.15;
+          hb.group.rotation.x = Math.cos(time * 0.5 + hb.phase) * 0.10;
+          const f = 0.5 + Math.sin(time * 12 + hb.phase) * 0.3;
+          hb.light.intensity = f;
+          hb.bulbMat.color.setRGB(f, f * 0.85, f * 0.6);
+        }
+
+        // ── Shadow stalker — a silhouette that stays just ahead of you ──
+        if (camera.position.z - stalker.position.z < 15 || camera.position.z - stalker.position.z > 55) {
+          stalker.position.z = camera.position.z - (40 + Math.random() * 15);
+          stalker.position.x = (Math.random() - 0.5) * 8;
+          stalkerFadeT = 0;
+        }
+        stalker.position.y = 0;
+        stalker.lookAt(camera.position.x, 1.6, camera.position.z);
+        // Fade as player nears, and shut eyes when close enough to break immersion
+        const stalkDist = camera.position.z - stalker.position.z;
+        const stalkAlpha = Math.max(0, Math.min(1, (stalkDist - 14) / 20));
+        stalker.traverse(o => {
+          if (o.material && o.material !== stalkerMat) {
+            o.material.opacity = stalkAlpha * 0.85;
+            o.visible = stalkAlpha > 0.15;
+          }
+        });
+
+        // ── Shadow flit — a figure streaks across the corridor ──
+        if (flitActive > 0) {
+          flitActive -= dt;
+          flit.position.x += dt * 55;
+          if (flitActive <= 0) flit.visible = false;
+        } else {
+          flitTimer -= dt;
+          if (flitTimer <= 0 && sanity < 85) {
+            flitTimer = 14 + Math.random() * 18;
+            flitActive = 0.45;
+            flit.position.set(-11, 1.2, camera.position.z - (10 + Math.random() * 8));
+            flit.visible = true;
+            playSfx('rumble', 0.5, 0.1, 'ambient');
+            if (S.shake) camera.rotation.z += (Math.random() - 0.5) * 0.02;
+          }
+        }
+
+        // ── Monster spawn cue (footstep approaching) ──
+        if (spawnCueTimer > 0) {
+          spawnCueTimer -= dt;
+        }
+
         // ── Sanity drain / regen ──
-        sanity -= dt * 0.6 * DIFF[S.diff].drain;
+        sanity -= dt * 1.4 * DIFF[S.diff].drain;
         if (moveMag > 0.3 && dz > 0) sanity += dt * 0.3;
         sanity = Math.max(0, Math.min(100, sanity));
         if (sanity <= 0 && !monsterState.attacking) {
@@ -1266,6 +1697,12 @@
         } else {
           vignette.style.opacity = '1';
         }
+
+        // ── Analog-horror overlays driven by sanity ──
+        const low = Math.max(0, (100 - sanity) / 100); // 0 calm → 1 critical
+        if (grainEl) grainEl.style.opacity = (0.06 + low * 0.35).toFixed(2);
+        if (scanlinesEl) scanlinesEl.style.opacity = (0.12 + low * 0.38).toFixed(2);
+        if (bloodOverlayEl) bloodOverlayEl.style.opacity = Math.max(0, (low - 0.35) / 0.65).toFixed(2);
 
         if (whisperGain) {
           const whisperTarget = sanity < 60 ? Math.min(0.12, (60 - sanity) / 60 * 0.15) : 0;
@@ -1286,6 +1723,17 @@
             playWhisper();
             whisperTimer = 3 + Math.random() * 6;
           }
+        }
+
+        // ── Random door slams ──
+        doorSlamTimer -= dt;
+        if (doorSlamTimer <= 0) {
+          playSfx('clank' + (Math.random() < 0.5 ? 0 : 1), 1.0, 0.1, 'ambient');
+          playSfx('rumble', 0.7);
+          horrorLight.intensity = S.calmFlash ? 6 : 14;
+          setTimeout(() => { if (!dead) horrorLight.intensity = 4; }, 100);
+          if (S.shake) camera.rotation.z += (Math.random() - 0.5) * 0.03;
+          doorSlamTimer = 9 + Math.random() * 16;
         }
 
         // ── Random Creepy Ambient Sounds ──
@@ -1323,21 +1771,13 @@
           playWhisper();
         }
 
-        // ── Camera shake on low sanity ──
+        // ── Sanity-shake (FOV squeeze now handled by sprint/FOV block above) ──
         if (sanity < 30) {
           shakeAmount = (30 - sanity) / 30 * 0.04 * (S.shake ? 1 : 0);
           camera.rotation.z = (Math.random() - 0.5) * shakeAmount;
-          const targetFov = baseFov + Math.sin(time * 4) * 2;
-          camera.fov += (targetFov - camera.fov) * 0.1;
-          camera.updateProjectionMatrix();
-        } else {
-          if (camera.rotation.z !== 0) {
-            camera.rotation.z *= 0.9; 
-          }
-          if (Math.abs(camera.fov - baseFov) > 0.01) {
-            camera.fov += (baseFov - camera.fov) * 0.1;
-            camera.updateProjectionMatrix();
-          }
+        } else if (camera.rotation.z !== 0) {
+          camera.rotation.z *= 0.85;
+          if (Math.abs(camera.rotation.z) < 0.0005) camera.rotation.z = 0;
         }
 
         // ── Dust particles ──
@@ -1365,3 +1805,4 @@
   </script>
 </body>
 </html>
+
