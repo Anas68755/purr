@@ -5,6 +5,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+games/civilization/node_modules/
+
 # local tooling
 node_modules/
 *.log
