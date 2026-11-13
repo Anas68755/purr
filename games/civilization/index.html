@@ -5,75 +5,188 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>🌍 محاكي الحضارة الأبدي</title>
 <style>
+  :root {
+    --bg:#090d13; --bg2:#0e141c; --panel:#121a25; --panel2:#182231;
+    --line:#223044; --line2:#2f4058;
+    --text:#e6ebf2; --muted:#8696ab; --dim:#5b6b80;
+    --accent:#f6ad55; --accent2:#63b3ed;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background:#0a0e14; color:#e2e8f0; font-family:'Segoe UI',Tahoma,sans-serif; min-height:100vh; overflow-x:hidden; }
+  html { scroll-behavior:smooth; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(99,179,237,.08), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(246,173,85,.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI',Tahoma,'Noto Naskh Arabic',sans-serif;
+    min-height:100vh; overflow-x:hidden;
+  }
 
-  header { background:#151b23; padding:10px 16px; border-bottom:1px solid #2d3748; }
-  h1 { font-size:15px; margin-bottom:8px; text-align:center; color:#a0aec0; }
-  .stats-bar { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; font-size:11px; margin-bottom:8px; }
-  .stat { background:#1a202c; padding:4px 10px; border-radius:6px; }
-  .stat span:first-child { color:#718096; margin-left:3px; }
-  .stat span:last-child { color:#fff; font-weight:bold; }
-  .controls { text-align:center; }
-  .controls button { background:#2d3748; color:#e2e8f0; border:none; padding:5px 11px; border-radius:6px; cursor:pointer; font-size:11px; margin:0 2px; font-family:inherit; }
-  .controls button:hover { background:#4a5568; }
+  /* ───────── الشريط العلوي ───────── */
+  .topbar {
+    position:sticky; top:0; z-index:50;
+    background:rgba(11,16,23,.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    padding:10px 18px;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center; gap:16px;
+  }
+  .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand-logo {
+    width:38px; height:38px; border-radius:11px;
+    display:grid; place-items:center; font-size:21px;
+    background:linear-gradient(135deg,#2b6cb0,#38a169);
+    box-shadow:0 4px 14px rgba(56,161,105,.25), inset 0 0 0 1px rgba(255,255,255,.15);
+  }
+  .brand h1 { font-size:15px; font-weight:700; color:#fff; line-height:1.2; }
+  .brand small { display:block; font-size:10px; color:var(--muted); font-weight:400; margin-top:2px; }
+  .back-link {
+    color:var(--muted); text-decoration:none; font-size:11px;
+    border:1px solid var(--line); padding:3px 9px; border-radius:20px;
+    white-space:nowrap; transition:.15s;
+  }
+  .back-link:hover { color:#fff; border-color:var(--line2); background:var(--panel2); }
 
-  .back-link { position:absolute; top:10px; left:16px; color:#a0aec0; text-decoration:none; font-size:12px; }
-  .back-link:hover { color:#fff; }
+  .stats-bar { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .stat {
+    display:flex; align-items:center; gap:7px;
+    background:var(--panel); border:1px solid var(--line);
+    padding:4px 10px 4px 12px; border-radius:10px; min-width:78px;
+  }
+  .stat i { font-style:normal; font-size:15px; }
+  .stat div { display:flex; flex-direction:column; line-height:1.15; }
+  .stat b { font-size:13px; color:#fff; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stat small { font-size:9px; color:var(--dim); }
 
-  .main { display:flex; gap:12px; padding:12px; max-width:1400px; margin:0 auto; flex-wrap:wrap; justify-content:center; }
-  .canvas-wrap { position:relative; max-width:100%; }
-  #world { background:#0f1419; border-radius:10px; border:1px solid #1a202c; display:block; max-width:100%; cursor:grab; touch-action:none; }
+  .controls { display:flex; gap:6px; }
+  .controls button {
+    background:var(--panel2); color:var(--text);
+    border:1px solid var(--line2); padding:7px 12px; border-radius:9px;
+    cursor:pointer; font-size:11px; font-family:inherit; transition:.15s;
+  }
+  .controls button:hover { background:#22314a; border-color:var(--accent2); }
+  .controls button:active { transform:translateY(1px); }
+
+  /* ───────── التخطيط الرئيسي ───────── */
+  .layout {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 340px;
+    gap:14px; padding:14px 18px 24px;
+    max-width:1560px; margin:0 auto;
+    align-items:start;
+  }
+  .stage { display:flex; flex-direction:column; gap:10px; min-width:0; }
+
+  .canvas-wrap {
+    position:relative; width:fit-content; max-width:100%; margin:0 auto;
+    padding:8px; border-radius:16px;
+    background:linear-gradient(160deg,#1b2535,#0d131b);
+    border:1px solid var(--line2);
+    box-shadow:0 18px 50px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  #world {
+    background:#0f1419; border-radius:10px; display:block;
+    max-width:100%; height:auto; cursor:grab; touch-action:none;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);
+  }
   #world.dragging { cursor:grabbing; }
   #world.npc-hover { cursor:pointer; }
 
-  aside { flex:1; min-width:290px; max-width:360px; max-height:88vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
-  .panel { background:#151b23; border-radius:10px; padding:10px; border:1px solid #2d3748; }
-  .panel h3 { font-size:12px; color:#a0aec0; margin-bottom:8px; }
+  .legend {
+    display:flex; flex-wrap:wrap; gap:8px 16px; justify-content:center; align-items:center;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:8px 14px; font-size:11px; color:var(--muted);
+  }
+  .legend .lg { display:flex; align-items:center; gap:5px; }
+  .legend .sep { width:1px; height:14px; background:var(--line2); }
+  .legend .tip { color:var(--dim); }
 
+  aside {
+    position:sticky; top:72px;
+    max-height:calc(100vh - 88px);
+    overflow-y:auto; padding-left:2px;
+    display:flex; flex-direction:column; gap:10px;
+    scrollbar-width:thin; scrollbar-color:var(--line2) transparent;
+  }
+  .panel {
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden;
+  }
+  .panel > summary {
+    list-style:none; cursor:pointer; user-select:none;
+    padding:10px 14px; font-size:12px; font-weight:700; color:#cbd5e0;
+    display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border-bottom:1px solid transparent;
+  }
+  .panel > summary::-webkit-details-marker { display:none; }
+  .panel > summary::after { content:'▾'; color:var(--dim); font-size:11px; transition:.2s; }
+  .panel:not([open]) > summary::after { transform:rotate(90deg); }
+  .panel[open] > summary { border-bottom-color:var(--line); }
+  .panel-body { padding:10px; }
+
+  /* ───────── نافذة الفحص ───────── */
   .inspect-panel {
     display:none; position:absolute;
-    background:rgba(20,26,36,0.97);
-    border:1px solid #4a5568;
-    border-radius:10px; padding:12px;
-    width:260px; max-height:80%;
+    background:rgba(16,22,32,0.97);
+    border:1px solid var(--line2);
+    border-radius:14px; padding:14px;
+    width:268px; max-height:80%;
     overflow-y:auto;
-    box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    box-shadow:0 14px 40px rgba(0,0,0,.65);
     font-size:12px;
-    backdrop-filter:blur(4px);
+    backdrop-filter:blur(6px);
     z-index:10;
   }
   .close-btn {
-    position:absolute; top:6px; left:8px;
-    background:transparent; border:none; color:#a0aec0;
+    position:absolute; top:8px; left:8px;
+    background:transparent; border:none; color:var(--muted);
     font-size:20px; cursor:pointer; line-height:1;
-    padding:0; width:22px; height:22px; border-radius:50%;
+    padding:0; width:24px; height:24px; border-radius:50%;
   }
-  .close-btn:hover { background:#2d3748; color:#fff; }
+  .close-btn:hover { background:var(--line2); color:#fff; }
 
-  .ins-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; padding-left:20px; }
+  .ins-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-left:22px; }
   .ins-emoji { font-size:32px; line-height:1; }
-  .ins-name { font-weight:bold; font-size:13px; color:#fff; }
-  .ins-sub { font-size:10px; color:#a0aec0; margin-top:2px; }
-  .ins-row { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:11px; color:#cbd5e0; }
-  .ins-row span:first-child { width:20px; }
-  .ins-genes { margin-top:8px; display:flex; flex-direction:column; gap:3px; }
-  .gene-item { display:flex; align-items:center; gap:6px; font-size:10px; }
-  .gene-bar { flex:1; height:5px; background:#2d3748; border-radius:3px; overflow:hidden; }
-  .gene-bar > div { height:100%; }
-  .gene-val { color:#a0aec0; width:24px; text-align:left; }
+  .portrait-box {
+    flex:none; width:62px; height:62px; border-radius:12px;
+    display:grid; place-items:end center; overflow:hidden;
+    background:radial-gradient(circle at 50% 30%,#2a3c58,#141d2b);
+    border:1px solid var(--line2);
+  }
+  .portrait { image-rendering:auto; display:block; }
+  .ins-name { font-weight:700; font-size:14px; color:#fff; }
+  .ins-sub { font-size:10px; color:var(--muted); margin-top:3px; }
+  .ins-row { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:11px; color:#cbd5e0; border-bottom:1px dashed rgba(255,255,255,.05); }
+  .ins-row span:first-child { width:20px; text-align:center; }
+  .ins-genes { margin-top:10px; display:flex; flex-direction:column; gap:5px; }
+  .gene-item { display:flex; align-items:center; gap:7px; font-size:10px; }
+  .gene-bar { flex:1; height:6px; background:#1f2b3d; border-radius:4px; overflow:hidden; }
+  .gene-bar > div { height:100%; border-radius:4px; }
+  .gene-val { color:var(--muted); width:24px; text-align:left; font-variant-numeric:tabular-nums; }
 
-  .kingdom-card { background:#1a202c; border-radius:8px; padding:8px; margin-bottom:6px; border-right:4px solid; }
-  .k-head { display:flex; justify-content:space-between; font-size:12px; font-weight:bold; margin-bottom:4px; }
-  .k-ruler { font-size:11px; color:#ecc94b; margin-bottom:4px; }
-  .k-stats { font-size:10px; color:#a0aec0; display:flex; gap:8px; flex-wrap:wrap; }
-  .k-genes { display:flex; gap:2px; margin-top:5px; height:4px; }
-  .k-genes div { flex:1; border-radius:2px; }
-  .k-techs { font-size:13px; margin-top:5px; letter-spacing:1px; }
-  .k-allies { font-size:10px; color:#68d391; margin-top:3px; }
+  /* ───────── الممالك ───────── */
+  .kingdom-card {
+    background:linear-gradient(135deg,#17212f,#131b27);
+    border:1px solid var(--line); border-right:4px solid;
+    border-radius:10px; padding:9px 10px; margin-bottom:7px;
+  }
+  .kingdom-card:last-child { margin-bottom:0; }
+  .k-head { display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:5px; }
+  .k-ruler { font-size:11px; color:#ecc94b; margin-bottom:6px; }
+  .k-stats { font-size:10px; color:var(--muted); display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+  .k-stats span { background:rgba(255,255,255,.04); padding:2px 4px; border-radius:5px; text-align:center; }
+  .k-genes { display:flex; gap:3px; margin-top:7px; height:5px; }
+  .k-genes div { flex:1; border-radius:3px; }
+  .k-techs { font-size:13px; margin-top:6px; letter-spacing:1px; }
+  .k-allies { font-size:10px; color:#68d391; margin-top:4px; }
 
-  #chronicle-panel { flex:1; overflow-y:auto; max-height:400px; }
-  .chron-entry { font-size:11px; padding:4px 8px; margin-bottom:3px; background:#1a202c; border-radius:5px; border-right:2px solid #4a5568; }
+  /* ───────── السجل ───────── */
+  #chronicle-panel { overflow-y:auto; max-height:380px; scrollbar-width:thin; scrollbar-color:var(--line2) transparent; }
+  .chron-entry { font-size:11px; line-height:1.5; padding:5px 9px; margin-bottom:4px; background:#17212f; border-radius:7px; border-right:3px solid #4a5568; color:#d4dbe6; }
   .chron-entry.war { border-right-color:#f56565; }
   .chron-entry.founding { border-right-color:#48bb78; }
   .chron-entry.collapse { border-right-color:#9f7aea; }
@@ -82,89 +195,110 @@
   .chron-entry.alliance { border-right-color:#38b2ac; }
   .chron-entry.alliance-end { border-right-color:#718096; opacity:0.7; }
 
-  .fam-title { font-size:11px; color:#a0aec0; margin:8px 0 4px; }
+  /* ───────── شجرة العائلة ───────── */
+  .fam-title { font-size:11px; color:var(--muted); margin:10px 0 5px; font-weight:700; }
   .fam-row { display:flex; gap:5px; flex-wrap:wrap; }
-  .fam-scroll { max-height:80px; overflow-y:auto; }
+  .fam-scroll { max-height:90px; overflow-y:auto; }
   .fam-chip {
-    display:flex; align-items:center; gap:4px;
-    background:#2d3748; padding:3px 7px;
-    border-radius:5px; cursor:pointer;
-    font-size:10px; color:#e2e8f0;
+    display:flex; align-items:center; gap:5px;
+    background:#1c293c; border:1px solid var(--line);
+    padding:2px 8px 2px 6px; border-radius:8px; cursor:pointer;
+    font-size:10px; color:var(--text); transition:.12s;
   }
-  .fam-chip:hover { background:#4a5568; }
-  .fam-emoji { font-size:14px; }
-  .fam-age { color:#718096; }
-  .fam-empty { color:#4a5568; font-size:10px; padding:2px 4px; }
+  .fam-chip:hover { background:#27395a; border-color:var(--accent2); }
+  .fam-emoji { font-size:14px; display:inline-flex; align-items:flex-end; }
+  .fam-age { color:var(--dim); }
+  .fam-empty { color:var(--dim); font-size:10px; padding:2px 4px; }
 
   .gen-tree { display:flex; flex-direction:column; align-items:center; gap:2px; }
   .gen-level { display:flex; flex-direction:column; align-items:center; }
   .gen-person {
-    display:flex; align-items:center; gap:5px;
-    background:#2d3748; padding:4px 10px;
-    border-radius:6px; cursor:pointer;
-    font-size:11px; margin:2px 0;
+    display:flex; align-items:center; gap:6px;
+    background:#1c293c; border:1px solid var(--line);
+    padding:3px 10px; border-radius:9px; cursor:pointer;
+    font-size:11px; margin:2px 0; transition:.12s;
   }
-  .gen-person:hover { background:#4a5568; }
-  .gen-year { color:#718096; font-size:9px; }
-  .gen-line { width:2px; height:8px; background:#4a5568; }
+  .gen-person:hover { background:#27395a; border-color:var(--accent2); }
+  .gen-year { color:var(--dim); font-size:9px; }
+  .gen-line { width:2px; height:9px; background:var(--line2); }
 
   .tree-btn {
-    background:#553c9a; color:#fff; border:none;
-    padding:5px 10px; border-radius:5px;
+    background:linear-gradient(135deg,#6b46c1,#553c9a); color:#fff; border:none;
+    padding:7px 10px; border-radius:8px;
     cursor:pointer; font-size:11px; font-family:inherit;
-    width:100%; margin-top:6px;
+    width:100%; margin-top:10px; transition:.15s;
   }
-  .tree-btn:hover { background:#6b46c1; }
+  .tree-btn:hover { filter:brightness(1.15); }
+
+  /* ───────── استجابة ───────── */
+  @media (max-width:1050px) {
+    .topbar { grid-template-columns:1fr auto; }
+    .stats-bar { grid-column:1 / -1; order:3; }
+    .layout { grid-template-columns:minmax(0,1fr); padding:10px; }
+    aside { position:static; max-height:none; overflow:visible; }
+  }
+  @media (max-width:520px) {
+    .topbar { padding:8px 10px; }
+    .stat { min-width:68px; padding:3px 8px; }
+    .brand small { display:none; }
+  }
 </style>
 </head>
 <body>
 
-<a href="../../" class="back-link">← كل الألعاب</a>
-
-<header>
-  <h1>🌍 محاكي الحضارة الأبدي — عالم مستمر</h1>
-  <div class="stats-bar">
-    <div class="stat"><span>📅</span><span id="s-year">—</span></div>
-    <div class="stat"><span>👥</span><span id="s-pop">—</span></div>
-    <div class="stat"><span>🧬</span><span id="s-gen">—</span></div>
-    <div class="stat"><span>👑</span><span id="s-kingdoms">—</span></div>
-    <div class="stat"><span>🗺️</span><span id="s-tiles">—</span></div>
-    <div class="stat"><span>⚔️</span><span id="s-wars">—</span></div>
-    <div class="stat"><span>🤝</span><span id="s-ally">—</span></div>
-    <div class="stat"><span>🔬</span><span id="s-tech">—</span></div>
-    <div class="stat"><span>💀</span><span id="s-deaths">—</span></div>
-    <div class="stat"><span>🔍</span><span id="s-zoom">100%</span></div>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo">🌍</div>
+    <div>
+      <h1>محاكي الحضارة الأبدي<small>عالم مستمر</small></h1>
+    </div>
+    <a href="../../" class="back-link">← كل الألعاب</a>
   </div>
+
+  <div class="stats-bar">
+    <div class="stat"><i>📅</i><div><b id="s-year">—</b><small>السنة</small></div></div>
+    <div class="stat"><i>👥</i><div><b id="s-pop">—</b><small>السكان</small></div></div>
+    <div class="stat"><i>🧬</i><div><b id="s-gen">—</b><small>الأجيال</small></div></div>
+    <div class="stat"><i>👑</i><div><b id="s-kingdoms">—</b><small>الممالك</small></div></div>
+    <div class="stat"><i>🗺️</i><div><b id="s-tiles">—</b><small>الأراضي</small></div></div>
+    <div class="stat"><i>⚔️</i><div><b id="s-wars">—</b><small>الحروب</small></div></div>
+    <div class="stat"><i>🤝</i><div><b id="s-ally">—</b><small>التحالفات</small></div></div>
+    <div class="stat"><i>🔬</i><div><b id="s-tech">—</b><small>التقنيات</small></div></div>
+    <div class="stat"><i>💀</i><div><b id="s-deaths">—</b><small>الوفيات</small></div></div>
+    <div class="stat"><i>🔍</i><div><b id="s-zoom">100%</b><small>التقريب</small></div></div>
+  </div>
+
   <div class="controls">
     <button onclick="resetZoom()" title="إعادة تمركز الكاميرا">🎯 إعادة</button>
     <button onclick="manualRefresh()" title="تحديث الحالة من الخادم">🔄 تحديث</button>
   </div>
 </header>
 
-<div class="main">
-  <div class="canvas-wrap" id="canvas-wrap">
-    <canvas id="world"></canvas>
-    <div id="inspect-panel" class="inspect-panel"></div>
-  </div>
+<div class="layout">
+  <section class="stage">
+    <div class="canvas-wrap" id="canvas-wrap">
+      <canvas id="world"></canvas>
+      <div id="inspect-panel" class="inspect-panel"></div>
+    </div>
+    <div class="legend">
+      <span class="lg">🌿 عشب</span><span class="lg">🌲 غابة</span><span class="lg">🌊 ماء</span>
+      <span class="lg">⛰️ جبل</span><span class="lg">🌵 صحراء</span><span class="lg">🏔️ تلة</span>
+      <span class="sep"></span>
+      <span class="lg">🏰 عاصمة</span><span class="lg">👑 حاكم بتاج وعباءة</span>
+      <span class="sep"></span>
+      <span class="tip">💡 انقر شخصية أو أرضًا · كبّر بالكرة · اسحب للتنقل</span>
+    </div>
+  </section>
+
   <aside>
-    <div class="panel">
-      <h3>👑 الممالك</h3>
-      <div id="kingdoms-panel"></div>
-    </div>
-    <div class="panel">
-      <h3>📜 سجل التاريخ</h3>
-      <div id="chronicle-panel"></div>
-    </div>
-    <div class="panel">
-      <h3>🗺️ دليل التضاريس</h3>
-      <div style="font-size:10px; color:#a0aec0; line-height:1.8;">
-        🌿 عشب · 🌲 غابة · 🌊 ماء<br>
-        ⛰️ جبل · 🌵 صحراء · 🏔️ تلة
-      </div>
-      <div style="font-size:10px; color:#718096; margin-top:6px;">
-        💡 انقر شخصية أو أرضًا · كبّر بالكرة · اسحب للتنقل
-      </div>
-    </div>
+    <details class="panel" open>
+      <summary>👑 الممالك</summary>
+      <div class="panel-body"><div id="kingdoms-panel"></div></div>
+    </details>
+    <details class="panel" open>
+      <summary>📜 سجل التاريخ</summary>
+      <div class="panel-body"><div id="chronicle-panel"></div></div>
+    </details>
   </aside>
 </div>
 
@@ -191,35 +325,182 @@ let _lastModified = null;
 const viewport = { scale: 1, offsetX: 0, offsetY: 0, minScale: 0.4, maxScale: 5 };
 
 // ============================================================
-//                    إيموجي الشخصيات
+//            شخصيات مخصصة — بكسل آرت مرسوم بالكود
 // ============================================================
-const emojiCache = {};
-function getEmoji(emoji, size) {
-  const key = emoji + '_' + size;
-  if (emojiCache[key]) return emojiCache[key];
-  const c = document.createElement('canvas');
-  const hi = size * 2;
-  c.width = hi + 12;
-  c.height = hi + 12;
-  const g = c.getContext('2d');
-  g.font = `${hi}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText(emoji, c.width/2, c.height/2);
-  emojiCache[key] = c;
-  return c;
+// كل شخصية تُرسم على شبكة 16×20 ثم يُضاف لها إطار خارجي.
+// الشكل يتغير حسب: العمر، الجنس، لون المملكة، المعرّف (لون البشرة والشعر والتسريحة)،
+// والجينات (عضلات، نظارة، حاجب غاضب، دبوس قلب)، والحاكم (تاج وعباءة).
+const SPRITE_PX = 4;          // دقة الرسم الداخلية لكل خلية
+const SPRITE_WORLD = 0.8;     // حجم الخلية في العالم
+const SKINS = ['#f5d0b0', '#e0ac84', '#c68642', '#8d5524'];
+const HAIRS = ['#2d1b0e', '#5a3825', '#b5651d', '#e6b422', '#1a1a1a'];
+const spriteCache = new Map();
+
+function shade(hex, amt) {
+  const m = /^#([0-9a-f]{6})/i.exec(hex || '');
+  if (!m) return hex || '#888';
+  const n = parseInt(m[1], 16);
+  const f = v => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }
-function npcEmoji(npc) {
-  if (npc.age < 3)  return '👶';
-  if (npc.age < 14) return npc.sex === 'M' ? '👦' : '👧';
-  if (npc.age < 55) return npc.sex === 'M' ? '👨' : '👩';
-  return npc.sex === 'M' ? '👴' : '👵';
+function idNum(npc) {
+  const n = Number(npc.id);
+  if (Number.isFinite(n)) return Math.abs(Math.floor(n));
+  let h = 0; const s = String(npc.id);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
 }
-function npcSize(npc) {
-  if (npc.age < 3)  return 10;
-  if (npc.age < 14) return 12;
-  if (npc.age < 55) return 15;
-  return 13;
+function stageOf(age) { return age < 3 ? 'baby' : age < 14 ? 'child' : age < 55 ? 'adult' : 'elder'; }
+
+function buildSprite(o) {
+  const S = SPRITE_PX;
+  const art = document.createElement('canvas');
+  art.width = 16 * S; art.height = 20 * S;
+  const g = art.getContext('2d');
+  const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x*S), Math.round(y*S), Math.round(w*S), Math.round(h*S)); };
+
+  const st = o.stage, adultish = st === 'adult' || st === 'elder';
+  const legH  = { baby:2, child:3, adult:4, elder:4 }[st];
+  const bodyH = { baby:3, child:4, adult:6, elder:5 }[st];
+  const headW = { baby:8, child:6, adult:6, elder:6 }[st];
+  const headH = 6;
+  let bodyW = { baby:6, child:6, adult:8, elder:8 }[st];
+  if (o.flags.strong) bodyW = 10;
+  const legTop = 20 - legH, bodyTop = legTop - bodyH, headTop = bodyTop - headH;
+  const headX = 8 - headW / 2, bodyX = 8 - bodyW / 2;
+
+  const skin = SKINS[o.skin];
+  const hairC = st === 'elder' ? '#d5dae2' : HAIRS[o.hair];
+  const tunicD = shade(o.color, -0.3), tunicL = shade(o.color, 0.35), pants = shade(o.color, -0.65);
+  const female = o.sex === 'F';
+
+  // عباءة الحاكم
+  if (o.flags.ruler) px(bodyX - 1, bodyTop, bodyW + 2, bodyH + legH - 2, '#9b2c2c');
+  // شعر طويل (خلف الرأس)
+  const long = female && o.style !== 2 && st !== 'baby';
+  if (long) px(headX - 1, headTop, headW + 2, headH + 2, hairC);
+
+  // الأرجل (إطار 0/1 = خطوة، 2 = وقوف)
+  const lxL = adultish ? 5 : 6, lxR = adultish ? 9 : 8;
+  [[lxL, 0], [lxR, 1]].forEach(([lx, id]) => {
+    const raise = o.frame === id ? 1 : 0;
+    px(lx, legTop, 2, Math.max(0, legH - 1 - raise), pants);
+    px(lx, legTop + legH - 1 - raise, 2, 1, '#1a1410');
+  });
+
+  // الجسم
+  px(bodyX, bodyTop, bodyW, bodyH, o.color);
+  px(bodyX, bodyTop, bodyW, 1, tunicL);
+  px(bodyX + bodyW - 1, bodyTop + 1, 1, bodyH - 1, tunicD);
+  px(bodyX, bodyTop + bodyH - 1, bodyW, 1, '#4a2f17');           // حزام
+  if (o.flags.ruler) px(7, bodyTop + 2, 2, 2, '#f6e05e');          // شعار ذهبي
+  if (female && st !== 'baby') px(bodyX - 1, legTop - 1, bodyW + 2, 2, tunicD); // تنورة
+
+  // الذراعان
+  px(bodyX - 1, bodyTop + 1, 1, bodyH - 2, skin);
+  px(bodyX + bodyW, bodyTop + 1, 1, bodyH - 2, skin);
+  if (o.flags.strong) {
+    px(bodyX - 1, bodyTop, 2, 2, '#718096');
+    px(bodyX + bodyW - 1, bodyTop, 2, 2, '#718096');
+  }
+  if (o.flags.kind) px(bodyX + bodyW - 3, bodyTop + 2, 1, 1, '#fbb6ce'); // دبوس قلب
+  if (st === 'elder') {                                              // عصا
+    px(bodyX + bodyW + 1, bodyTop + 3, 1, 20 - (bodyTop + 3), '#7b5230');
+    px(bodyX + bodyW, bodyTop + 2, 2, 1, '#7b5230');
+  }
+
+  // الرأس
+  px(headX + 1, headTop, headW - 2, 1, skin);
+  px(headX, headTop + 1, headW, headH - 2, skin);
+  px(headX + 1, headTop + headH - 1, headW - 2, 1, skin);
+
+  // الشعر
+  if (st === 'baby') {
+    px(headX + headW / 2 - 1, headTop - 1, 2, 1, hairC);
+  } else {
+    px(headX, headTop - 1, headW, 2, hairC);
+    px(headX, headTop + 1, 1, 1, hairC);
+    px(headX + headW - 1, headTop + 1, 1, 1, hairC);
+    if (!female && o.style === 1) [0, 2, 4].forEach(dx => px(headX + dx, headTop - 2, 1, 1, hairC));
+    if (female && o.style === 2) px(headX + headW / 2 - 1, headTop - 2, 2, 1, hairC);
+    if (!female && o.style === 2 && adultish) px(headX + 1, headTop + headH - 2, headW - 2, 2, hairC); // لحية
+  }
+
+  // الوجه
+  const ey = st === 'baby' ? headTop + 2 : headTop + 3;
+  const e1 = st === 'baby' ? headX + 2 : headX + 1;
+  const e2 = st === 'baby' ? headX + 5 : headX + headW - 2;
+  const eh = st === 'baby' ? 2 : 1;
+  px(e1, ey, 1, eh, '#1a202c'); px(e2, ey, 1, eh, '#1a202c');
+  if (st === 'baby' || st === 'child') {
+    px(headX + 1, ey + eh, 1, 1, '#fc8181'); px(headX + headW - 2, ey + eh, 1, 1, '#fc8181');
+  }
+  px(7, headTop + 4, 2, 1, o.flags.angry ? '#5c1f1f' : '#8a3b2e');
+  if (o.flags.angry) { px(e1, ey - 1, 1, 1, '#1a202c'); px(e2, ey - 1, 1, 1, '#1a202c'); }
+  if (o.flags.smart) {
+    const gl = '#e2e8f0';
+    [e1, e2].forEach(ex => {
+      px(ex - 1, ey - 1, 3, 1, gl); px(ex - 1, ey + 1, 3, 1, gl);
+      px(ex - 1, ey, 1, 1, gl); px(ex + 1, ey, 1, 1, gl);
+    });
+  }
+
+  // التاج
+  if (o.flags.ruler) {
+    const gold = '#f6c945';
+    px(headX, headTop - 2, headW, 1, gold);
+    [0, 2, 4].forEach(dx => px(headX + dx, headTop - 3, 1, 1, gold));
+    px(headX + 2, headTop - 2, 1, 1, '#e53e3e');
+  }
+
+  // إطار خارجي داكن
+  const out = document.createElement('canvas');
+  out.width = 18 * S; out.height = 22 * S;
+  const og = out.getContext('2d');
+  const sil = document.createElement('canvas');
+  sil.width = art.width; sil.height = art.height;
+  const sg = sil.getContext('2d');
+  sg.drawImage(art, 0, 0);
+  sg.globalCompositeOperation = 'source-in';
+  sg.fillStyle = '#0b0f14';
+  sg.fillRect(0, 0, sil.width, sil.height);
+  [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx, dy]) => og.drawImage(sil, (1 + dx) * S, (1 + dy) * S));
+  og.drawImage(art, S, S);
+  return out;
+}
+
+function spriteFor(npc, k, frame) {
+  const stage = stageOf(npc.age);
+  const adultish = stage === 'adult' || stage === 'elder';
+  const gn = npc.genes || {};
+  const isRuler = !!(k && k.ruler && (k.ruler === npc || (k.ruler.id !== undefined && k.ruler.id === npc.id)));
+  const flags = {
+    ruler:  isRuler && adultish,
+    strong: adultish && gn.strength > 70,
+    smart:  stage !== 'baby' && gn.intelligence > 70,
+    angry:  adultish && gn.aggression > 70,
+    kind:   adultish && gn.empathy > 70
+  };
+  const id = idNum(npc);
+  const o = {
+    stage, sex: npc.sex === 'M' ? 'M' : 'F',
+    color: (k && k.color) || '#888888',
+    skin: id % 4, hair: Math.floor(id / 4) % 5, style: Math.floor(id / 20) % 3,
+    frame, flags
+  };
+  const key = [o.stage, o.sex, o.color, o.skin, o.hair, o.style, o.frame,
+    +flags.ruler, +flags.strong, +flags.smart, +flags.angry, +flags.kind].join('|');
+  let s = spriteCache.get(key);
+  if (!s) { s = buildSprite(o); spriteCache.set(key, s); }
+  return s;
+}
+
+// صورة شخصية للوحات (data URL)
+function portrait(npc, width) {
+  const k = world ? world.getKingdom(npc.kingdomId) : null;
+  const s = spriteFor(npc, k, 2);
+  if (!s._url) s._url = s.toDataURL();
+  return `<img class="portrait" src="${s._url}" width="${width}" alt="">`;
 }
 
 // ============================================================
@@ -263,14 +544,39 @@ function buildTerrainCache() {
 // ============================================================
 //                    الرسم
 // ============================================================
-function roundRect(ctx, x, y, w, h, r) {
+function drawCastle(cx, cy, color) {
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + 7, 9, 2.5, 0, 0, Math.PI*2); ctx.fill();
+
+  const stone = '#9aa5b5', dark = '#6b7686';
+  // جدار
+  ctx.fillStyle = stone; ctx.fillRect(cx - 6, cy - 2, 12, 8);
+  // برجان
+  ctx.fillStyle = dark;
+  ctx.fillRect(cx - 8, cy - 5, 4, 11);
+  ctx.fillRect(cx + 4, cy - 5, 4, 11);
+  // شرفات
+  ctx.fillStyle = stone;
+  for (const bx of [cx - 8, cx - 6, cx + 4, cx + 6]) ctx.fillRect(bx, cy - 7, 1.6, 2);
+  ctx.fillRect(cx - 4, cy - 3.6, 1.6, 1.6); ctx.fillRect(cx - 0.8, cy - 3.6, 1.6, 1.6); ctx.fillRect(cx + 2.4, cy - 3.6, 1.6, 1.6);
+  // باب بلون المملكة
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
-  ctx.closePath();
+  ctx.moveTo(cx - 2, cy + 6); ctx.lineTo(cx - 2, cy + 2.5);
+  ctx.quadraticCurveTo(cx, cy + 0.5, cx + 2, cy + 2.5);
+  ctx.lineTo(cx + 2, cy + 6); ctx.closePath(); ctx.fill();
+  // نافذتان
+  ctx.fillStyle = '#1a202c';
+  ctx.fillRect(cx - 6.5, cy - 2, 1.2, 2.2); ctx.fillRect(cx + 5.3, cy - 2, 1.2, 2.2);
+  // الإطار
+  ctx.strokeStyle = '#11161d'; ctx.lineWidth = 1 / viewport.scale;
+  ctx.strokeRect(cx - 6, cy - 2, 12, 8);
+  ctx.strokeRect(cx - 8, cy - 5, 4, 11); ctx.strokeRect(cx + 4, cy - 5, 4, 11);
+  // راية
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(cx - 0.4, cy - 12, 0.9, 8);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(cx + 0.5, cy - 12); ctx.lineTo(cx + 6.5, cy - 10); ctx.lineTo(cx + 0.5, cy - 8); ctx.closePath(); ctx.fill();
+  ctx.stroke();
 }
 
 function render() {
@@ -300,7 +606,7 @@ function render() {
     if (!k1 || !k2 || !k1.tileList.length || !k2.tileList.length) continue;
     const c1 = k1.tileList[0], c2 = k2.tileList[0];
     ctx.strokeStyle = '#38b2ac';
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = 0.5;
     ctx.setLineDash([6, 4]);
     ctx.lineWidth = 2 / viewport.scale;
     ctx.beginPath();
@@ -311,46 +617,48 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // مراكز الممالك
+  // عواصم الممالك
   for (const k of world.kingdoms) {
     if (!k.tileList.length) continue;
     const c = k.tileList[0];
-    const cx = c.x*TILE + TILE/2, cy = c.y*TILE + TILE/2;
-    ctx.fillStyle = k.color;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 7, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5 / viewport.scale;
-    ctx.stroke();
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('👑', cx, cy + 0.5);
+    drawCastle(c.x*TILE + TILE/2, c.y*TILE + TILE/2, k.color);
   }
 
-  // الشخصيات
-  for (const npc of world.npcs) {
-    if (!npc.alive) continue;
+  // الشخصيات (مرتبة حسب العمق لتتراكب بشكل صحيح)
+  const alive = world.npcs.filter(n => n.alive).sort((a, b) => a.y - b.y);
+  for (const npc of alive) {
     const k = world.getKingdom(npc.kingdomId);
     if (!k) continue;
-    const bobY = Math.sin(npc.bob) * 1.5;
-    const px = npc.x, py = npc.y + bobY;
+    const moving = Math.hypot((npc.tx ?? npc.x) - npc.x, (npc.ty ?? npc.y) - npc.y) > 2;
+    const frame = moving ? (Math.sin(npc.bob * 2.2) > 0 ? 1 : 0) : 2;
+    const hop = moving ? Math.abs(Math.sin(npc.bob * 2.2)) * -1.2 : Math.sin(npc.bob) * 0.4;
+    const px = npc.x, py = npc.y;
 
-    ctx.fillStyle = k.color + 'cc';
-    ctx.beginPath();
-    ctx.arc(px, py + 3, 4, 0, Math.PI*2);
-    ctx.fill();
+    // ظل + حلقة بلون المملكة
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(px, py + 5.5, 5, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = k.color; ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 1 / Math.max(1, viewport.scale * 0.8);
+    ctx.beginPath(); ctx.ellipse(px, py + 5.5, 5.2, 2.2, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
 
-    const img = getEmoji(npcEmoji(npc), npcSize(npc));
-    const drawW = img.width / 2;
-    const drawH = img.height / 2;
-    ctx.drawImage(img, px - drawW/2, py - drawH/2 - 3, drawW, drawH);
+    const spr = spriteFor(npc, k, frame);
+    const dw = spr.width / SPRITE_PX * SPRITE_WORLD;
+    const dh = spr.height / SPRITE_PX * SPRITE_WORLD;
+    const dy = py + 6.5 + hop - dh;
+    if (npc.face === -1) {
+      ctx.save();
+      ctx.translate(px, 0); ctx.scale(-1, 1);
+      ctx.drawImage(spr, -dw/2, dy, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(spr, px - dw/2, dy, dw, dh);
+    }
   }
 
   // تمييز المفحوص
   if (inspected) {
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = '#f6ad55';
     ctx.lineWidth = 2 / viewport.scale;
     if (inspected.type === 'npc' && inspected.npc.alive) {
       const r = (14 + Math.sin(Date.now() / 200) * 2) / viewport.scale;
@@ -588,6 +896,7 @@ function positionPanel(sx, sy) {
   if (top + ph > wrapRect.height - 4) top = canvasRect.top - wrapRect.top + cssY - ph - 16;
   if (left < 4) left = 4;
   if (top < 4) top = 4;
+  panel.style.transform = '';
   panel.style.left = left + 'px';
   panel.style.top = top + 'px';
 }
@@ -610,7 +919,7 @@ function showNPCInfo(npc, sx, sy) {
   panel.innerHTML = `
     <button class="close-btn" onclick="hideInspect()">×</button>
     <div class="ins-header">
-      <div class="ins-emoji">${npcEmoji(npc)}</div>
+      <div class="portrait-box">${portrait(npc, 52)}</div>
       <div>
         <div class="ins-name">${npc.name}</div>
         <div class="ins-sub">${sexText} · ${stateText} · ${npc.age} سنة</div>
@@ -681,7 +990,7 @@ function showFamilyTree(npcId) {
     }
   }
   const chip = p => p ? `<div class="fam-chip" onclick="inspectFromTree(${p.id})">
-    <span class="fam-emoji">${npcEmoji(p)}</span><span>${p.name}</span><span class="fam-age">${p.age}س</span>
+    <span class="fam-emoji">${portrait(p, 20)}</span><span>${p.name}</span><span class="fam-age">${p.age}س</span>
   </div>` : '';
   const childrenHtml = children.length ? children.map(chip).join('') : `<div class="fam-empty">لا أبناء أحياء</div>`;
   const siblingsHtml = siblings.length ? siblings.map(chip).join('') : `<div class="fam-empty">لا أشقاء</div>`;
@@ -690,7 +999,7 @@ function showFamilyTree(npcId) {
   panel.innerHTML = `
     <button class="close-btn" onclick="hideInspect()">×</button>
     <div class="ins-header">
-      <div class="ins-emoji">${npcEmoji(npc)}</div>
+      <div class="portrait-box">${portrait(npc, 52)}</div>
       <div>
         <div class="ins-name">${npc.name}</div>
         <div class="ins-sub">${npc.sex==='M'?'ذكر':'أنثى'} · ${npc.age} سنة · جيل ${npc.generation}</div>
@@ -728,7 +1037,7 @@ function showGenerationTree(npcId) {
   const html = chain.map((p, i) => `
     <div class="gen-level">
       <div class="gen-person" onclick="inspectFromTree(${p.id})">
-        <span class="fam-emoji">${npcEmoji(p)}</span>
+        <span class="fam-emoji">${portrait(p, 22)}</span>
         <span>${p.name}</span>
         <span class="gen-year">${p.age}س · جيل ${p.generation}</span>
       </div>
@@ -834,6 +1143,7 @@ function updateVisuals(dt) {
       const speed = (npc.age < 14 ? 35 : 25) * dt;
       npc.x += (dx/d) * Math.min(d, speed);
       npc.y += (dy/d) * Math.min(d, speed);
+      if (Math.abs(dx) > 0.5) npc.face = dx < 0 ? -1 : 1;
     } else {
       pickTarget(npc);
     }
