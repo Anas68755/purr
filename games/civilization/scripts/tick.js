@@ -20,7 +20,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 const TABLE = 'world_state';
 
-const TICK_MS_TARGET = 5 * 60 * 1000;
+const TICK_MS_TARGET = 2 * 60 * 1000;
 const TICKS_MIN = 1;
 const TICKS_MAX = 50;
 
