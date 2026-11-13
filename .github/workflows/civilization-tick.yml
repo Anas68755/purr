@@ -1,0 +1,57 @@
+name: Civilization — World Tick
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'games/civilization/scripts/**'
+      - '.github/workflows/civilization-tick.yml'
+
+concurrency:
+  group: civilization-tick
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    defaults:
+      run:
+        working-directory: games/civilization
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+
+      - name: Advance world
+        run: node scripts/tick.js
+        env:
+          SUPABASE_URL: ${{ secrets.CIV_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.CIV_SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Commit world.json
+        working-directory: .
+        run: |
+          git config user.name  "civilization-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git add games/civilization/public/world.json
+          if git diff --staged --quiet; then
+            echo "لا تغيير هذه الدورة"
+          else
+            git commit -m "🌍 civilization tick [skip ci]"
+            git push
+          fi
