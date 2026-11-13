@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';  // <--- أضف هذا السطر
 import { serializeWorld, deserializeWorld, createInitialWorld, SAVE_VERSION } from './world.js';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,7 +16,10 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { 
+  auth: { persistSession: false },
+  global: { WebSocket: ws }   // <--- أضف هذا الجزء
+});
 const TABLE = 'world_state';
 
 const TICK_MS_TARGET = 5 * 60 * 1000;
