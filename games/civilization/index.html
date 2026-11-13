@@ -763,7 +763,7 @@ async function fetchWorld() {
     if (!res.ok) return false;
     _lastModified = res.headers.get('last-modified') || String(Date.now());
     const data = await res.json();
-    if (!data || !data.year) return false;
+    if (!data || typeof data.year !== 'number') return false;
     world = deserializeWorld(data);
     // أعطِ كل NPC موضعًا مرئيًا مبدئيًا
     for (const n of world.npcs) {
