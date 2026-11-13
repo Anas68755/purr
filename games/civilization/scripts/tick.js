@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import ws from 'ws';  // <--- أضف هذا السطر
 import { serializeWorld, deserializeWorld, createInitialWorld, SAVE_VERSION } from './world.js';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
