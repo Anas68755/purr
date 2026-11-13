@@ -33,7 +33,7 @@ async function main() {
 
   let w;
 
-  if (!data || !data.data || !data.data.year) {
+  if (!data || !data.data || typeof data.data.year !== 'number') {
     console.log('🌱 إنشاء عالم جديد');
     w = createInitialWorld();
     const { error: e } = await sb.from(TABLE).upsert({
