@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { serializeWorld, deserializeWorld, createInitialWorld, SAVE_VERSION } from './world.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,8 +18,11 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
-// تهيئة عميل Supabase (بدون أي إعدادات WebSocket إضافية لأن Node 22 يدعمها)
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+// تهيئة عميل Supabase مع WebSocket الصحيح لـ Node
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false },
+  global: { WebSocket }
+});
 const TABLE = 'world_state';
 
 // إعدادات سرعة العالم
