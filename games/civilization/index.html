@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>🌍 محاكي الحضارة الأبدي</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#0a0e14; color:#e2e8f0; font-family:'Segoe UI',Tahoma,sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  header { background:#151b23; padding:10px 16px; border-bottom:1px solid #2d3748; }
+  h1 { font-size:15px; margin-bottom:8px; text-align:center; color:#a0aec0; }
+  .stats-bar { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; font-size:11px; margin-bottom:8px; }
+  .stat { background:#1a202c; padding:4px 10px; border-radius:6px; }
+  .stat span:first-child { color:#718096; margin-left:3px; }
+  .stat span:last-child { color:#fff; font-weight:bold; }
+  .controls { text-align:center; }
+  .controls button { background:#2d3748; color:#e2e8f0; border:none; padding:5px 11px; border-radius:6px; cursor:pointer; font-size:11px; margin:0 2px; font-family:inherit; }
+  .controls button:hover { background:#4a5568; }
+
+  .back-link { position:absolute; top:10px; left:16px; color:#a0aec0; text-decoration:none; font-size:12px; }
+  .back-link:hover { color:#fff; }
+
+  .main { display:flex; gap:12px; padding:12px; max-width:1400px; margin:0 auto; flex-wrap:wrap; justify-content:center; }
+  .canvas-wrap { position:relative; max-width:100%; }
+  #world { background:#0f1419; border-radius:10px; border:1px solid #1a202c; display:block; max-width:100%; cursor:grab; touch-action:none; }
+  #world.dragging { cursor:grabbing; }
+  #world.npc-hover { cursor:pointer; }
+
+  aside { flex:1; min-width:290px; max-width:360px; max-height:88vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
+  .panel { background:#151b23; border-radius:10px; padding:10px; border:1px solid #2d3748; }
+  .panel h3 { font-size:12px; color:#a0aec0; margin-bottom:8px; }
+
+  .inspect-panel {
+    display:none; position:absolute;
+    background:rgba(20,26,36,0.97);
+    border:1px solid #4a5568;
+    border-radius:10px; padding:12px;
+    width:260px; max-height:80%;
+    overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    font-size:12px;
+    backdrop-filter:blur(4px);
+    z-index:10;
+  }
+  .close-btn {
+    position:absolute; top:6px; left:8px;
+    background:transparent; border:none; color:#a0aec0;
+    font-size:20px; cursor:pointer; line-height:1;
+    padding:0; width:22px; height:22px; border-radius:50%;
+  }
+  .close-btn:hover { background:#2d3748; color:#fff; }
+
+  .ins-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; padding-left:20px; }
+  .ins-emoji { font-size:32px; line-height:1; }
+  .ins-name { font-weight:bold; font-size:13px; color:#fff; }
+  .ins-sub { font-size:10px; color:#a0aec0; margin-top:2px; }
+  .ins-row { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:11px; color:#cbd5e0; }
+  .ins-row span:first-child { width:20px; }
+  .ins-genes { margin-top:8px; display:flex; flex-direction:column; gap:3px; }
+  .gene-item { display:flex; align-items:center; gap:6px; font-size:10px; }
+  .gene-bar { flex:1; height:5px; background:#2d3748; border-radius:3px; overflow:hidden; }
+  .gene-bar > div { height:100%; }
+  .gene-val { color:#a0aec0; width:24px; text-align:left; }
+
+  .kingdom-card { background:#1a202c; border-radius:8px; padding:8px; margin-bottom:6px; border-right:4px solid; }
+  .k-head { display:flex; justify-content:space-between; font-size:12px; font-weight:bold; margin-bottom:4px; }
+  .k-ruler { font-size:11px; color:#ecc94b; margin-bottom:4px; }
+  .k-stats { font-size:10px; color:#a0aec0; display:flex; gap:8px; flex-wrap:wrap; }
+  .k-genes { display:flex; gap:2px; margin-top:5px; height:4px; }
+  .k-genes div { flex:1; border-radius:2px; }
+  .k-techs { font-size:13px; margin-top:5px; letter-spacing:1px; }
+  .k-allies { font-size:10px; color:#68d391; margin-top:3px; }
+
+  #chronicle-panel { flex:1; overflow-y:auto; max-height:400px; }
+  .chron-entry { font-size:11px; padding:4px 8px; margin-bottom:3px; background:#1a202c; border-radius:5px; border-right:2px solid #4a5568; }
+  .chron-entry.war { border-right-color:#f56565; }
+  .chron-entry.founding { border-right-color:#48bb78; }
+  .chron-entry.collapse { border-right-color:#9f7aea; }
+  .chron-entry.legend { border-right-color:#ecc94b; }
+  .chron-entry.tech { border-right-color:#ed64a6; }
+  .chron-entry.alliance { border-right-color:#38b2ac; }
+  .chron-entry.alliance-end { border-right-color:#718096; opacity:0.7; }
+
+  .fam-title { font-size:11px; color:#a0aec0; margin:8px 0 4px; }
+  .fam-row { display:flex; gap:5px; flex-wrap:wrap; }
+  .fam-scroll { max-height:80px; overflow-y:auto; }
+  .fam-chip {
+    display:flex; align-items:center; gap:4px;
+    background:#2d3748; padding:3px 7px;
+    border-radius:5px; cursor:pointer;
+    font-size:10px; color:#e2e8f0;
+  }
+  .fam-chip:hover { background:#4a5568; }
+  .fam-emoji { font-size:14px; }
+  .fam-age { color:#718096; }
+  .fam-empty { color:#4a5568; font-size:10px; padding:2px 4px; }
+
+  .gen-tree { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .gen-level { display:flex; flex-direction:column; align-items:center; }
+  .gen-person {
+    display:flex; align-items:center; gap:5px;
+    background:#2d3748; padding:4px 10px;
+    border-radius:6px; cursor:pointer;
+    font-size:11px; margin:2px 0;
+  }
+  .gen-person:hover { background:#4a5568; }
+  .gen-year { color:#718096; font-size:9px; }
+  .gen-line { width:2px; height:8px; background:#4a5568; }
+
+  .tree-btn {
+    background:#553c9a; color:#fff; border:none;
+    padding:5px 10px; border-radius:5px;
+    cursor:pointer; font-size:11px; font-family:inherit;
+    width:100%; margin-top:6px;
+  }
+  .tree-btn:hover { background:#6b46c1; }
+</style>
+</head>
+<body>
+
+<a href="../../" class="back-link">← كل الألعاب</a>
+
+<header>
+  <h1>🌍 محاكي الحضارة الأبدي — عالم مستمر</h1>
+  <div class="stats-bar">
+    <div class="stat"><span>📅</span><span id="s-year">—</span></div>
+    <div class="stat"><span>👥</span><span id="s-pop">—</span></div>
+    <div class="stat"><span>🧬</span><span id="s-gen">—</span></div>
+    <div class="stat"><span>👑</span><span id="s-kingdoms">—</span></div>
+    <div class="stat"><span>🗺️</span><span id="s-tiles">—</span></div>
+    <div class="stat"><span>⚔️</span><span id="s-wars">—</span></div>
+    <div class="stat"><span>🤝</span><span id="s-ally">—</span></div>
+    <div class="stat"><span>🔬</span><span id="s-tech">—</span></div>
+    <div class="stat"><span>💀</span><span id="s-deaths">—</span></div>
+    <div class="stat"><span>🔍</span><span id="s-zoom">100%</span></div>
+  </div>
+  <div class="controls">
+    <button onclick="resetZoom()" title="إعادة تمركز الكاميرا">🎯 إعادة</button>
+    <button onclick="manualRefresh()" title="تحديث الحالة من الخادم">🔄 تحديث</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="canvas-wrap" id="canvas-wrap">
+    <canvas id="world"></canvas>
+    <div id="inspect-panel" class="inspect-panel"></div>
+  </div>
+  <aside>
+    <div class="panel">
+      <h3>👑 الممالك</h3>
+      <div id="kingdoms-panel"></div>
+    </div>
+    <div class="panel">
+      <h3>📜 سجل التاريخ</h3>
+      <div id="chronicle-panel"></div>
+    </div>
+    <div class="panel">
+      <h3>🗺️ دليل التضاريس</h3>
+      <div style="font-size:10px; color:#a0aec0; line-height:1.8;">
+        🌿 عشب · 🌲 غابة · 🌊 ماء<br>
+        ⛰️ جبل · 🌵 صحراء · 🏔️ تلة
+      </div>
+      <div style="font-size:10px; color:#718096; margin-top:6px;">
+        💡 انقر شخصية أو أرضًا · كبّر بالكرة · اسحب للتنقل
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script type="module">
+import {
+  deserializeWorld, GENE_KEYS, TECHNOLOGIES, PALETTE, CONFIG, TERRAIN_TYPES
+} from './scripts/world.js';
+
+(function(){
+'use strict';
+
+const TILE = 12;
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+
+const GENE_ICONS = { strength:'💪', intelligence:'🧠', fertility:'💕', longevity:'⏳', aggression:'😠', empathy:'🤝' };
+const GENE_COLORS = { strength:'#f56565', intelligence:'#4299e1', fertility:'#ed64a6', longevity:'#9f7aea', aggression:'#ed8936', empathy:'#48bb78' };
+
+let world = null;
+let terrainCache = null;
+let inspected = null;
+let _lastModified = null;
+
+const viewport = { scale: 1, offsetX: 0, offsetY: 0, minScale: 0.4, maxScale: 5 };
+
+// ============================================================
+//                    إيموجي الشخصيات
+// ============================================================
+const emojiCache = {};
+function getEmoji(emoji, size) {
+  const key = emoji + '_' + size;
+  if (emojiCache[key]) return emojiCache[key];
+  const c = document.createElement('canvas');
+  const hi = size * 2;
+  c.width = hi + 12;
+  c.height = hi + 12;
+  const g = c.getContext('2d');
+  g.font = `${hi}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(emoji, c.width/2, c.height/2);
+  emojiCache[key] = c;
+  return c;
+}
+function npcEmoji(npc) {
+  if (npc.age < 3)  return '👶';
+  if (npc.age < 14) return npc.sex === 'M' ? '👦' : '👧';
+  if (npc.age < 55) return npc.sex === 'M' ? '👨' : '👩';
+  return npc.sex === 'M' ? '👴' : '👵';
+}
+function npcSize(npc) {
+  if (npc.age < 3)  return 10;
+  if (npc.age < 14) return 12;
+  if (npc.age < 55) return 15;
+  return 13;
+}
+
+// ============================================================
+//                    التضاريس — ذاكرة مؤقتة
+// ============================================================
+function buildTerrainCache() {
+  if (!world) return;
+  terrainCache = document.createElement('canvas');
+  terrainCache.width = world.W * TILE;
+  terrainCache.height = world.H * TILE;
+  canvas.width = terrainCache.width;
+  canvas.height = terrainCache.height;
+  const g = terrainCache.getContext('2d');
+
+  for (let y = 0; y < world.H; y++) {
+    for (let x = 0; x < world.W; x++) {
+      const info = TERRAIN_TYPES[world.terrain[y][x]];
+      g.fillStyle = info.color;
+      g.fillRect(x*TILE, y*TILE, TILE, TILE);
+      if (Math.random() < 0.15) {
+        g.fillStyle = 'rgba(255,255,255,0.04)';
+        g.fillRect(x*TILE, y*TILE, TILE, TILE);
+      }
+    }
+  }
+  g.font = '9px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (let y = 0; y < world.H; y++) {
+    for (let x = 0; x < world.W; x++) {
+      if (Math.random() < 0.05) {
+        const info = TERRAIN_TYPES[world.terrain[y][x]];
+        if (info.decor && info.decor.length) {
+          g.fillText(info.decor[Math.floor(Math.random()*info.decor.length)], x*TILE + TILE/2, y*TILE + TILE/2 + 1);
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+//                    الرسم
+// ============================================================
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0f1419';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!world || !terrainCache) return;
+
+  ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
+  ctx.drawImage(terrainCache, 0, 0);
+
+  // أراضي الممالك
+  for (const k of world.kingdoms) {
+    if (!k.tileList || !k.tileList.length) continue;
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = k.color;
+    ctx.beginPath();
+    for (const { x, y } of k.tileList) ctx.rect(x*TILE, y*TILE, TILE, TILE);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // خطوط التحالفات
+  for (const a of world.alliances) {
+    if (a.expiresYear <= world.year) continue;
+    const k1 = world.getKingdom(a.k1), k2 = world.getKingdom(a.k2);
+    if (!k1 || !k2 || !k1.tileList.length || !k2.tileList.length) continue;
+    const c1 = k1.tileList[0], c2 = k2.tileList[0];
+    ctx.strokeStyle = '#38b2ac';
+    ctx.globalAlpha = 0.4;
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 2 / viewport.scale;
+    ctx.beginPath();
+    ctx.moveTo(c1.x*TILE, c1.y*TILE);
+    ctx.lineTo(c2.x*TILE, c2.y*TILE);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  // مراكز الممالك
+  for (const k of world.kingdoms) {
+    if (!k.tileList.length) continue;
+    const c = k.tileList[0];
+    const cx = c.x*TILE + TILE/2, cy = c.y*TILE + TILE/2;
+    ctx.fillStyle = k.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5 / viewport.scale;
+    ctx.stroke();
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👑', cx, cy + 0.5);
+  }
+
+  // الشخصيات
+  for (const npc of world.npcs) {
+    if (!npc.alive) continue;
+    const k = world.getKingdom(npc.kingdomId);
+    if (!k) continue;
+    const bobY = Math.sin(npc.bob) * 1.5;
+    const px = npc.x, py = npc.y + bobY;
+
+    ctx.fillStyle = k.color + 'cc';
+    ctx.beginPath();
+    ctx.arc(px, py + 3, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    const img = getEmoji(npcEmoji(npc), npcSize(npc));
+    const drawW = img.width / 2;
+    const drawH = img.height / 2;
+    ctx.drawImage(img, px - drawW/2, py - drawH/2 - 3, drawW, drawH);
+  }
+
+  // تمييز المفحوص
+  if (inspected) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2 / viewport.scale;
+    if (inspected.type === 'npc' && inspected.npc.alive) {
+      const r = (14 + Math.sin(Date.now() / 200) * 2) / viewport.scale;
+      ctx.beginPath();
+      ctx.arc(inspected.npc.x, inspected.npc.y, r, 0, Math.PI*2);
+      ctx.stroke();
+    } else if (inspected.type === 'tile') {
+      ctx.strokeRect(inspected.tx * TILE, inspected.ty * TILE, TILE, TILE);
+    }
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+// ============================================================
+//                    واجهة الإحصاءات
+// ============================================================
+function renderUI() {
+  if (!world) return;
+  document.getElementById('s-year').textContent = world.year;
+  document.getElementById('s-pop').textContent = world.totalAlive();
+  document.getElementById('s-gen').textContent = world.maxGeneration;
+  document.getElementById('s-kingdoms').textContent = world.kingdoms.length;
+  document.getElementById('s-tiles').textContent = world.kingdoms.reduce((s, k) => s + k.tileList.length, 0);
+  document.getElementById('s-wars').textContent = world.totalWars;
+  document.getElementById('s-ally').textContent = world.alliances.filter(a => a.expiresYear > world.year).length;
+  document.getElementById('s-tech').textContent = world.totalTechs;
+  document.getElementById('s-deaths').textContent = world.totalDeaths;
+
+  const kp = document.getElementById('kingdoms-panel');
+  kp.innerHTML = '';
+  for (const k of world.kingdoms) {
+    const ag = k.avgGenes();
+    const card = document.createElement('div');
+    card.className = 'kingdom-card';
+    card.style.borderRightColor = k.color;
+    const geneBars = ag ? GENE_KEYS.map(g =>
+      `<div style="background:${GENE_COLORS[g]};opacity:${ag[g]/100}"></div>`
+    ).join('') : '';
+    const techIcons = k.techs.map(tid => {
+      const t = TECHNOLOGIES.find(x => x.id === tid);
+      return t ? `<span title="${t.name}">${t.icon}</span>` : '';
+    }).join('');
+    const allies = world.getAllies(k.id);
+    const allyNames = allies.map(id => world.getKingdom(id)?.name).filter(Boolean);
+    const alliesLine = allyNames.length ? `<div class="k-allies">🤝 مع: ${allyNames.join('، ')}</div>` : '';
+    card.innerHTML = `
+      <div class="k-head" style="color:${k.color}">
+        <span>${k.name}</span><span>${k.population()} 👥</span>
+      </div>
+      <div class="k-ruler">👑 ${k.ruler ? k.ruler.name : 'بلا حاكم'}</div>
+      <div class="k-stats">
+        <span>⚔️ ${Math.round(k.military())}</span>
+        <span>🌾 ${Math.round(k.food)}</span>
+        <span>🗺️ ${k.tileList.length}</span>
+        <span>⚖️ ${Math.round(k.stability)}</span>
+      </div>
+      <div class="k-genes">${geneBars}</div>
+      ${techIcons ? `<div class="k-techs">${techIcons}</div>` : ''}
+      ${alliesLine}
+    `;
+    kp.appendChild(card);
+  }
+
+  const cp = document.getElementById('chronicle-panel');
+  const prev = cp.scrollTop;
+  cp.innerHTML = world.chronicleLog.map(e =>
+    `<div class="chron-entry ${e.type}"><span style="color:#718096">[${e.year}]</span> ${e.text}</div>`
+  ).join('');
+  cp.scrollTop = prev;
+}
+
+// ============================================================
+//                    التحكم في العرض
+// ============================================================
+function getCanvasCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (canvas.width / rect.width),
+    y: (clientY - rect.top)  * (canvas.height / rect.height)
+  };
+}
+function screenToWorld(sx, sy) {
+  return { x: (sx - viewport.offsetX) / viewport.scale, y: (sy - viewport.offsetY) / viewport.scale };
+}
+function updateZoomLabel() {
+  document.getElementById('s-zoom').textContent = Math.round(viewport.scale * 100) + '%';
+}
+function resetZoom() {
+  viewport.scale = 1;
+  viewport.offsetX = 0;
+  viewport.offsetY = 0;
+  updateZoomLabel();
+}
+window.resetZoom = resetZoom;
+
+// تكبير بكرة الفأرة
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const { x: sx, y: sy } = getCanvasCoords(e.clientX, e.clientY);
+  const before = screenToWorld(sx, sy);
+  const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+  viewport.scale = Math.max(viewport.minScale, Math.min(viewport.maxScale, viewport.scale * factor));
+  viewport.offsetX = sx - before.x * viewport.scale;
+  viewport.offsetY = sy - before.y * viewport.scale;
+  updateZoomLabel();
+}, { passive: false });
+
+// تكبير بإصبعين + سحب بلمسة
+let pinchState = null, touchDrag = null, dragState = null;
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    const c1 = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+    const c2 = getCanvasCoords(e.touches[1].clientX, e.touches[1].clientY);
+    const cx = (c1.x + c2.x) / 2, cy = (c1.y + c2.y) / 2;
+    pinchState = {
+      startDist: Math.hypot(c2.x - c1.x, c2.y - c1.y),
+      startScale: viewport.scale,
+      anchor: screenToWorld(cx, cy),
+      screenCx: cx, screenCy: cy
+    };
+    touchDrag = null;
+  } else if (e.touches.length === 1 && !pinchState) {
+    const t = e.touches[0];
+    touchDrag = { startX: t.clientX, startY: t.clientY, offsetX: viewport.offsetX, offsetY: viewport.offsetY, moved: false };
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchState) {
+    e.preventDefault();
+    const c1 = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
+    const c2 = getCanvasCoords(e.touches[1].clientX, e.touches[1].clientY);
+    const dist = Math.hypot(c2.x - c1.x, c2.y - c1.y);
+    viewport.scale = Math.max(viewport.minScale, Math.min(viewport.maxScale, pinchState.startScale * (dist / pinchState.startDist)));
+    viewport.offsetX = pinchState.screenCx - pinchState.anchor.x * viewport.scale;
+    viewport.offsetY = pinchState.screenCy - pinchState.anchor.y * viewport.scale;
+    updateZoomLabel();
+  } else if (e.touches.length === 1 && touchDrag && !pinchState) {
+    const t = e.touches[0];
+    const dx = t.clientX - touchDrag.startX, dy = t.clientY - touchDrag.startY;
+    if (!touchDrag.moved && Math.hypot(dx, dy) > 6) touchDrag.moved = true;
+    if (touchDrag.moved) {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      viewport.offsetX = touchDrag.offsetX + dx * (canvas.width / rect.width);
+      viewport.offsetY = touchDrag.offsetY + dy * (canvas.height / rect.height);
+    }
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length < 2) pinchState = null;
+  if (touchDrag && !touchDrag.moved && e.changedTouches.length === 1) {
+    const t = e.changedTouches[0];
+    const { x: sx, y: sy } = getCanvasCoords(t.clientX, t.clientY);
+    handleClick(sx, sy);
+  }
+  touchDrag = null;
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  dragState = { startX: e.clientX, startY: e.clientY, offsetX: viewport.offsetX, offsetY: viewport.offsetY, moved: false };
+});
+
+window.addEventListener('mousemove', e => {
+  if (dragState) {
+    const dx = e.clientX - dragState.startX, dy = e.clientY - dragState.startY;
+    if (!dragState.moved && Math.hypot(dx, dy) > 4) { dragState.moved = true; canvas.classList.add('dragging'); }
+    if (dragState.moved) {
+      const rect = canvas.getBoundingClientRect();
+      viewport.offsetX = dragState.offsetX + dx * (canvas.width / rect.width);
+      viewport.offsetY = dragState.offsetY + dy * (canvas.height / rect.height);
+    }
+  } else if (world) {
+    const { x: sx, y: sy } = getCanvasCoords(e.clientX, e.clientY);
+    const wp = screenToWorld(sx, sy);
+    canvas.classList.toggle('npc-hover', !!findNPCAt(wp.x, wp.y));
+  }
+});
+
+window.addEventListener('mouseup', e => {
+  if (!dragState) return;
+  const wasDrag = dragState.moved;
+  canvas.classList.remove('dragging');
+  dragState = null;
+  if (!wasDrag && e.target === canvas) {
+    const { x: sx, y: sy } = getCanvasCoords(e.clientX, e.clientY);
+    handleClick(sx, sy);
+  }
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ============================================================
+//                    النقر والفحص
+// ============================================================
+function findNPCAt(wx, wy) {
+  if (!world) return null;
+  const radius = 14 / viewport.scale;
+  let nearest = null, minDist = radius;
+  for (const npc of world.npcs) {
+    if (!npc.alive) continue;
+    const d = Math.hypot(npc.x - wx, npc.y - wy);
+    if (d < minDist) { minDist = d; nearest = npc; }
+  }
+  return nearest;
+}
+function handleClick(sx, sy) {
+  if (!world) return;
+  const wp = screenToWorld(sx, sy);
+  const npc = findNPCAt(wp.x, wp.y);
+  if (npc) { showNPCInfo(npc, sx, sy); return; }
+  const tx = Math.floor(wp.x / TILE), ty = Math.floor(wp.y / TILE);
+  if (tx < 0 || tx >= world.W || ty < 0 || ty >= world.H) { hideInspect(); return; }
+  const type = world.terrain[ty][tx];
+  const ownerId = world.owner[ty][tx];
+  const owner = ownerId ? world.getKingdom(ownerId) : null;
+  showTileInfo(tx, ty, type, owner, sx, sy);
+}
+
+function positionPanel(sx, sy) {
+  const panel = document.getElementById('inspect-panel');
+  const wrap = document.getElementById('canvas-wrap');
+  const wrapRect = wrap.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const cssX = sx * (canvasRect.width / canvas.width);
+  const cssY = sy * (canvasRect.height / canvas.height);
+  let left = canvasRect.left - wrapRect.left + cssX + 16;
+  let top  = canvasRect.top  - wrapRect.top  + cssY + 16;
+  const pw = panel.offsetWidth, ph = panel.offsetHeight;
+  if (left + pw > wrapRect.width - 4) left = canvasRect.left - wrapRect.left + cssX - pw - 16;
+  if (top + ph > wrapRect.height - 4) top = canvasRect.top - wrapRect.top + cssY - ph - 16;
+  if (left < 4) left = 4;
+  if (top < 4) top = 4;
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+}
+
+function showNPCInfo(npc, sx, sy) {
+  inspected = { type:'npc', npc };
+  const k = world.getKingdom(npc.kingdomId);
+  const stateText = npc.age < 16 ? 'طفل' : (npc.age >= 55 ? 'مسن' : 'بالغ');
+  const sexText = npc.sex === 'M' ? 'ذكر' : 'أنثى';
+  const genes = GENE_KEYS.map(g => {
+    const v = Math.round(npc.genes[g]);
+    return `<div class="gene-item">
+      <span>${GENE_ICONS[g]}</span>
+      <div class="gene-bar"><div style="width:${v}%;background:${GENE_COLORS[g]}"></div></div>
+      <span class="gene-val">${v}</span>
+    </div>`;
+  }).join('');
+
+  const panel = document.getElementById('inspect-panel');
+  panel.innerHTML = `
+    <button class="close-btn" onclick="hideInspect()">×</button>
+    <div class="ins-header">
+      <div class="ins-emoji">${npcEmoji(npc)}</div>
+      <div>
+        <div class="ins-name">${npc.name}</div>
+        <div class="ins-sub">${sexText} · ${stateText} · ${npc.age} سنة</div>
+      </div>
+    </div>
+    <div class="ins-row"><span>🏰</span><span>${k ? k.name : '—'}</span></div>
+    <div class="ins-row"><span>🧬</span><span>الجيل ${npc.generation}</span></div>
+    <div class="ins-row"><span>❤️</span><span>الصحة ${Math.round(npc.health)}</span></div>
+    <div class="ins-row"><span>⭐</span><span>الإرث ${Math.round(npc.legacy)}</span></div>
+    <div class="ins-genes">${genes}</div>
+    <button class="tree-btn" onclick="showFamilyTree(${npc.id})">🌳 شجرة العائلة</button>
+  `;
+  panel.style.display = 'block';
+  positionPanel(sx, sy);
+}
+
+function showTileInfo(tx, ty, type, owner, sx, sy) {
+  inspected = { type:'tile', tx, ty };
+  const info = TERRAIN_TYPES[type];
+  const emoji = info.decor ? info.decor[0] : '·';
+  const panel = document.getElementById('inspect-panel');
+  panel.innerHTML = `
+    <button class="close-btn" onclick="hideInspect()">×</button>
+    <div class="ins-header">
+      <div class="ins-emoji">${emoji}</div>
+      <div>
+        <div class="ins-name">${info.ar}</div>
+        <div class="ins-sub">مربع (${tx}, ${ty})</div>
+      </div>
+    </div>
+    <div class="ins-row"><span>🌾</span><span>خصوبة ${Math.round(info.food * 100)}%</span></div>
+    <div class="ins-row"><span>🚶</span><span>${info.walkable ? 'قابل للعبور' : 'غير قابل للعبور'}</span></div>
+    <div class="ins-row"><span>🏰</span><span>${owner ? owner.name : 'أرض محايدة'}</span></div>
+    ${owner ? `<div class="ins-row"><span>👥</span><span>سكان المملكة: ${owner.population()}</span></div>` : ''}
+  `;
+  panel.style.display = 'block';
+  positionPanel(sx, sy);
+}
+
+function hideInspect() {
+  inspected = null;
+  document.getElementById('inspect-panel').style.display = 'none';
+}
+window.hideInspect = hideInspect;
+
+function inspectFromTree(id) {
+  const n = world.npcs.find(x => x.id === id && x.alive);
+  if (n) showNPCInfo(n, canvas.width/2, canvas.height/2);
+}
+window.inspectFromTree = inspectFromTree;
+
+function showFamilyTree(npcId) {
+  const npc = world.npcs.find(x => x.id === npcId);
+  if (!npc) return;
+  const byId = id => world.npcs.find(x => x.id === id && x.alive);
+  const father  = npc.parentIds?.[0] ? byId(npc.parentIds[0]) : null;
+  const mother  = npc.parentIds?.[1] ? byId(npc.parentIds[1]) : null;
+  const children = (npc.childIds || []).map(byId).filter(Boolean);
+  const siblings = [];
+  if (npc.parentIds?.length) {
+    for (const pid of npc.parentIds) {
+      const p = byId(pid);
+      if (p) for (const cid of p.childIds) {
+        if (cid !== npc.id && !siblings.find(s => s.id === cid)) {
+          const s = byId(cid); if (s) siblings.push(s);
+        }
+      }
+    }
+  }
+  const chip = p => p ? `<div class="fam-chip" onclick="inspectFromTree(${p.id})">
+    <span class="fam-emoji">${npcEmoji(p)}</span><span>${p.name}</span><span class="fam-age">${p.age}س</span>
+  </div>` : '';
+  const childrenHtml = children.length ? children.map(chip).join('') : `<div class="fam-empty">لا أبناء أحياء</div>`;
+  const siblingsHtml = siblings.length ? siblings.map(chip).join('') : `<div class="fam-empty">لا أشقاء</div>`;
+
+  const panel = document.getElementById('inspect-panel');
+  panel.innerHTML = `
+    <button class="close-btn" onclick="hideInspect()">×</button>
+    <div class="ins-header">
+      <div class="ins-emoji">${npcEmoji(npc)}</div>
+      <div>
+        <div class="ins-name">${npc.name}</div>
+        <div class="ins-sub">${npc.sex==='M'?'ذكر':'أنثى'} · ${npc.age} سنة · جيل ${npc.generation}</div>
+      </div>
+    </div>
+    <div class="fam-title">👨‍👩 الوالدان</div>
+    <div class="fam-row">${chip(father) || `<div class="fam-empty">الأب: —</div>`}${chip(mother) || `<div class="fam-empty">الأم: —</div>`}</div>
+    <div class="fam-title">👶 الأبناء (${children.length})</div>
+    <div class="fam-row fam-scroll">${childrenHtml}</div>
+    <div class="fam-title">👫 الأشقاء (${siblings.length})</div>
+    <div class="fam-row fam-scroll">${siblingsHtml}</div>
+    <button class="tree-btn" onclick="showGenerationTree(${npcId})">🌳 شجرة الأجيال</button>
+  `;
+  panel.style.display = 'block';
+  panel.style.left = '50%';
+  panel.style.top = '50%';
+  panel.style.transform = 'translate(-50%, -50%)';
+}
+window.showFamilyTree = showFamilyTree;
+
+function showGenerationTree(npcId) {
+  const byId = id => world.npcs.find(x => x.id === id && x.alive);
+  const npc = byId(npcId);
+  if (!npc) return;
+  const chain = [];
+  let cur = npc;
+  const seen = new Set();
+  while (cur && chain.length < 6 && !seen.has(cur.id)) {
+    chain.unshift(cur);
+    seen.add(cur.id);
+    const p1 = cur.parentIds?.[0] ? byId(cur.parentIds[0]) : null;
+    const p2 = cur.parentIds?.[1] ? byId(cur.parentIds[1]) : null;
+    cur = p1 || p2;
+  }
+  const html = chain.map((p, i) => `
+    <div class="gen-level">
+      <div class="gen-person" onclick="inspectFromTree(${p.id})">
+        <span class="fam-emoji">${npcEmoji(p)}</span>
+        <span>${p.name}</span>
+        <span class="gen-year">${p.age}س · جيل ${p.generation}</span>
+      </div>
+    </div>
+  `).join('<div class="gen-line"></div>');
+
+  const panel = document.getElementById('inspect-panel');
+  panel.innerHTML = `
+    <button class="close-btn" onclick="hideInspect()">×</button>
+    <div class="ins-header">
+      <div class="ins-name">🌳 شجرة أجيال ${npc.name}</div>
+      <div class="ins-sub">آخر 6 أجيال</div>
+    </div>
+    <div class="gen-tree">${html}</div>
+    <button class="tree-btn" onclick="showFamilyTree(${npcId})">← العودة للعائلة</button>
+  `;
+  panel.style.display = 'block';
+  panel.style.left = '50%';
+  panel.style.top = '50%';
+  panel.style.transform = 'translate(-50%, -50%)';
+}
+window.showGenerationTree = showGenerationTree;
+
+// ============================================================
+//                    جلب العالم من الخادم
+// ============================================================
+const WORLD_JSON_URL = 'public/world.json';
+
+async function fetchWorld() {
+  try {
+    const res = await fetch(`${WORLD_JSON_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return false;
+    _lastModified = res.headers.get('last-modified') || String(Date.now());
+    const data = await res.json();
+    if (!data || !data.year) return false;
+    world = deserializeWorld(data);
+    // أعطِ كل NPC موضعًا مرئيًا مبدئيًا
+    for (const n of world.npcs) {
+      if (n.x === 0 && n.y === 0) {
+        const k = world.getKingdom(n.kingdomId);
+        if (k && k.tileList.length) {
+          const t = k.tileList[Math.floor(Math.random()*k.tileList.length)];
+          n.x = t.x*TILE + TILE/2; n.y = t.y*TILE + TILE/2;
+          n.tx = n.x; n.ty = n.y;
+        }
+      }
+      n.bob = Math.random() * Math.PI * 2;
+    }
+    buildTerrainCache();
+    if (inspected?.type === 'npc' && !inspected.npc.alive) hideInspect();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function manualRefresh() {
+  if (await fetchWorld()) renderUI();
+}
+window.manualRefresh = manualRefresh;
+
+async function startViewer() {
+  if (!await fetchWorld()) {
+    setTimeout(startViewer, 5000);
+    return;
+  }
+  updateZoomLabel();
+  renderUI();
+  requestAnimationFrame(loop);
+
+  // فحص دوري كل 60 ثانية
+  setInterval(async () => {
+    if (document.hidden) return;
+    try {
+      const res = await fetch(`${WORLD_JSON_URL}?t=${Date.now()}`, { method: 'HEAD', cache: 'no-store' });
+      const lm = res.headers.get('last-modified');
+      if (lm && lm !== _lastModified) {
+        if (await fetchWorld()) renderUI();
+      }
+    } catch (e) { /* تجاهل */ }
+  }, 60_000);
+}
+
+// ============================================================
+//                    حركة الشخصيات المرئية
+// ============================================================
+function pickTarget(npc) {
+  const k = world.getKingdom(npc.kingdomId);
+  if (!k || !k.tileList.length) return;
+  const tile = k.tileList[Math.floor(Math.random() * k.tileList.length)];
+  npc.tx = tile.x * TILE + TILE/2 + (Math.random()-0.5) * 6;
+  npc.ty = tile.y * TILE + TILE/2 + (Math.random()-0.5) * 6;
+}
+
+function updateVisuals(dt) {
+  if (!world) return;
+  for (const npc of world.npcs) {
+    if (!npc.alive) continue;
+    npc.bob += dt * 3;
+    const dx = npc.tx - npc.x, dy = npc.ty - npc.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 2) {
+      const speed = (npc.age < 14 ? 35 : 25) * dt;
+      npc.x += (dx/d) * Math.min(d, speed);
+      npc.y += (dy/d) * Math.min(d, speed);
+    } else {
+      pickTarget(npc);
+    }
+  }
+}
+
+// ============================================================
+//                    الحلقة الرئيسية
+// ============================================================
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - lastTime) / 1000);
+  lastTime = now;
+  updateVisuals(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+startViewer();
+
+})();
+</script>
+</body>
+</html>
