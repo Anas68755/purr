@@ -284,7 +284,7 @@
       <span class="lg">🌿 عشب</span><span class="lg">🌲 غابة</span><span class="lg">🌊 ماء</span>
       <span class="lg">⛰️ جبل</span><span class="lg">🌵 صحراء</span><span class="lg">🏔️ تلة</span>
       <span class="sep"></span>
-      <span class="lg">🏰 عاصمة</span><span class="lg">👑 حاكم بتاج وعباءة</span>
+      <span class="lg">🏰 عاصمة</span><span class="lg">🐺 مخلوقات برية (انقر لفحصها)</span><span class="lg">👑 حاكم بتاج وعباءة</span>
       <span class="sep"></span>
       <span class="tip">💡 انقر شخصية أو أرضًا · كبّر بالكرة · اسحب للتنقل</span>
     </div>
@@ -325,11 +325,190 @@ let _lastModified = null;
 const viewport = { scale: 1, offsetX: 0, offsetY: 0, minScale: 0.4, maxScale: 5 };
 
 // ============================================================
-//        تصاميم المخلوقات — 60 تصميم بكسل آرت (6 أنواع × 10)
+//            شخصيات مخصصة — بكسل آرت مرسوم بالكود
 // ============================================================
-// فارس · سلايم · ذئب · شبح ضوئي · غولم · عنكبوت
-// كل مخلوق يأخذ نوعه من أقوى جين فيه، وتصميمه من معرّفه.
-// (دوال الرسم أدناه منقولة كما هي، مع تسمية dpx/dshade لتفادي التعارض)
+// كل شخصية تُرسم على شبكة 16×20 ثم يُضاف لها إطار خارجي.
+// الشكل يتغير حسب: العمر، الجنس، لون المملكة، المعرّف (لون البشرة والشعر والتسريحة)،
+// والجينات (عضلات، نظارة، حاجب غاضب، دبوس قلب)، والحاكم (تاج وعباءة).
+const SPRITE_PX = 4;          // دقة الرسم الداخلية لكل خلية
+const SPRITE_WORLD = 0.8;     // حجم الخلية في العالم
+const SKINS = ['#f5d0b0', '#e0ac84', '#c68642', '#8d5524'];
+const HAIRS = ['#2d1b0e', '#5a3825', '#b5651d', '#e6b422', '#1a1a1a'];
+const spriteCache = new Map();
+
+function shade(hex, amt) {
+  const m = /^#([0-9a-f]{6})/i.exec(hex || '');
+  if (!m) return hex || '#888';
+  const n = parseInt(m[1], 16);
+  const f = v => Math.max(0, Math.min(255, Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt)));
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+function idNum(npc) {
+  const n = Number(npc.id);
+  if (Number.isFinite(n)) return Math.abs(Math.floor(n));
+  let h = 0; const s = String(npc.id);
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+function stageOf(age) { return age < 3 ? 'baby' : age < 14 ? 'child' : age < 55 ? 'adult' : 'elder'; }
+
+function buildSprite(o) {
+  const S = SPRITE_PX;
+  const art = document.createElement('canvas');
+  art.width = 16 * S; art.height = 20 * S;
+  const g = art.getContext('2d');
+  const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x*S), Math.round(y*S), Math.round(w*S), Math.round(h*S)); };
+
+  const st = o.stage, adultish = st === 'adult' || st === 'elder';
+  const legH  = { baby:2, child:3, adult:4, elder:4 }[st];
+  const bodyH = { baby:3, child:4, adult:6, elder:5 }[st];
+  const headW = { baby:8, child:6, adult:6, elder:6 }[st];
+  const headH = 6;
+  let bodyW = { baby:6, child:6, adult:8, elder:8 }[st];
+  if (o.flags.strong) bodyW = 10;
+  const legTop = 20 - legH, bodyTop = legTop - bodyH, headTop = bodyTop - headH;
+  const headX = 8 - headW / 2, bodyX = 8 - bodyW / 2;
+
+  const skin = SKINS[o.skin];
+  const hairC = st === 'elder' ? '#d5dae2' : HAIRS[o.hair];
+  const tunicD = shade(o.color, -0.3), tunicL = shade(o.color, 0.35), pants = shade(o.color, -0.65);
+  const female = o.sex === 'F';
+
+  // عباءة الحاكم
+  if (o.flags.ruler) px(bodyX - 1, bodyTop, bodyW + 2, bodyH + legH - 2, '#9b2c2c');
+  // شعر طويل (خلف الرأس)
+  const long = female && o.style !== 2 && st !== 'baby';
+  if (long) px(headX - 1, headTop, headW + 2, headH + 2, hairC);
+
+  // الأرجل (إطار 0/1 = خطوة، 2 = وقوف)
+  const lxL = adultish ? 5 : 6, lxR = adultish ? 9 : 8;
+  [[lxL, 0], [lxR, 1]].forEach(([lx, id]) => {
+    const raise = o.frame === id ? 1 : 0;
+    px(lx, legTop, 2, Math.max(0, legH - 1 - raise), pants);
+    px(lx, legTop + legH - 1 - raise, 2, 1, '#1a1410');
+  });
+
+  // الجسم
+  px(bodyX, bodyTop, bodyW, bodyH, o.color);
+  px(bodyX, bodyTop, bodyW, 1, tunicL);
+  px(bodyX + bodyW - 1, bodyTop + 1, 1, bodyH - 1, tunicD);
+  px(bodyX, bodyTop + bodyH - 1, bodyW, 1, '#4a2f17');           // حزام
+  if (o.flags.ruler) px(7, bodyTop + 2, 2, 2, '#f6e05e');          // شعار ذهبي
+  if (female && st !== 'baby') px(bodyX - 1, legTop - 1, bodyW + 2, 2, tunicD); // تنورة
+
+  // الذراعان
+  px(bodyX - 1, bodyTop + 1, 1, bodyH - 2, skin);
+  px(bodyX + bodyW, bodyTop + 1, 1, bodyH - 2, skin);
+  if (o.flags.strong) {
+    px(bodyX - 1, bodyTop, 2, 2, '#718096');
+    px(bodyX + bodyW - 1, bodyTop, 2, 2, '#718096');
+  }
+  if (o.flags.kind) px(bodyX + bodyW - 3, bodyTop + 2, 1, 1, '#fbb6ce'); // دبوس قلب
+  if (st === 'elder') {                                              // عصا
+    px(bodyX + bodyW + 1, bodyTop + 3, 1, 20 - (bodyTop + 3), '#7b5230');
+    px(bodyX + bodyW, bodyTop + 2, 2, 1, '#7b5230');
+  }
+
+  // الرأس
+  px(headX + 1, headTop, headW - 2, 1, skin);
+  px(headX, headTop + 1, headW, headH - 2, skin);
+  px(headX + 1, headTop + headH - 1, headW - 2, 1, skin);
+
+  // الشعر
+  if (st === 'baby') {
+    px(headX + headW / 2 - 1, headTop - 1, 2, 1, hairC);
+  } else {
+    px(headX, headTop - 1, headW, 2, hairC);
+    px(headX, headTop + 1, 1, 1, hairC);
+    px(headX + headW - 1, headTop + 1, 1, 1, hairC);
+    if (!female && o.style === 1) [0, 2, 4].forEach(dx => px(headX + dx, headTop - 2, 1, 1, hairC));
+    if (female && o.style === 2) px(headX + headW / 2 - 1, headTop - 2, 2, 1, hairC);
+    if (!female && o.style === 2 && adultish) px(headX + 1, headTop + headH - 2, headW - 2, 2, hairC); // لحية
+  }
+
+  // الوجه
+  const ey = st === 'baby' ? headTop + 2 : headTop + 3;
+  const e1 = st === 'baby' ? headX + 2 : headX + 1;
+  const e2 = st === 'baby' ? headX + 5 : headX + headW - 2;
+  const eh = st === 'baby' ? 2 : 1;
+  px(e1, ey, 1, eh, '#1a202c'); px(e2, ey, 1, eh, '#1a202c');
+  if (st === 'baby' || st === 'child') {
+    px(headX + 1, ey + eh, 1, 1, '#fc8181'); px(headX + headW - 2, ey + eh, 1, 1, '#fc8181');
+  }
+  px(7, headTop + 4, 2, 1, o.flags.angry ? '#5c1f1f' : '#8a3b2e');
+  if (o.flags.angry) { px(e1, ey - 1, 1, 1, '#1a202c'); px(e2, ey - 1, 1, 1, '#1a202c'); }
+  if (o.flags.smart) {
+    const gl = '#e2e8f0';
+    [e1, e2].forEach(ex => {
+      px(ex - 1, ey - 1, 3, 1, gl); px(ex - 1, ey + 1, 3, 1, gl);
+      px(ex - 1, ey, 1, 1, gl); px(ex + 1, ey, 1, 1, gl);
+    });
+  }
+
+  // التاج
+  if (o.flags.ruler) {
+    const gold = '#f6c945';
+    px(headX, headTop - 2, headW, 1, gold);
+    [0, 2, 4].forEach(dx => px(headX + dx, headTop - 3, 1, 1, gold));
+    px(headX + 2, headTop - 2, 1, 1, '#e53e3e');
+  }
+
+  // إطار خارجي داكن
+  const out = document.createElement('canvas');
+  out.width = 18 * S; out.height = 22 * S;
+  const og = out.getContext('2d');
+  const sil = document.createElement('canvas');
+  sil.width = art.width; sil.height = art.height;
+  const sg = sil.getContext('2d');
+  sg.drawImage(art, 0, 0);
+  sg.globalCompositeOperation = 'source-in';
+  sg.fillStyle = '#0b0f14';
+  sg.fillRect(0, 0, sil.width, sil.height);
+  [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dx, dy]) => og.drawImage(sil, (1 + dx) * S, (1 + dy) * S));
+  og.drawImage(art, S, S);
+  return out;
+}
+
+function spriteFor(npc, k, frame) {
+  const stage = stageOf(npc.age);
+  const adultish = stage === 'adult' || stage === 'elder';
+  const gn = npc.genes || {};
+  const isRuler = !!(k && k.ruler && (k.ruler === npc || (k.ruler.id !== undefined && k.ruler.id === npc.id)));
+  const flags = {
+    ruler:  isRuler && adultish,
+    strong: adultish && gn.strength > 70,
+    smart:  stage !== 'baby' && gn.intelligence > 70,
+    angry:  adultish && gn.aggression > 70,
+    kind:   adultish && gn.empathy > 70
+  };
+  const id = idNum(npc);
+  const o = {
+    stage, sex: npc.sex === 'M' ? 'M' : 'F',
+    color: (k && k.color) || '#888888',
+    skin: id % 4, hair: Math.floor(id / 4) % 5, style: Math.floor(id / 20) % 3,
+    frame, flags
+  };
+  const key = [o.stage, o.sex, o.color, o.skin, o.hair, o.style, o.frame,
+    +flags.ruler, +flags.strong, +flags.smart, +flags.angry, +flags.kind].join('|');
+  let s = spriteCache.get(key);
+  if (!s) { s = buildSprite(o); spriteCache.set(key, s); }
+  return s;
+}
+
+// صورة شخصية للوحات (data URL)
+function portrait(npc, width) {
+  const k = world ? world.getKingdom(npc.kingdomId) : null;
+  const s = spriteFor(npc, k, 2);
+  if (!s._url) s._url = s.toDataURL();
+  return `<img class="portrait" src="${s._url}" width="${width}" alt="">`;
+}
+
+// ============================================================
+//     مخلوقات برية إضافية — 60 تصميم (6 أنواع × 10) تتجول مع البشر
+// ============================================================
+// البشر كما هم دون أي تغيير. المخلوقات عنصر بصري فقط يُنشأ في المتصفح
+// (لا يلمس world.json ولا world.js) وتظهر في كل مكان صالح للمشي، وقابلة للفحص بالنقر.
+// دوال الرسم أدناه منقولة كما هي مع تسمية dpx/dshade لتفادي التعارض.
 
 function dpx(c,x,y,w,h,col){ c.fillStyle=col; c.fillRect(x,y,w,h); }
 
@@ -2157,22 +2336,9 @@ const ARCHETYPES={
 
 const RAINBOW_HUES=["#ff5a7a","#ff9a3a","#ffe03a","#5ae05a","#3aa0ff","#a05aff","#ff5aff"];
 
-// ---------- ربط التصاميم بالمخلوقات ----------
 const DS_PX = 2;            // دقة الرسم الداخلية لكل خلية
 const DS_WORLD = 0.9;       // حجم الخلية في العالم
-const GENE_ARCH = {         // أقوى جين ← النوع
-  strength:'golem', aggression:'wolf', intelligence:'wisp',
-  empathy:'slime',  longevity:'knight', fertility:'spider'
-};
 const designCache = new Map();
-
-function idNum(npc) {
-  const n = Number(npc.id);
-  if (Number.isFinite(n)) return Math.abs(Math.floor(n));
-  let h = 0; const s = String(npc.id);
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
 
 function getDesignSprite(arch, vi, dir, frame) {
   const A = ARCHETYPES[arch], dsg = A.designs[vi];
@@ -2183,61 +2349,257 @@ function getDesignSprite(arch, vi, dir, frame) {
   const key = arch + '|' + vi + '|' + bucket + '|' + canon + '|' + (flip ? 'f' : 'n') + '|' + frame;
   let c = designCache.get(key);
   if (c) return c;
-
   const pal = Object.assign({}, dsg.pal);
   if (dsg.rainbow) pal.m = RAINBOW_HUES[bucket];
-
   const nat = document.createElement('canvas');
   nat.width = 16; nat.height = 20;
   const nc = nat.getContext('2d');
   nc.imageSmoothingEnabled = false;
   dsg.draw(nc, canon, frame, pal);
-
-  // أول صف مرسوم فعليًا (لوضع التاج فوق الرأس)
-  let top = 0;
-  try {
-    const d = nc.getImageData(0, 0, 16, 20).data;
-    outer: for (let y = 0; y < 20; y++) for (let x = 0; x < 16; x++) if (d[(y*16 + x)*4 + 3] > 60) { top = y; break outer; }
-  } catch (e) {}
-
   c = document.createElement('canvas');
   c.width = 16 * DS_PX; c.height = 20 * DS_PX;
   const cc = c.getContext('2d');
   cc.imageSmoothingEnabled = false;
   if (flip) { cc.translate(c.width, 0); cc.scale(-1, 1); }
   cc.drawImage(nat, 0, 0, c.width, c.height);
-  c._top = top;
   designCache.set(key, c);
   return c;
 }
 
-function designOf(npc) {
-  if (npc._ds) return npc._ds;
-  const gn = npc.genes || {};
-  let best = 'strength', bv = -1;
-  for (const g of Object.keys(GENE_ARCH)) {
-    const v = Number(gn[g]) || 0;
-    if (v > bv) { bv = v; best = g; }
+// ---------- الأسماء العربية ----------
+const ARCH_AR = { knight:'فارس', slime:'سلايم', wolf:'ذئب', wisp:'طيف ضوئي', golem:'غولم', spider:'عنكبوت' };
+const DESIGN_AR = {
+  knight: [
+    ['الفارس الطليعي','فارس خط أمامي بخوذة ذات حاجب وسيف قصير'],
+    ['الفارس المقدّس','خوذة مجنّحة وزينة ذهبية وعباءة حرب'],
+    ['الفارس الرهيب','درع مظلم بقرون وعينان جمريتان'],
+    ['الرمّاح','جندي رمح بريشة حمراء'],
+    ['مبارز السيفين','مبارز بلا خوذة بسيفين قصيرين'],
+    ['أمير الحرب','درع ثقيل وفأس عظيمة ومسامير قرنية'],
+    ['الفارس الحارس','درع برجي وخوذة عظيمة'],
+    ['الكشّاف','رامٍ بقلنسوة يحمل قوسًا وجعبة'],
+    ['فارس الصقيع','درع جليدي وأكتاف بلّورية'],
+    ['فارس التنين','حراشف تنين وزعنفة وجناحان مطويان']
+  ],
+  slime: [
+    ['السلايم الكلاسيكي','هلام طري من أبناء الحقول'],
+    ['السلايم الملك','سلايم ملكي ضخم يضع تاجًا'],
+    ['السلايم الشائك','هلام بأشواك على ظهره'],
+    ['السلايم التوأم','سلايمان صغيران يقفزان معًا'],
+    ['السلايم المتراكب','كتلتان مترنحتان فوق بعضهما'],
+    ['سلايم الكروم','هلام معدني مطلي بمسامير'],
+    ['السلايم الساحر','ساحر بقبعة مدببة'],
+    ['السلايم الحممي','هلام بقشرة بركانية وجمر متوهج'],
+    ['السلايم الشبح','طيف يطفو ولا يمشي أبدًا'],
+    ['السلايم المنشوري','هلام يكسر الضوء بألوان قوس قزح']
+  ],
+  wolf: [
+    ['ذئب الغابات','ذئب رمادي من قطعان الأحراش'],
+    ['الذئب الألفا','قائد قطيع مليء بالندوب'],
+    ['الذئب الضاري','وحش ضخم من عصور سحيقة'],
+    ['جرو الذئب','صغير بمخالب كبيرة وفضول لا ينتهي'],
+    ['كلب الجحيم','ذئب بعرف من لهب حيّ'],
+    ['ذئب الصقيع','فرو مكسو بالجليد من الشمال'],
+    ['ذئب الظل','صياد غسق يلفّه الدخان'],
+    ['ذئب القمر','ذئب فضي نحيل بعلامة هلال'],
+    ['ذئب الحرب','ذئب فرسان مدرّع بالصفائح'],
+    ['ذئب العظام','هيكل ذئب خارج من البراري']
+  ],
+  wisp: [
+    ['طيف الشرارة','روح ضوء كلاسيكية يحيط بها هالة'],
+    ['طيف النجمة','نجمة نابضة بأربعة رؤوس'],
+    ['طيف اللهب','لهب حيّ بعينين جمريتين'],
+    ['الروح التائهة','روح مقيّدة تحمل جمجمة'],
+    ['طيف الصاعقة','برق محبوس في شرارة'],
+    ['طيف الزهرة','جنّية زهرية متفتحة'],
+    ['طيف المذنّب','نجم ساقط بذيل طويل'],
+    ['طيف الثالوث','ثلاث كرات عالقة في مدار'],
+    ['طيف العين','مراقب لا يرمش إلا أحيانًا'],
+    ['طيف الجنية','شرارة بجناحين']
+  ],
+  golem: [
+    ['الغولم الحجري','عملاق منحوت من الجبل'],
+    ['الغولم الحديدي','صفائح مسمّرة وقلب مفاعل'],
+    ['الغولم الطحلبي','عملاق عتيق تكسوه الطحالب'],
+    ['الغولم الحممي','قشرة بازلت وقلب منصهر'],
+    ['الغولم الجليدي','جليد حيّ بأبراج بلّورية'],
+    ['الغولم الرونيّ','حارس سحري منقوش بالرموز'],
+    ['الغولم الجبّار','تيتان شاهق بعين واحدة'],
+    ['الغولم الحارس','ذراع درع ومطرقة حصينة'],
+    ['غولم الحصاة','صديق صغير يقفز'],
+    ['الغولم الرملي','ماشٍ كثباني يتفتّت']
+  ],
+  spider: [
+    ['العنكبوت العادي','عنكبوت غابات مألوف'],
+    ['العنكبوت الأرملة','أسود لامع بساعة رملية حمراء'],
+    ['الرتيلاء','ضخمة كثيفة الشعر'],
+    ['العنكبوت القفّاز','قافز بعينين كبيرتين فضوليتين'],
+    ['العنكبوت البلّوري','صياد شفاف متبلور'],
+    ['العنكبوت الناسج','شاحب بعلامة صليب على الظهر'],
+    ['عنكبوت الحصّاد','جسم صغير وأرجل طويلة جدًا'],
+    ['العنكبوت الملكة','أم ثقيلة بالبيض ومعلَّمة بتاج'],
+    ['العنكبوت الجمري','زاحف أفران بمفاصل متوهجة'],
+    ['العنكبوت الأجوف','شاحب كالعظم بثماني عيون خضراء']
+  ]
+};
+
+// ---------- نشر المخلوقات وحركتها ----------
+let creatures = [];
+let creaturesWorld = null;
+
+function creatureRng(seed) {
+  let a = seed | 0;
+  return function () {
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function tileKindOf(type) {
+  const info = TERRAIN_TYPES[type] || {};
+  const s = (String(type) + ' ' + (info.ar || '')).toLowerCase();
+  if (/water|ocean|sea|lake|river|ماء|بحر|نهر|بحيرة/.test(s)) return 'water';
+  if (/mountain|جبل/.test(s)) return 'mountain';
+  if (/hill|تلة|هضب/.test(s)) return 'hill';
+  if (/forest|tree|غاب/.test(s)) return 'forest';
+  if (/desert|sand|صحراء|رمل/.test(s)) return 'desert';
+  if (/grass|plain|عشب|سهل/.test(s)) return 'grass';
+  return 'other';
+}
+
+// الأنواع المفضلة لكل تضاريس (وما عداها يظهر نادرًا في أي مكان)
+const HABITAT = {
+  grass:    ['wolf', 'slime', 'knight', 'wisp'],
+  forest:   ['spider', 'wolf', 'wisp', 'slime'],
+  mountain: ['golem', 'golem', 'wolf'],
+  hill:     ['golem', 'knight', 'wolf'],
+  desert:   ['golem', 'spider', 'wisp'],
+  water:    ['wisp', 'slime'],
+  other:    ['wolf', 'slime', 'knight', 'golem', 'wisp', 'spider']
+};
+
+function walkableAt(wx, wy) {
+  if (!world) return false;
+  const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
+  if (tx < 0 || ty < 0 || tx >= world.W || ty >= world.H) return false;
+  const info = TERRAIN_TYPES[world.terrain[ty][tx]];
+  return !!(info && info.walkable);
+}
+
+function spawnCreatures() {
+  creaturesWorld = world;
+  creatures = [];
+  if (inspected && inspected.type === 'creature') hideInspect();
+  const rnd = creatureRng(20241);
+  const tiles = [];
+  for (let y = 0; y < world.H; y++) {
+    for (let x = 0; x < world.W; x++) {
+      const info = TERRAIN_TYPES[world.terrain[y][x]];
+      if (info && info.walkable) tiles.push({ x, y, kind: tileKindOf(world.terrain[y][x]) });
+    }
   }
-  const arch = GENE_ARCH[best], A = ARCHETYPES[arch];
-  const vi = idNum(npc) % A.designs.length;
-  return (npc._ds = { arch, vi, A, dsg: A.designs[vi] });
+  if (!tiles.length) return;
+  const count = Math.max(10, Math.min(140, Math.round(tiles.length / 40)));
+  const archKeys = Object.keys(ARCHETYPES);
+  for (let i = 0; i < count; i++) {
+    const t = tiles[Math.floor(rnd() * tiles.length)];
+    const pool = HABITAT[t.kind] || HABITAT.other;
+    const arch = rnd() < 0.12 ? archKeys[Math.floor(rnd() * archKeys.length)] : pool[Math.floor(rnd() * pool.length)];
+    const A = ARCHETYPES[arch];
+    const vi = Math.floor(rnd() * A.designs.length);
+    const x = t.x * TILE + TILE / 2 + (rnd() - 0.5) * 6;
+    const y = t.y * TILE + TILE / 2 + (rnd() - 0.5) * 6;
+    creatures.push({
+      isCreature: true, id: 'c' + i, arch, vi, x, y, tx: x, ty: y,
+      dir: A.gdir, bob: rnd() * Math.PI * 2, wait: rnd() * 3, moving: false,
+      speed: (A.speed || 120) * 0.17, vitality: 50 + Math.floor(rnd() * 50)
+    });
+  }
 }
 
-function ageScale(age) {
-  return age < 3 ? 0.55 : age < 14 ? 0.72 : age < 18 ? 0.9 : age >= 55 ? 0.96 : 1;
+function pickCreatureTarget(c) {
+  for (let tries = 0; tries < 8; tries++) {
+    const ang = Math.random() * Math.PI * 2, dist = 10 + Math.random() * 34;
+    const nx = c.x + Math.cos(ang) * dist, ny = c.y + Math.sin(ang) * dist;
+    let ok = true;
+    for (let s = 1; s <= 6; s++) {
+      if (!walkableAt(c.x + (nx - c.x) * s / 6, c.y + (ny - c.y) * s / 6)) { ok = false; break; }
+    }
+    if (ok) { c.tx = nx; c.ty = ny; return; }
+  }
+  c.tx = c.x; c.ty = c.y;
 }
 
-function isRulerNpc(npc, k) {
-  return !!(k && k.ruler && (k.ruler === npc || (k.ruler.id !== undefined && k.ruler.id === npc.id)));
+function updateCreatures(dt) {
+  if (!world) return;
+  if (creaturesWorld !== world) spawnCreatures();
+  for (const c of creatures) {
+    c.bob += dt * 3;
+    if (c.wait > 0) { c.wait -= dt; c.moving = false; continue; }
+    const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);
+    if (d > 1.5) {
+      const step = Math.min(d, c.speed * dt);
+      c.x += dx / d * step; c.y += dy / d * step;
+      c.moving = true;
+      c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    } else {
+      c.moving = false;
+      pickCreatureTarget(c);
+      c.wait = 0.8 + Math.random() * 3;
+    }
+  }
 }
 
-// صورة شخصية للوحات (data URL)
-function portrait(npc, width) {
-  const ds = designOf(npc);
-  const s = getDesignSprite(ds.arch, ds.vi, ds.A.gdir, 0);
+function drawCreature(c, nowMs) {
+  const A = ARCHETYPES[c.arch], dsg = A.designs[c.vi];
+  const frame = c.moving ? Math.floor((nowMs + c.bob * 120) / A.frameMs) % 4 : 0;
+  const flt = dsg.float !== undefined ? dsg.float : !!A.float;
+  const sh = dsg.shadow || A.shadow;
+  const srx = Math.max(2.5, sh.rx / 2 * DS_WORLD);
+  ctx.fillStyle = `rgba(0,0,0,${sh.alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y + 5.5 + (sh.dy || 0) * DS_WORLD, srx, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const spr = getDesignSprite(c.arch, c.vi, c.dir || A.gdir, frame);
+  const dw = 16 * DS_WORLD, dh = 20 * DS_WORLD;
+  const bob = flt ? Math.sin(nowMs / 260 + c.bob) * 1.4 * DS_WORLD : 0;
+  ctx.imageSmoothingEnabled = viewport.scale < 1.5;
+  ctx.drawImage(spr, c.x - dw / 2, c.y + 6.5 + bob - dh, dw, dh);
+  ctx.imageSmoothingEnabled = true;
+}
+
+function creaturePortrait(c, width) {
+  const A = ARCHETYPES[c.arch];
+  const s = getDesignSprite(c.arch, c.vi, A.gdir, 0);
   if (!s._url) s._url = s.toDataURL();
   return `<img class="portrait" src="${s._url}" width="${width}" alt="">`;
+}
+
+function showCreatureInfo(c, sx, sy) {
+  inspected = { type: 'creature', c };
+  const A = ARCHETYPES[c.arch];
+  const [nm, ds] = DESIGN_AR[c.arch][c.vi];
+  const tx = Math.floor(c.x / TILE), ty = Math.floor(c.y / TILE);
+  const tinfo = world && world.terrain[ty] ? TERRAIN_TYPES[world.terrain[ty][tx]] : null;
+  const panel = document.getElementById('inspect-panel');
+  panel.innerHTML = `
+    <button class="close-btn" onclick="hideInspect()">×</button>
+    <div class="ins-header">
+      <div class="portrait-box">${creaturePortrait(c, 52)}</div>
+      <div>
+        <div class="ins-name">${nm}</div>
+        <div class="ins-sub">مخلوق بري · ${ARCH_AR[c.arch]}</div>
+      </div>
+    </div>
+    <div class="ins-row"><span>📜</span><span>${ds}</span></div>
+    <div class="ins-row"><span>📍</span><span>${tinfo ? tinfo.ar : '—'} (${tx}, ${ty})</span></div>
+    <div class="ins-row"><span>❤️</span><span>الحيوية ${c.vitality}</span></div>
+    <div class="ins-row"><span>👟</span><span>${c.moving ? 'يتجول' : 'يستريح'}</span></div>
+  `;
+  panel.style.display = 'block';
+  positionPanel(sx, sy);
 }
 
 // ============================================================
@@ -2363,50 +2725,37 @@ function render() {
 
   // الشخصيات (مرتبة حسب العمق لتتراكب بشكل صحيح)
   const nowMs = performance.now();
-  ctx.imageSmoothingEnabled = viewport.scale < 1.5;
-  const alive = world.npcs.filter(n => n.alive).sort((a, b) => a.y - b.y);
+  const alive = world.npcs.filter(n => n.alive).concat(creatures).sort((a, b) => a.y - b.y);
   for (const npc of alive) {
+    if (npc.isCreature) { drawCreature(npc, nowMs); continue; }
     const k = world.getKingdom(npc.kingdomId);
     if (!k) continue;
-    const ds = designOf(npc), A = ds.A, dsg = ds.dsg;
     const moving = Math.hypot((npc.tx ?? npc.x) - npc.x, (npc.ty ?? npc.y) - npc.y) > 2;
-    const frame = moving ? Math.floor((nowMs + npc.bob * 120) / A.frameMs) % 4 : 0;
-    const dirKey = npc.dir || A.gdir;
-    const flt = dsg.float !== undefined ? dsg.float : !!A.float;
-    const ruler = isRulerNpc(npc, k);
-    const sc = ageScale(npc.age) * (ruler ? 1.12 : 1);
+    const frame = moving ? (Math.sin(npc.bob * 2.2) > 0 ? 1 : 0) : 2;
+    const hop = moving ? Math.abs(Math.sin(npc.bob * 2.2)) * -1.2 : Math.sin(npc.bob) * 0.4;
     const px = npc.x, py = npc.y;
-    const sh = dsg.shadow || A.shadow;
 
     // ظل + حلقة بلون المملكة
-    const srx = Math.max(2.5, sh.rx / 2 * DS_WORLD * sc);
-    const sy = py + 5.5 + (sh.dy || 0) * DS_WORLD * sc;
-    ctx.fillStyle = `rgba(0,0,0,${sh.alpha})`;
-    ctx.beginPath(); ctx.ellipse(px, sy, srx, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(px, py + 5.5, 5, 2, 0, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = k.color; ctx.globalAlpha = 0.9;
     ctx.lineWidth = 1 / Math.max(1, viewport.scale * 0.8);
-    ctx.beginPath(); ctx.ellipse(px, sy, srx + 0.3, 2.2, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(px, py + 5.5, 5.2, 2.2, 0, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 1;
 
-    const spr = getDesignSprite(ds.arch, ds.vi, dirKey, frame);
-    const dw = 16 * DS_WORLD * sc, dh = 20 * DS_WORLD * sc;
-    const bob = flt ? Math.sin(nowMs / 260 + npc.bob) * 1.4 * DS_WORLD : 0;
-    const dy = py + 6.5 + bob - dh;
-    ctx.drawImage(spr, px - dw/2, dy, dw, dh);
-
-    // تاج الحاكم
-    if (ruler) {
-      const cy = dy + (spr._top || 0) * DS_WORLD * sc - 1.3;
-      ctx.fillStyle = '#f6c945';
-      ctx.fillRect(px - 2.5, cy, 5, 1.4);
-      ctx.fillRect(px - 2.5, cy - 1.2, 1, 1.2);
-      ctx.fillRect(px - 0.5, cy - 1.7, 1, 1.7);
-      ctx.fillRect(px + 1.5, cy - 1.2, 1, 1.2);
-      ctx.fillStyle = '#e53e3e';
-      ctx.fillRect(px - 0.5, cy + 0.2, 1, 0.8);
+    const spr = spriteFor(npc, k, frame);
+    const dw = spr.width / SPRITE_PX * SPRITE_WORLD;
+    const dh = spr.height / SPRITE_PX * SPRITE_WORLD;
+    const dy = py + 6.5 + hop - dh;
+    if (npc.face === -1) {
+      ctx.save();
+      ctx.translate(px, 0); ctx.scale(-1, 1);
+      ctx.drawImage(spr, -dw/2, dy, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(spr, px - dw/2, dy, dw, dh);
     }
   }
-  ctx.imageSmoothingEnabled = true;
 
   // تمييز المفحوص
   if (inspected) {
@@ -2416,6 +2765,11 @@ function render() {
       const r = (14 + Math.sin(Date.now() / 200) * 2) / viewport.scale;
       ctx.beginPath();
       ctx.arc(inspected.npc.x, inspected.npc.y, r, 0, Math.PI*2);
+      ctx.stroke();
+    } else if (inspected.type === 'creature') {
+      const r = (14 + Math.sin(Date.now() / 200) * 2) / viewport.scale;
+      ctx.beginPath();
+      ctx.arc(inspected.c.x, inspected.c.y, r, 0, Math.PI*2);
       ctx.stroke();
     } else if (inspected.type === 'tile') {
       ctx.strokeRect(inspected.tx * TILE, inspected.ty * TILE, TILE, TILE);
@@ -2619,13 +2973,17 @@ function findNPCAt(wx, wy) {
     const d = Math.hypot(npc.x - wx, npc.y - wy);
     if (d < minDist) { minDist = d; nearest = npc; }
   }
+  for (const c of creatures) {
+    const d = Math.hypot(c.x - wx, c.y - wy);
+    if (d < minDist) { minDist = d; nearest = c; }
+  }
   return nearest;
 }
 function handleClick(sx, sy) {
   if (!world) return;
   const wp = screenToWorld(sx, sy);
   const npc = findNPCAt(wp.x, wp.y);
-  if (npc) { showNPCInfo(npc, sx, sy); return; }
+  if (npc) { if (npc.isCreature) showCreatureInfo(npc, sx, sy); else showNPCInfo(npc, sx, sy); return; }
   const tx = Math.floor(wp.x / TILE), ty = Math.floor(wp.y / TILE);
   if (tx < 0 || tx >= world.W || ty < 0 || ty >= world.H) { hideInspect(); return; }
   const type = world.terrain[ty][tx];
@@ -2886,6 +3244,7 @@ function pickTarget(npc) {
 
 function updateVisuals(dt) {
   if (!world) return;
+  updateCreatures(dt);
   for (const npc of world.npcs) {
     if (!npc.alive) continue;
     npc.bob += dt * 3;
@@ -2896,7 +3255,6 @@ function updateVisuals(dt) {
       npc.x += (dx/d) * Math.min(d, speed);
       npc.y += (dy/d) * Math.min(d, speed);
       if (Math.abs(dx) > 0.5) npc.face = dx < 0 ? -1 : 1;
-      npc.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
     } else {
       pickTarget(npc);
     }
