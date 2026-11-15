@@ -1,18 +1,20 @@
-# 🐱 purr
+# 🐱 Gam Lub (purr)
 
-**Gam Lub** is a browser-game hub featuring 18 games and interactive experiences. Browse them as floating orbs in the 3D hub, or use search and the mobile-friendly grid view.
+**A playful home for browser games.** Explore 18 games and interactive experiences through a 3D globe, or find your next game with search and the mobile-friendly grid.
+
+[Play online](https://anas68755.github.io/purr/) · [العربية](#العربية)
 
 ## Play
 
-**Online:** [Open Gam Lub on GitHub Pages](https://anas68755.github.io/purr/). The included GitHub Actions workflow deploys the site when changes are pushed to `main`. To enable it, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**.
+**Online:** [Open Gam Lub](https://anas68755.github.io/purr/). GitHub Actions deploys the site when changes are pushed to `main`. If Pages is not enabled yet, go to **Settings → Pages → Build and deployment** and choose **GitHub Actions** as the source.
 
-**Locally:** run a static web server from the repository root, then open the address it prints:
+**On your computer:** run a static web server from the repository root:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then visit <http://localhost:8000>. A local server is recommended because the hub and some games load JavaScript modules and other assets.
+Then open <http://localhost:8000>. Using a local server is recommended because the hub and some games load JavaScript modules and other assets.
 
 ## Games
 
@@ -37,19 +39,79 @@ Then visit <http://localhost:8000>. A local server is recommended because the hu
 | Keyboar | [`games/keyboar.html`](games/keyboar.html) |
 | Echo Cartographer | [`games/echo.html`](games/echo.html) |
 
-## Add a game to the hub
+## Add a game
 
-1. Add the game under `games/`. A standalone game can be a single HTML file; games with multiple assets can use a folder.
-2. Add an entry to the `ORBS` array near the top of the script in `index.html`:
+1. Add your game under `games/`. It can be a single HTML file or a folder with the files it needs.
+2. Add an entry to the `ORBS` array in `index.html`:
 
 ```js
-["My Game", "🎲", "Short description", "my-game"],
+["My Game", "🎲", "A short description", "my-game"],
 ```
 
-For a game in a subfolder, use a path such as `"my-folder/index"`. The hub resolves game IDs to files under `games/` and picks up the entry for its globe, search, and grid views.
+For a game inside a folder, use a path such as `"my-folder/index"`. The hub uses the entry to add the game to the globe, search, and grid views.
 
-## Notes
+## Good to know
 
-- Game progress, high scores, and saves are stored in the browser's `localStorage` on that device.
-- Some experiences load libraries or fonts from external CDNs, so those features require an internet connection.
-- There is no license file in the repository yet. Add one if you want to specify reuse terms.
+- Game progress, high scores, and saves are stored in your browser using `localStorage` and stay on that device.
+- Some games load libraries or fonts from external CDNs and need an internet connection for those features.
+- This repository does not currently include a license. Add one if you want to specify how others may reuse the project.
+
+---
+
+## العربية
+
+**مساحة ممتعة لألعاب المتصفح.** استكشف ١٨ لعبة وتجربة تفاعلية عبر كرة أرضية ثلاثية الأبعاد، أو ابحث عن لعبتك المفضلة باستخدام البحث والشبكة المناسبة للهواتف.
+
+[العب عبر الإنترنت](https://anas68755.github.io/purr/) · [English](#-gam-lub-purr)
+
+### العب
+
+**عبر الإنترنت:** [افتح Gam Lub](https://anas68755.github.io/purr/). ينشر GitHub Actions الموقع تلقائيًا عند رفع التغييرات إلى فرع `main`. إذا لم يكن GitHub Pages مفعّلًا، فانتقل إلى **Settings → Pages → Build and deployment** واختر **GitHub Actions** مصدرًا للنشر.
+
+**على جهازك:** شغّل خادم ويب ثابتًا من المجلد الرئيسي للمستودع:
+
+```bash
+python3 -m http.server 8000
+```
+
+ثم افتح <http://localhost:8000>. يُنصح باستخدام خادم محلي لأن الواجهة وبعض الألعاب تحمّل وحدات JavaScript وملفات أخرى.
+
+### الألعاب
+
+| اللعبة | الملف |
+|---|---|
+| حقيقة أم جرأة (Truth or Dare) | [`games/truda.html`](games/truda.html) |
+| بطاقات الشطرنج (Chess Cards) | [`games/chard.html`](games/chard.html) |
+| لعبة الرعب (Horror game) | [`games/horror.html`](games/horror.html) |
+| محطم الفراغ (Void Breaker) | [`games/voidbreaker.html`](games/voidbreaker.html) |
+| تحدي الحساب (Calc Chall) | [`games/calc-chall.html`](games/calc-chall.html) |
+| نقرة خرخرة (Purr Clicker) | [`games/purr-clicker.html`](games/purr-clicker.html) |
+| صعود الظلال (Shadow Rise) | [`games/notavailable.html`](games/notavailable.html) |
+| ممالك الصراع (Clash Kingdoms) | [`games/clash.html`](games/clash.html) |
+| أمسك القطة (Catch The Cat) | [`games/purch.html`](games/purch.html) |
+| إكس-أو (Tik Tak Toe) | [`games/tiktak.html`](games/tiktak.html) |
+| محاكي تطور الحضارة (Civilization Evo Sim) | [`games/civilization/index.html`](games/civilization/index.html) |
+| الساحر الناجي | [`games/survivor-ar.html`](games/survivor-ar.html) |
+| محاكي الاختراق الإلكتروني (CyberHack Sim) | [`games/cack.html`](games/cack.html) |
+| الروليت الروسية (Russian Roulette) | [`games/revolver.html`](games/revolver.html) |
+| ٢٠٤٨ | [`games/2048.html`](games/2048.html) |
+| مونوبولي نيون إكس (Neon Monopoly X) | [`games/monopoly.html`](games/monopoly.html) |
+| Keyboar | [`games/keyboar.html`](games/keyboar.html) |
+| رسام الخرائط الصدوي (Echo Cartographer) | [`games/echo.html`](games/echo.html) |
+
+### أضف لعبة
+
+١. أضف لعبتك داخل `games/`. يمكن أن تكون ملف HTML واحدًا أو مجلدًا يضم الملفات التي تحتاج إليها.
+٢. أضف سطرًا إلى مصفوفة `ORBS` في ملف `index.html`:
+
+```js
+["My Game", "🎲", "وصف قصير", "my-game"],
+```
+
+إذا كانت اللعبة داخل مجلد فرعي، استخدم مسارًا مثل `"my-folder/index"`. ستظهر اللعبة تلقائيًا في الكرة والبحث والشبكة.
+
+### ملاحظات
+
+- يُحفَظ التقدم وأعلى النتائج وملفات الحفظ في `localStorage` بالمتصفح، وتبقى على الجهاز نفسه.
+- تحمّل بعض الألعاب مكتبات أو خطوطًا من خدمات خارجية، لذا تحتاج هذه الميزات إلى اتصال بالإنترنت.
+- لا يتضمن المستودع حاليًا ملف ترخيص. أضف ترخيصًا إذا أردت تحديد شروط إعادة استخدام المشروع.
