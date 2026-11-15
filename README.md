@@ -3,7 +3,6 @@
 **A playful universe of browser games.** Explore 18 games and interactive experiences through a 3D globe, discover something new with search, or browse the mobile-friendly game grid. From quick puzzles to arcade action, there’s always another game to try.
 
 [Play Gam Lub](https://anas68755.github.io/purr/)
-[العربية](#العربية)
 
 ## Find your next favorite
 
@@ -27,7 +26,6 @@ Truth or Dare · Chess Cards · Horror game · Void Breaker · Calc Chall · Pur
 **عالم ممتع لألعاب المتصفح.** استكشف ١٨ لعبة وتجربة تفاعلية عبر كرة أرضية ثلاثية الأبعاد، واكتشف ألعابًا جديدة باستخدام البحث أو تصفح الشبكة المناسبة للهاتف. من الألغاز السريعة إلى ألعاب الحركة، هناك دائمًا لعبة جديدة لتجربتها.
 
 [العب Gam Lub](https://anas68755.github.io/purr/)
-[English](#-gam-lub-purr)
 
 ### اكتشف لعبتك المفضلة
 
