@@ -2458,6 +2458,13 @@ const DESIGN_AR = {
 // ---------- نشر المخلوقات وحركتها ----------
 let creatures = [];
 let creaturesWorld = null;
+let creaturesSig = '';
+// بصمة خفيفة للتضاريس: تُعاد ولادة المخلوقات فقط إذا تغيّرت الخريطة نفسها، لا عند كل تحديث للسنة
+function terrainSig() {
+  let h = 0;
+  for (let y = 0; y < world.H; y += 3) for (let x = 0; x < world.W; x += 3) h = (Math.imul(h, 31) + world.terrain[y][x].charCodeAt(0)) | 0;
+  return world.W + 'x' + world.H + ':' + h;
+}
 
 function creatureRng(seed) {
   let a = seed | 0;
@@ -2501,7 +2508,7 @@ function walkableAt(wx, wy) {
 }
 
 function spawnCreatures() {
-  creaturesWorld = world;
+  creaturesWorld = world; creaturesSig = terrainSig();
   creatures = [];
   if (inspected && inspected.type === 'creature') hideInspect();
   const rnd = creatureRng(20241);
@@ -2558,7 +2565,10 @@ function creatureMood(c) {
 
 function updateCreatures(dt) {
   if (!world) return;
-  if (creaturesWorld !== world) spawnCreatures();
+  if (creaturesWorld !== world) {
+    if (creaturesSig !== terrainSig()) spawnCreatures();
+    else creaturesWorld = world;   // نفس الخريطة: أبقِ المخلوقات في أماكنها
+  }
   for (const c of creatures) {
     c.bob += dt * 3;
     const m = creatureMood(c);
