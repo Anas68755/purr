@@ -242,6 +242,11 @@
     .stat { min-width:68px; padding:3px 8px; }
     .brand small { display:none; }
   }
+
+  .tip { position:fixed; z-index:60; display:none; pointer-events:none; white-space:nowrap;
+    background:rgba(14,20,30,.95); border:1px solid var(--line2); border-radius:8px;
+    padding:5px 10px; font-size:11px; line-height:1.5; color:#fff; box-shadow:0 8px 20px rgba(0,0,0,.5); }
+  .tip-sub { color:var(--muted); font-size:10px; }
 </style>
 </head>
 <body>
@@ -266,11 +271,16 @@
     <div class="stat"><i>🔬</i><div><b id="s-tech">—</b><small>التقنيات</small></div></div>
     <div class="stat"><i>💀</i><div><b id="s-deaths">—</b><small>الوفيات</small></div></div>
     <div class="stat"><i>🔍</i><div><b id="s-zoom">100%</b><small>التقريب</small></div></div>
+    <div class="stat"><i id="s-season-i">🌸</i><div><b id="s-season">—</b><small>الفصل</small></div></div>
+    <div class="stat"><i id="s-time-i">☀️</i><div><b id="s-time">—</b><small>الوقت</small></div></div>
   </div>
 
   <div class="controls">
     <button onclick="resetZoom()" title="إعادة تمركز الكاميرا">🎯 إعادة</button>
     <button onclick="manualRefresh()" title="تحديث الحالة من الخادم">🔄 تحديث</button>
+    <button id="btn-sound" onclick="toggleSound()" title="أجواء صوتية (مكتومة افتراضيًا)">🔇 الصوت</button>
+    <button id="btn-day" onclick="toggleDayCycle()" title="تشغيل/إيقاف دورة النهار والليل">🌗 الدورة: تعمل</button>
+    <button id="btn-season" onclick="cycleSeason()" title="الفصل يتبع سنة العالم؛ انقر لمعاينة الفصول">🗓️ الفصل: تلقائي</button>
   </div>
 </header>
 
@@ -301,6 +311,8 @@
     </details>
   </aside>
 </div>
+
+<div id="tip" class="tip"></div>
 
 <script type="module">
 import {
@@ -2520,16 +2532,28 @@ function spawnCreatures() {
 }
 
 function pickCreatureTarget(c) {
-  for (let tries = 0; tries < 8; tries++) {
+  const home = HOME[c.arch] || [];
+  for (let tries = 0; tries < 10; tries++) {
     const ang = Math.random() * Math.PI * 2, dist = 10 + Math.random() * 34;
     const nx = c.x + Math.cos(ang) * dist, ny = c.y + Math.sin(ang) * dist;
     let ok = true;
     for (let s = 1; s <= 6; s++) {
       if (!walkableAt(c.x + (nx - c.x) * s / 6, c.y + (ny - c.y) * s / 6)) { ok = false; break; }
     }
-    if (ok) { c.tx = nx; c.ty = ny; return; }
+    if (!ok) continue;
+    // يفضّل البقاء في موطنه الطبيعي
+    if (home.length && !home.includes(kindAtWorld(nx, ny)) && Math.random() < 0.85) continue;
+    c.tx = nx; c.ty = ny; return;
   }
   c.tx = c.x; c.ty = c.y;
+}
+
+// نشاط المخلوق حسب الوقت والفصل
+function creatureMood(c) {
+  const pref = ACT[c.arch] || 'both', n = timeState.night;
+  let m = pref === 'night' ? 0.45 + 0.55 * n : pref === 'day' ? 1 - 0.65 * n : 1;
+  if (seasonIdx() === 3) m *= 0.8;
+  return m;
 }
 
 function updateCreatures(dt) {
@@ -2537,17 +2561,18 @@ function updateCreatures(dt) {
   if (creaturesWorld !== world) spawnCreatures();
   for (const c of creatures) {
     c.bob += dt * 3;
+    const m = creatureMood(c);
     if (c.wait > 0) { c.wait -= dt; c.moving = false; continue; }
     const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);
     if (d > 1.5) {
-      const step = Math.min(d, c.speed * dt);
+      const step = Math.min(d, c.speed * m * dt);
       c.x += dx / d * step; c.y += dy / d * step;
       c.moving = true;
       c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
     } else {
       c.moving = false;
       pickCreatureTarget(c);
-      c.wait = 0.8 + Math.random() * 3;
+      c.wait = (0.8 + Math.random() * 3) / Math.max(0.3, m);
     }
   }
 }
@@ -2565,9 +2590,25 @@ function drawCreature(c, nowMs) {
   const spr = getDesignSprite(c.arch, c.vi, c.dir || A.gdir, frame);
   const dw = 16 * DS_WORLD, dh = 20 * DS_WORLD;
   const bob = flt ? Math.sin(nowMs / 260 + c.bob) * 1.4 * DS_WORLD : 0;
+  const top = c.y + 6.5 + bob - dh;
   ctx.imageSmoothingEnabled = viewport.scale < 1.5;
-  ctx.drawImage(spr, c.x - dw / 2, c.y + 6.5 + bob - dh, dw, dh);
+  ctx.drawImage(spr, c.x - dw / 2, top, dw, dh);
   ctx.imageSmoothingEnabled = true;
+
+  // توهج ليلي للمخلوقات المضيئة
+  const gcol = c.arch === 'wisp' ? dsg.pal.t : GLOW[c.arch + ':' + c.vi];
+  if (gcol) glowQueue.push({ x: c.x, y: c.y - 2 + bob, col: gcol, r: c.arch === 'wisp' ? 16 : 11,
+                             k: c.arch === 'wisp' ? 0.9 : 0.7, min: c.arch === 'wisp' ? 0.3 : 0 });
+  // نوم المخلوقات النهارية ليلًا
+  if (!c.moving && ACT[c.arch] === 'day' && timeState.night > 0.5) {
+    const zy = Math.sin(nowMs / 500 + c.bob) * 0.6;
+    labelQueue.push({ x: c.x + 3.5, y: top + 2 + zy, text: 'z', size: 3.4, color: '#bcd4ff', raw: true });
+  }
+  // اسم المخلوق عند التمرير أو التكبير أو التحديد
+  const selected = inspected && inspected.type === 'creature' && inspected.c === c;
+  if (hoverTarget === c || selected || viewport.scale >= 2.2) {
+    labelQueue.push({ x: c.x, y: top - 1.5, text: DESIGN_AR[c.arch][c.vi][0], size: 10.5, color: '#f3f6fb' });
+  }
 }
 
 function creaturePortrait(c, width) {
@@ -2583,6 +2624,8 @@ function showCreatureInfo(c, sx, sy) {
   const [nm, ds] = DESIGN_AR[c.arch][c.vi];
   const tx = Math.floor(c.x / TILE), ty = Math.floor(c.y / TILE);
   const tinfo = world && world.terrain[ty] ? TERRAIN_TYPES[world.terrain[ty][tx]] : null;
+  const home = (HOME[c.arch] || []).map(k => KIND_AR[k] || k);
+  const homeTxt = home.length >= 6 ? 'أي مكان' : home.join('، ');
   const panel = document.getElementById('inspect-panel');
   panel.innerHTML = `
     <button class="close-btn" onclick="hideInspect()">×</button>
@@ -2594,48 +2637,580 @@ function showCreatureInfo(c, sx, sy) {
       </div>
     </div>
     <div class="ins-row"><span>📜</span><span>${ds}</span></div>
+    <div class="ins-row"><span>🏞️</span><span>الموطن: ${homeTxt}</span></div>
+    <div class="ins-row"><span>🕒</span><span>النشاط: ${ACT_AR[ACT[c.arch] || 'both']}</span></div>
     <div class="ins-row"><span>📍</span><span>${tinfo ? tinfo.ar : '—'} (${tx}, ${ty})</span></div>
     <div class="ins-row"><span>❤️</span><span>الحيوية ${c.vitality}</span></div>
-    <div class="ins-row"><span>👟</span><span>${c.moving ? 'يتجول' : 'يستريح'}</span></div>
+    <div class="ins-row"><span>👟</span><span>${c.moving ? 'يتجول' : (creatureMood(c) < 0.6 ? 'ينام / يستريح' : 'يستريح')}</span></div>
   `;
   panel.style.display = 'block';
   positionPanel(sx, sy);
+  playCreatureSound(c.arch);
+}
+
+// ============================================================
+//        الموطن والنشاط · الوقت والفصول · الأجواء والصوت
+// ============================================================
+const KIND_AR = { grass:'السهول', forest:'الغابات', mountain:'الجبال', hill:'التلال', desert:'الصحراء', water:'الماء', other:'مناطق أخرى' };
+const HOME = {
+  wolf:   ['grass', 'forest', 'hill'],
+  slime:  ['grass', 'forest'],
+  knight: ['grass', 'hill', 'desert'],
+  golem:  ['mountain', 'hill', 'desert'],
+  spider: ['forest', 'mountain', 'desert'],
+  wisp:   ['grass', 'forest', 'mountain', 'hill', 'desert', 'other']
+};
+const ACT = { wolf:'night', spider:'night', wisp:'night', slime:'day', knight:'day', golem:'both' };
+const ACT_AR = { night:'ليلي', day:'نهاري', both:'طوال اليوم' };
+// المخلوقات المضيئة (لون r,g,b)
+const GLOW = {
+  'wolf:4':'255,110,40', 'wolf:7':'170,190,255', 'slime:7':'255,100,40', 'golem:3':'255,90,30',
+  'golem:5':'190,100,255', 'golem:1':'120,190,255', 'spider:8':'255,110,40', 'spider:9':'160,255,100',
+  'knight:2':'255,50,50', 'knight:8':'150,230,255'
+};
+
+let kindGrid = [];
+function kindAtWorld(wx, wy) {
+  const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
+  const row = kindGrid[ty];
+  return (row && row[tx]) || 'other';
+}
+
+// ---------- الفصول ----------
+const SEASONS = [
+  { ar:'الربيع', icon:'🌸' }, { ar:'الصيف', icon:'☀️' },
+  { ar:'الخريف', icon:'🍂' }, { ar:'الشتاء', icon:'❄️' }
+];
+let seasonOverride = null;
+function seasonIdx() {
+  if (seasonOverride !== null) return seasonOverride;
+  return world ? ((Math.floor(world.year) % 4) + 4) % 4 : 1;   // سنة العالم تحدد الفصل
+}
+function cycleSeason() {
+  seasonOverride = seasonOverride === null ? 0 : (seasonOverride >= 3 ? null : seasonOverride + 1);
+  if (world) buildTerrainCache();
+  updateAmbientUI(true);
+}
+window.cycleSeason = cycleSeason;
+
+// ---------- الوقت (دورة نهار/ليل) ----------
+const DAY_SEC = 240;
+let dayCycle = true;
+const T_START = performance.now();
+const timeState = { night: 0, dusk: 0, label: 'نهار', icon: '☀️' };
+function updateTimeState(nowMs) {
+  if (!dayCycle) { timeState.night = 0; timeState.dusk = 0; timeState.label = 'نهار'; timeState.icon = '☀️'; return; }
+  const p = ((((nowMs - T_START) / 1000) % DAY_SEC) / DAY_SEC + 0.78) % 1;   // يبدأ عند الفجر
+  const h = (Math.cos(Math.PI * 2 * p) + 1) / 2;
+  timeState.night = Math.max(0, Math.min(1, (0.42 - h) / 0.32));
+  timeState.dusk = Math.max(0, 1 - Math.abs(h - 0.5) / 0.16);
+  if (timeState.night > 0.6) { timeState.label = 'ليل'; timeState.icon = '🌙'; }
+  else if (timeState.dusk > 0.25) {
+    const falling = Math.sin(Math.PI * 2 * p) > 0;
+    timeState.label = falling ? 'غروب' : 'فجر'; timeState.icon = falling ? '🌇' : '🌅';
+  } else { timeState.label = 'نهار'; timeState.icon = '☀️'; }
+}
+function toggleDayCycle() { dayCycle = !dayCycle; updateAmbientUI(true); }
+window.toggleDayCycle = toggleDayCycle;
+
+// ---------- التمرير والأسماء ----------
+let hoverTarget = null;
+const glowQueue = [];
+const labelQueue = [];
+function setHover(t, cx, cy) {
+  hoverTarget = t;
+  const tip = document.getElementById('tip');
+  if (!tip) return;
+  if (!t) { tip.style.display = 'none'; return; }
+  if (t.isCreature) {
+    const nm = DESIGN_AR[t.arch][t.vi][0];
+    tip.innerHTML = `<b>${nm}</b><br><span class="tip-sub">${ARCH_AR[t.arch]} · ${ACT_AR[ACT[t.arch] || 'both']}</span>`;
+  } else {
+    const k = world && world.getKingdom(t.kingdomId);
+    tip.innerHTML = `<b>${t.name}</b><br><span class="tip-sub">${k ? k.name : '—'} · ${t.age} سنة</span>`;
+  }
+  tip.style.display = 'block';
+  let left = cx + 14;
+  if (left + tip.offsetWidth > window.innerWidth - 6) left = cx - tip.offsetWidth - 14;
+  tip.style.left = left + 'px';
+  tip.style.top = (cy + 14) + 'px';
+}
+canvas.addEventListener('mouseleave', () => setHover(null));
+
+// ---------- الغلاف الجوي: لون الوقت والفصل + توهج + أسماء ----------
+function drawAtmosphere(nowMs) {
+  const w = world.W * TILE, h = world.H * TILE, ts = timeState, s = seasonIdx();
+  const grade = [null, 'rgba(255,215,120,0.035)', 'rgba(190,100,30,0.06)', 'rgba(150,200,255,0.07)'][s];
+  if (grade) { ctx.fillStyle = grade; ctx.fillRect(0, 0, w, h); }
+  if (ts.dusk > 0.01) { ctx.fillStyle = `rgba(255,130,50,${0.11 * ts.dusk})`; ctx.fillRect(0, 0, w, h); }
+  if (ts.night > 0.01) { ctx.fillStyle = `rgba(6,12,42,${0.52 * ts.night})`; ctx.fillRect(0, 0, w, h); }
+
+  // توهج (مخلوقات مضيئة + نوافذ القلاع)
+  const vx0 = -viewport.offsetX / viewport.scale, vy0 = -viewport.offsetY / viewport.scale;
+  const vx1 = vx0 + canvas.width / viewport.scale, vy1 = vy0 + canvas.height / viewport.scale;
+  ctx.globalCompositeOperation = 'lighter';
+  for (const gl of glowQueue) {
+    if (gl.x < vx0 - 30 || gl.x > vx1 + 30 || gl.y < vy0 - 30 || gl.y > vy1 + 30) continue;
+    const a = gl.k * Math.max(gl.min || 0, ts.night);
+    if (a < 0.02) continue;
+    const gr = ctx.createRadialGradient(gl.x, gl.y, 0, gl.x, gl.y, gl.r);
+    gr.addColorStop(0, `rgba(${gl.col},${0.55 * a})`);
+    gr.addColorStop(1, `rgba(${gl.col},0)`);
+    ctx.fillStyle = gr;
+    ctx.fillRect(gl.x - gl.r, gl.y - gl.r, gl.r * 2, gl.r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // الأسماء
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.lineJoin = 'round';
+  for (const lb of labelQueue) {
+    const fs = lb.raw ? lb.size : lb.size / viewport.scale;
+    ctx.font = `bold ${fs}px 'Segoe UI',Tahoma,sans-serif`;
+    ctx.lineWidth = fs / 3.2;
+    ctx.strokeStyle = 'rgba(5,8,16,0.9)';
+    ctx.strokeText(lb.text, lb.x, lb.y);
+    ctx.fillStyle = lb.color;
+    ctx.fillText(lb.text, lb.x, lb.y);
+  }
+}
+
+// ---------- جسيمات الفصول ----------
+const parts = Array.from({ length: 110 }, () => ({ x: Math.random(), y: Math.random(), v: Math.random(), ph: Math.random() * 6.28, s: Math.random() }));
+let lastPT = 0;
+function drawParticles(nowMs) {
+  const dt = lastPT ? Math.min(0.05, (nowMs - lastPT) / 1000) : 0;
+  lastPT = nowMs;
+  const s = seasonIdx(), ts = timeState, W = canvas.width, H = canvas.height, k = W / 900;
+  let n, mode;
+  if (s === 3) { n = 110; mode = 'snow'; }
+  else if (s === 2) { n = 46; mode = 'leaf'; }
+  else if (s === 0) { n = 42; mode = 'petal'; }
+  else if (ts.night > 0.35) { n = 34; mode = 'fire'; }
+  else { n = 18; mode = 'mote'; }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < n; i++) {
+    const p = parts[i];
+    let vy = 0.03, vx = 0.0;
+    if (mode === 'snow') { vy = 0.05 + 0.06 * p.v; vx = 0.012; }
+    else if (mode === 'leaf') { vy = 0.035 + 0.03 * p.v; vx = 0.02; }
+    else if (mode === 'petal') { vy = 0.02 + 0.02 * p.v; vx = 0.01; }
+    else if (mode === 'mote') { vy = -0.006; vx = 0.004; }
+    else { vy = Math.sin(nowMs / 2000 + p.ph) * 0.01; vx = Math.cos(nowMs / 2300 + p.ph) * 0.01; }
+    p.y += vy * dt;
+    p.x += (vx + Math.sin(nowMs / 1500 + p.ph) * 0.012) * dt;
+    if (p.y > 1.02) { p.y = -0.02; p.x = Math.random(); }
+    if (p.y < -0.03) p.y = 1.02;
+    if (p.x > 1.02) p.x = -0.02;
+    if (p.x < -0.03) p.x = 1.02;
+    const x = p.x * W, y = p.y * H;
+    if (mode === 'snow') {
+      ctx.fillStyle = `rgba(255,255,255,${0.5 + 0.4 * p.s})`;
+      ctx.beginPath(); ctx.arc(x, y, (1 + 1.6 * p.s) * k, 0, Math.PI * 2); ctx.fill();
+    } else if (mode === 'leaf' || mode === 'petal') {
+      ctx.fillStyle = mode === 'petal' ? (p.s > 0.5 ? '#ffc2dc' : '#ffe3ef') : (p.s > 0.66 ? '#d9772b' : p.s > 0.33 ? '#c9402a' : '#e9b23a');
+      ctx.beginPath();
+      ctx.ellipse(x, y, (mode === 'leaf' ? 3.2 : 2.4) * k, (mode === 'leaf' ? 1.8 : 1.4) * k, nowMs / 400 + p.ph, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (mode === 'mote') {
+      ctx.fillStyle = 'rgba(255,240,200,0.22)';
+      ctx.beginPath(); ctx.arc(x, y, 1.1 * k, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const a = 0.5 + 0.5 * Math.sin(nowMs / 300 + p.ph * 3);
+      ctx.globalCompositeOperation = 'lighter';
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, 7 * k);
+      gr.addColorStop(0, `rgba(255,240,120,${0.55 * a})`);
+      gr.addColorStop(1, 'rgba(255,240,120,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(x - 7 * k, y - 7 * k, 14 * k, 14 * k);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(255,250,170,${0.4 + 0.6 * a})`;
+      ctx.beginPath(); ctx.arc(x, y, 1.2 * k, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// ---------- الصوت والأجواء (WebAudio — مولّد بالكود، مكتوم افتراضيًا) ----------
+const Snd = { on: false, ac: null, master: null, windG: null, waterG: null, cricketG: null,
+              nextBird: 0, nextHowl: 0, nextWater: 0, waterFrac: 0 };
+
+function sndInit() {
+  if (Snd.ac) return true;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return false;
+  const ac = Snd.ac = new AC();
+  Snd.master = ac.createGain(); Snd.master.gain.value = 0; Snd.master.connect(ac.destination);
+  const len = ac.sampleRate * 3, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const mkNoise = (type, freq, q) => {
+    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ac.createGain(); g.gain.value = 0;
+    src.connect(f); f.connect(g); g.connect(Snd.master); src.start();
+    return { f, g };
+  };
+  const w = mkNoise('lowpass', 450, 0.7); Snd.windG = w.g;
+  const l1 = ac.createOscillator(); l1.frequency.value = 0.13;
+  const lg1 = ac.createGain(); lg1.gain.value = 220; l1.connect(lg1); lg1.connect(w.f.frequency); l1.start();
+  const wa = mkNoise('bandpass', 1100, 0.6); Snd.waterG = wa.g;
+  const l2 = ac.createOscillator(); l2.frequency.value = 0.35;
+  const lg2 = ac.createGain(); lg2.gain.value = 300; l2.connect(lg2); lg2.connect(wa.f.frequency); l2.start();
+  // صراصير الليل
+  const co = ac.createOscillator(); co.type = 'sine'; co.frequency.value = 4300;
+  const am = ac.createGain(); am.gain.value = 0;
+  const cl = ac.createOscillator(); cl.frequency.value = 13;
+  const cd = ac.createGain(); cd.gain.value = 0.5; cl.connect(cd); cd.connect(am.gain);
+  Snd.cricketG = ac.createGain(); Snd.cricketG.gain.value = 0;
+  co.connect(am); am.connect(Snd.cricketG); Snd.cricketG.connect(Snd.master);
+  co.start(); cl.start();
+  return true;
+}
+
+function chirp() {
+  const ac = Snd.ac; let t = ac.currentTime;
+  const notes = 2 + Math.floor(Math.random() * 3), base = 2200 + Math.random() * 1800;
+  for (let i = 0; i < notes; i++) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    const f = base * (1 + Math.random() * 0.25);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * (1.15 + Math.random() * 0.3), t + 0.07);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.03, t + 0.015);
+    g.gain.linearRampToValueAtTime(0, t + 0.08);
+    o.connect(g); g.connect(Snd.master); o.start(t); o.stop(t + 0.1);
+    t += 0.09 + Math.random() * 0.05;
+  }
+}
+
+function howl() {
+  const ac = Snd.ac, t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain(), v = ac.createOscillator(), vg = ac.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(260, t);
+  o.frequency.linearRampToValueAtTime(520, t + 0.9);
+  o.frequency.linearRampToValueAtTime(480, t + 1.8);
+  o.frequency.linearRampToValueAtTime(300, t + 3);
+  v.frequency.value = 6; vg.gain.value = 9; v.connect(vg); vg.connect(o.frequency);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.035, t + 0.6);
+  g.gain.linearRampToValueAtTime(0.03, t + 2);
+  g.gain.linearRampToValueAtTime(0, t + 3.1);
+  o.connect(g); g.connect(Snd.master);
+  o.start(t); v.start(t); o.stop(t + 3.2); v.stop(t + 3.2);
+}
+
+function playCreatureSound(arch) {
+  if (!Snd.on || !Snd.ac) return;
+  const ac = Snd.ac, t = ac.currentTime;
+  const tone = (type, f0, f1, dur, vol, delay) => {
+    delay = delay || 0;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t + delay);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + delay + dur);
+    g.gain.setValueAtTime(0, t + delay);
+    g.gain.linearRampToValueAtTime(vol, t + delay + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur);
+    o.connect(g); g.connect(Snd.master); o.start(t + delay); o.stop(t + delay + dur + 0.02);
+  };
+  switch (arch) {
+    case 'slime':  tone('sine', 200, 520, 0.2, 0.12); tone('sine', 520, 260, 0.12, 0.08, 0.12); break;
+    case 'wolf':   tone('sawtooth', 420, 200, 0.28, 0.05); break;
+    case 'golem':  tone('triangle', 95, 45, 0.4, 0.2); break;
+    case 'wisp':   tone('sine', 880, 880, 0.5, 0.07); tone('sine', 1320, 1320, 0.6, 0.05, 0.08); break;
+    case 'spider': [0, 0.07, 0.14].forEach(dl => tone('square', 1900, 1700, 0.03, 0.035, dl)); break;
+    case 'knight': tone('square', 1200, 1100, 0.12, 0.04); tone('sine', 1800, 1750, 0.2, 0.05, 0.02); break;
+  }
+}
+
+function sndTick(nowMs) {
+  if (!Snd.on || !Snd.ac) return;
+  const t = Snd.ac.currentTime, ts = timeState, s = seasonIdx();
+  if (nowMs > Snd.nextWater) {
+    Snd.nextWater = nowMs + 1000;
+    const x0 = -viewport.offsetX / viewport.scale, y0 = -viewport.offsetY / viewport.scale;
+    const w = canvas.width / viewport.scale, h = canvas.height / viewport.scale;
+    let wc = 0;
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) {
+      if (kindAtWorld(x0 + w * (i + 0.5) / 6, y0 + h * (j + 0.5) / 6) === 'water') wc++;
+    }
+    Snd.waterFrac = wc / 36;
+  }
+  Snd.windG.gain.setTargetAtTime(s === 3 ? 0.11 : 0.045, t, 0.8);
+  Snd.waterG.gain.setTargetAtTime(Snd.waterFrac * (s === 3 ? 0.03 : 0.09), t, 0.8);
+  Snd.cricketG.gain.setTargetAtTime(s === 3 ? 0 : ts.night * 0.016, t, 1.2);
+  if (ts.night < 0.3 && s !== 3 && nowMs > Snd.nextBird) {
+    chirp();
+    Snd.nextBird = nowMs + (s <= 1 ? 1800 : 3500) + Math.random() * 5000;
+  }
+  if (ts.night > 0.6 && nowMs > Snd.nextHowl) {
+    if (creatures.some(c => c.arch === 'wolf')) howl();
+    Snd.nextHowl = nowMs + 22000 + Math.random() * 30000;
+  }
+}
+
+function toggleSound() {
+  if (!Snd.on) {
+    if (!sndInit()) return;
+    Snd.ac.resume();
+    Snd.on = true;
+    Snd.master.gain.setTargetAtTime(0.9, Snd.ac.currentTime, 0.3);
+    Snd.nextHowl = performance.now() + 8000;
+    Snd.nextBird = 0;
+  } else {
+    Snd.on = false;
+    Snd.master.gain.setTargetAtTime(0, Snd.ac.currentTime, 0.15);
+  }
+  updateAmbientUI(true);
+}
+window.toggleSound = toggleSound;
+
+// ---------- واجهة الأجواء ----------
+let uiNext = 0;
+function updateAmbientUI(force) {
+  const now = performance.now();
+  if (!force && now < uiNext) return;
+  uiNext = now + 500;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const se = SEASONS[seasonIdx()];
+  set('s-season', se.ar); set('s-season-i', se.icon);
+  set('s-time', timeState.label); set('s-time-i', timeState.icon);
+  set('btn-sound', Snd.on ? '🔊 الصوت' : '🔇 الصوت');
+  set('btn-day', dayCycle ? '🌗 الدورة: تعمل' : '☀️ الدورة: متوقفة');
+  set('btn-season', seasonOverride === null ? '🗓️ الفصل: تلقائي' : se.icon + ' ' + se.ar);
+}
+
+function ambientTick(dt) {
+  const now = performance.now();
+  updateTimeState(now);
+  sndTick(now);
+  updateAmbientUI(false);
 }
 
 // ============================================================
 //                    التضاريس — ذاكرة مؤقتة
 // ============================================================
-function buildTerrainCache() {
-  if (!world) return;
-  terrainCache = document.createElement('canvas');
-  terrainCache.width = world.W * TILE;
-  terrainCache.height = world.H * TILE;
-  canvas.width = terrainCache.width;
-  canvas.height = terrainCache.height;
-  const g = terrainCache.getContext('2d');
+// تضاريس مفصّلة: عشب وزهور وأشجار وجبال وتلال وكثبان وماء بشواطئ، وتتغير بالفصول
+let TC = 3;
+let waterGlints = [];
 
-  for (let y = 0; y < world.H; y++) {
-    for (let x = 0; x < world.W; x++) {
-      const info = TERRAIN_TYPES[world.terrain[y][x]];
-      g.fillStyle = info.color;
-      g.fillRect(x*TILE, y*TILE, TILE, TILE);
-      if (Math.random() < 0.15) {
-        g.fillStyle = 'rgba(255,255,255,0.04)';
-        g.fillRect(x*TILE, y*TILE, TILE, TILE);
-      }
-    }
+function hexA(hex, a) {
+  const m = /^#([0-9a-f]{6})/i.exec(hex || '');
+  if (!m) return `rgba(0,0,0,${a * 0.5})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function thash(x, y, sd) {
+  let h = (Math.imul(x + 1, 374761393) + Math.imul(y + 1, 668265263) + Math.imul(sd + 1, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function tri(g, x1, y1, x2, y2, x3, y3) { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.closePath(); g.fill(); }
+function disc(g, x, y, r) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+
+const NB4 = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+function edgeStrip(g, side, w, c0, c1) {
+  let x0 = 0, y0 = 0, x1 = 0, y1 = 0, rx = 0, ry = 0, rw = TILE, rh = TILE;
+  if (side === 0) { y1 = w; rh = w; }
+  else if (side === 1) { y0 = TILE; y1 = TILE - w; ry = TILE - w; rh = w; }
+  else if (side === 2) { x1 = w; rw = w; }
+  else { x0 = TILE; x1 = TILE - w; rx = TILE - w; rw = w; }
+  const gr = g.createLinearGradient(x0, y0, x1, y1);
+  gr.addColorStop(0, c0); gr.addColorStop(1, c1);
+  g.fillStyle = gr; g.fillRect(rx, ry, rw, rh);
+}
+
+function drawTree(g, tx, ty, season, pine) {
+  const pal = season === 0 ? ['#2a7a3c', '#43a85a', '#7fd37a']
+            : season === 2 ? ['#8e3a1a', '#c9672a', '#f0b040']
+            : season === 3 ? ['#24413a', '#355c52', '#4f7a6c']
+            : ['#1d5e30', '#2f8a45', '#48a85c'];
+  g.fillStyle = 'rgba(0,0,0,0.25)';
+  g.beginPath(); g.ellipse(tx, ty + 1.5, 2.2, 0.7, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#5a3a1f'; g.fillRect(tx - 0.4, ty - 0.2, 0.8, 1.8);
+  if (pine) {
+    g.fillStyle = pal[0];
+    tri(g, tx, ty - 5.2, tx - 2.1, ty - 1.6, tx + 2.1, ty - 1.6);
+    tri(g, tx, ty - 3.6, tx - 2.7, ty + 0.1, tx + 2.7, ty + 0.1);
+    g.fillStyle = pal[1];
+    tri(g, tx, ty - 5.2, tx - 1.1, ty - 3.0, tx + 1.1, ty - 3.0);
+    if (season === 3) { g.fillStyle = 'rgba(245,250,255,0.92)'; tri(g, tx, ty - 5.2, tx - 1.3, ty - 3.4, tx + 1.3, ty - 3.4); tri(g, tx, ty - 3.6, tx - 1.9, ty - 1.9, tx + 1.9, ty - 1.9); }
+  } else {
+    g.fillStyle = pal[0]; disc(g, tx, ty - 2.2, 2.3);
+    g.fillStyle = pal[1]; disc(g, tx - 0.5, ty - 2.7, 1.5);
+    g.fillStyle = pal[2]; disc(g, tx - 0.9, ty - 3.1, 0.7);
+    if (season === 3) { g.fillStyle = 'rgba(245,250,255,0.92)'; g.beginPath(); g.ellipse(tx, ty - 3.9, 1.8, 0.8, 0, 0, Math.PI * 2); g.fill(); }
+    if (season === 0) { g.fillStyle = '#ffb7d5'; disc(g, tx - 1.2, ty - 2.6, 0.45); disc(g, tx + 0.9, ty - 3.3, 0.45); disc(g, tx + 0.2, ty - 1.6, 0.4); }
   }
-  g.font = '9px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  for (let y = 0; y < world.H; y++) {
-    for (let x = 0; x < world.W; x++) {
-      if (Math.random() < 0.05) {
-        const info = TERRAIN_TYPES[world.terrain[y][x]];
-        if (info.decor && info.decor.length) {
-          g.fillText(info.decor[Math.floor(Math.random()*info.decor.length)], x*TILE + TILE/2, y*TILE + TILE/2 + 1);
+}
+
+function drawTile(g, x, y, season) {
+  const type = world.terrain[y][x];
+  const info = TERRAIN_TYPES[type] || { color: '#2a2f38' };
+  const kind = kindGrid[y][x];
+  const R = sd => thash(x, y, sd);
+  const nbKind = (dx, dy) => { const r = kindGrid[y + dy]; return r ? (r[x + dx] || null) : null; };
+
+  g.fillStyle = info.color; g.fillRect(-0.3, -0.3, TILE + 0.6, TILE + 0.6);
+  const n = R(1);
+  g.fillStyle = n < 0.5 ? `rgba(255,255,255,${(0.5 - n) * 0.12})` : `rgba(0,0,0,${(n - 0.5) * 0.16})`;
+  g.fillRect(0, 0, TILE, TILE);
+
+  // لمسة الفصل على الأرض
+  const veg = kind === 'grass' || kind === 'forest' || kind === 'hill';
+  if (veg && season === 0) { g.fillStyle = 'rgba(120,255,140,0.08)'; g.fillRect(0, 0, TILE, TILE); }
+  else if (veg && season === 2) { g.fillStyle = 'rgba(205,115,30,0.28)'; g.fillRect(0, 0, TILE, TILE); }
+  else if (season === 3 && kind !== 'water') {
+    g.fillStyle = `rgba(236,244,255,${kind === 'desert' ? 0.22 : 0.5})`; g.fillRect(0, 0, TILE, TILE);
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    for (let i = 0; i < 4; i++) g.fillRect(R(200 + i) * 11, R(210 + i) * 11, 0.9, 0.9);
+  }
+
+  switch (kind) {
+    case 'grass': {
+      const bl = season === 2 ? ['rgba(130,80,20,0.5)', 'rgba(220,170,70,0.4)']
+               : season === 3 ? null : ['rgba(0,60,10,0.38)', 'rgba(210,255,150,0.28)'];
+      if (bl) for (let i = 0; i < 7; i++) {
+        const bx = R(10 + i) * TILE, by = 1 + R(30 + i) * (TILE - 1);
+        g.strokeStyle = bl[i % 2]; g.lineWidth = 0.6;
+        g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + (R(50 + i) - 0.5) * 1.8, by - 1.6 - R(70 + i) * 1.4); g.stroke();
+      }
+      const fp = season === 0 ? 0.34 : season === 1 ? 0.14 : season === 2 ? 0.05 : 0;
+      if (R(90) < fp) {
+        const cols = ['#fff2a8', '#ff9ac8', '#ffffff', '#b9a2ff'], c = cols[Math.floor(R(91) * cols.length)];
+        for (let k = 0; k < 3; k++) {
+          const fx = 2 + R(92 + k) * 8, fy = 3 + R(95 + k) * 7;
+          g.fillStyle = c; disc(g, fx, fy, 0.55); g.fillStyle = '#e8c040'; disc(g, fx, fy, 0.2);
         }
       }
+      if (R(100) < 0.1) {
+        const bx = 3 + R(101) * 6, by = 8 + R(102) * 3;
+        g.fillStyle = season === 2 ? '#8a4a1e' : season === 3 ? '#dfe9f2' : '#2c6b34'; disc(g, bx, by, 1.5);
+        g.fillStyle = 'rgba(255,255,255,0.18)'; disc(g, bx - 0.5, by - 0.5, 0.7);
+      }
+      break;
+    }
+    case 'forest': {
+      g.fillStyle = season === 3 ? 'rgba(20,40,40,0.15)' : 'rgba(0,35,0,0.22)'; g.fillRect(0, 0, TILE, TILE);
+      const cnt = 2 + (R(60) > 0.45 ? 1 : 0), ts = [];
+      for (let i = 0; i < cnt; i++) ts.push({ x: 2.4 + R(61 + i) * 7.2, y: 5 + R(70 + i) * 5.5, pine: R(80 + i) > 0.4 });
+      ts.sort((a, b) => a.y - b.y);
+      for (const t of ts) drawTree(g, t.x, t.y, season, t.pine);
+      break;
+    }
+    case 'mountain': {
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 0, TILE, TILE);
+      const peaks = [{ x: 3.2 + R(110) * 1.5, h: 5 + R(111) * 2, w: 3.3 }, { x: 8.2 + R(112) * 1.5, h: 7 + R(113) * 2.5, w: 4 }];
+      for (const p of peaks) {
+        const by = 10.8, top = by - p.h;
+        g.fillStyle = '#5b6472'; tri(g, p.x - p.w, by, p.x, top, p.x + p.w, by);
+        g.fillStyle = '#7d8798'; tri(g, p.x - p.w, by, p.x, top, p.x, by);
+        const sh = p.h * (season === 3 ? 0.55 : 0.38);
+        g.fillStyle = '#f1f5f9'; tri(g, p.x, top, p.x - p.w * sh / p.h, top + sh, p.x + p.w * sh / p.h, top + sh);
+      }
+      break;
+    }
+    case 'hill': {
+      for (let i = 0; i < 2; i++) {
+        const cx = 3 + R(120 + i) * 6, cy = 7 + i * 2.8, rx = 3.6 + R(122 + i), ry = 2.2 + R(124 + i) * 0.8;
+        g.fillStyle = 'rgba(255,255,255,0.1)';
+        g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI, Math.PI * 2); g.fill();
+        g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 0.5;
+        g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, Math.PI, Math.PI * 2); g.stroke();
+      }
+      if (R(126) < 0.25) { g.fillStyle = '#7d8798'; disc(g, 2 + R(127) * 8, 9.5, 1.1); g.fillStyle = 'rgba(255,255,255,0.25)'; disc(g, 1.7 + R(127) * 8, 9.2, 0.5); }
+      break;
+    }
+    case 'desert': {
+      for (let i = 0; i < 2; i++) {
+        const yy = 3.5 + i * 4 + R(130 + i) * 1.5;
+        g.strokeStyle = 'rgba(110,65,10,0.28)'; g.lineWidth = 0.7;
+        g.beginPath(); g.moveTo(0, yy); g.quadraticCurveTo(TILE * 0.35, yy - 1.6, TILE * 0.7, yy + 0.4); g.quadraticCurveTo(TILE * 0.9, yy + 1, TILE, yy - 0.4); g.stroke();
+        g.strokeStyle = 'rgba(255,240,180,0.3)';
+        g.beginPath(); g.moveTo(0, yy + 0.8); g.quadraticCurveTo(TILE * 0.35, yy - 0.8, TILE * 0.7, yy + 1.2); g.quadraticCurveTo(TILE * 0.9, yy + 1.8, TILE, yy + 0.4); g.stroke();
+      }
+      for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(90,55,10,0.35)'; g.fillRect(R(135 + i) * 11, R(139 + i) * 11, 0.8, 0.8); }
+      if (R(140) < 0.09) {
+        const cx = 3 + R(141) * 6, cy = 9;
+        g.fillStyle = '#2f7d3a'; g.fillRect(cx, cy - 3.4, 0.9, 3.4); g.fillRect(cx - 1.2, cy - 2.4, 1.2, 0.8); g.fillRect(cx - 1.2, cy - 3.2, 0.8, 1); g.fillRect(cx + 0.9, cy - 1.8, 1.2, 0.8); g.fillRect(cx + 1.4, cy - 2.6, 0.8, 1);
+      }
+      break;
+    }
+    case 'water': {
+      const frozen = season === 3;
+      if (!frozen) {
+        for (let i = 0; i < 2; i++) {
+          const wx = 1 + R(151 + i) * 7, wy = 2 + R(153 + i) * 8;
+          g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 0.5;
+          g.beginPath(); g.moveTo(wx, wy); g.quadraticCurveTo(wx + 1.2, wy - 0.8, wx + 2.4, wy); g.stroke();
+        }
+        if (R(160) < 0.12 && waterGlints.length < 600) waterGlints.push({ x: x * TILE + R(162) * TILE, y: y * TILE + R(163) * TILE, ph: R(164) * 6.28 });
+      } else {
+        g.fillStyle = `rgba(215,238,252,${0.35 + R(161) * 0.25})`; g.fillRect(0, 0, TILE, TILE);
+        g.strokeStyle = 'rgba(120,170,200,0.5)'; g.lineWidth = 0.4;
+        g.beginPath(); g.moveTo(R(165) * TILE, 0); g.lineTo(R(166) * TILE, R(167) * TILE); g.lineTo(R(168) * TILE, TILE); g.stroke();
+      }
+      NB4.forEach(([dx, dy], sd) => {
+        const nk = nbKind(dx, dy);
+        if (nk && nk !== 'water') edgeStrip(g, sd, 2.6, frozen ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.4)', 'rgba(255,255,255,0)');
+      });
+      break;
+    }
+  }
+
+  // تمازج الحواف بين التضاريس + رطوبة الشاطئ
+  if (kind !== 'water') {
+    NB4.forEach(([dx, dy], sd) => {
+      const nk = nbKind(dx, dy);
+      if (!nk) return;
+      if (nk === 'water') edgeStrip(g, sd, 1.4, 'rgba(40,30,10,0.25)', 'rgba(40,30,10,0)');
+      else if (nk !== kind) {
+        const nt = TERRAIN_TYPES[world.terrain[y + dy][x + dx]];
+        if (nt) edgeStrip(g, sd, 2.4, hexA(nt.color, 0.3), hexA(nt.color, 0));
+      }
+    });
+  }
+}
+
+function drawWaterGlints(nowMs) {
+  if (!waterGlints.length || seasonIdx() === 3) return;
+  ctx.fillStyle = '#ffffff';
+  for (const w of waterGlints) {
+    ctx.globalAlpha = 0.12 + 0.28 * (0.5 + 0.5 * Math.sin(nowMs / 500 + w.ph));
+    ctx.fillRect(w.x, w.y, 1.6, 0.5);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function buildTerrainCache() {
+  if (!world) return;
+  const W = world.W, H = world.H;
+  TC = Math.max(1, Math.min(3, 4096 / (Math.max(W, H) * TILE)));
+  terrainCache = document.createElement('canvas');
+  terrainCache.width = Math.round(W * TILE * TC);
+  terrainCache.height = Math.round(H * TILE * TC);
+  canvas.width = W * TILE;
+  canvas.height = H * TILE;
+  const g = terrainCache.getContext('2d');
+  g.scale(TC, TC);
+  const season = seasonIdx();
+  kindGrid = [];
+  for (let y = 0; y < H; y++) {
+    const row = [];
+    for (let x = 0; x < W; x++) row.push(tileKindOf(world.terrain[y][x]));
+    kindGrid.push(row);
+  }
+  waterGlints = [];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      g.save(); g.translate(x * TILE, y * TILE);
+      drawTile(g, x, y, season);
+      g.restore();
     }
   }
 }
@@ -2685,7 +3260,10 @@ function render() {
   if (!world || !terrainCache) return;
 
   ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
-  ctx.drawImage(terrainCache, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(terrainCache, 0, 0, world.W * TILE, world.H * TILE);
+  drawWaterGlints(performance.now());
+  glowQueue.length = 0; labelQueue.length = 0;
 
   // أراضي الممالك
   for (const k of world.kingdoms) {
@@ -2721,6 +3299,7 @@ function render() {
     if (!k.tileList.length) continue;
     const c = k.tileList[0];
     drawCastle(c.x*TILE + TILE/2, c.y*TILE + TILE/2, k.color);
+    glowQueue.push({ x: c.x*TILE + TILE/2, y: c.y*TILE + TILE/2 + 1, col: '255,196,90', r: 22, k: 0.7, min: 0 });
   }
 
   // الشخصيات (مرتبة حسب العمق لتتراكب بشكل صحيح)
@@ -2757,6 +3336,8 @@ function render() {
     }
   }
 
+  drawAtmosphere(nowMs);
+
   // تمييز المفحوص
   if (inspected) {
     ctx.strokeStyle = '#f6ad55';
@@ -2777,6 +3358,7 @@ function render() {
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawParticles(nowMs);
 }
 
 // ============================================================
@@ -2934,6 +3516,7 @@ canvas.addEventListener('mousedown', e => {
 
 window.addEventListener('mousemove', e => {
   if (dragState) {
+    setHover(null);
     const dx = e.clientX - dragState.startX, dy = e.clientY - dragState.startY;
     if (!dragState.moved && Math.hypot(dx, dy) > 4) { dragState.moved = true; canvas.classList.add('dragging'); }
     if (dragState.moved) {
@@ -2944,7 +3527,9 @@ window.addEventListener('mousemove', e => {
   } else if (world) {
     const { x: sx, y: sy } = getCanvasCoords(e.clientX, e.clientY);
     const wp = screenToWorld(sx, sy);
-    canvas.classList.toggle('npc-hover', !!findNPCAt(wp.x, wp.y));
+    const hv = findNPCAt(wp.x, wp.y);
+    canvas.classList.toggle('npc-hover', !!hv);
+    setHover(hv, e.clientX, e.clientY);
   }
 });
 
@@ -3244,6 +3829,7 @@ function pickTarget(npc) {
 
 function updateVisuals(dt) {
   if (!world) return;
+  ambientTick(dt);
   updateCreatures(dt);
   for (const npc of world.npcs) {
     if (!npc.alive) continue;
