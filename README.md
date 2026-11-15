@@ -80,24 +80,24 @@ python3 -m http.server 8000
 
 | اللعبة | الملف |
 |---|---|
-| حقيقة أم جرأة (Truth or Dare) | [`games/truda.html`](games/truda.html) |
-| بطاقات الشطرنج (Chess Cards) | [`games/chard.html`](games/chard.html) |
-| لعبة الرعب (Horror game) | [`games/horror.html`](games/horror.html) |
-| محطم الفراغ (Void Breaker) | [`games/voidbreaker.html`](games/voidbreaker.html) |
-| تحدي الحساب (Calc Chall) | [`games/calc-chall.html`](games/calc-chall.html) |
-| نقرة خرخرة (Purr Clicker) | [`games/purr-clicker.html`](games/purr-clicker.html) |
-| صعود الظلال (Shadow Rise) | [`games/notavailable.html`](games/notavailable.html) |
-| ممالك الصراع (Clash Kingdoms) | [`games/clash.html`](games/clash.html) |
-| أمسك القطة (Catch The Cat) | [`games/purch.html`](games/purch.html) |
-| إكس-أو (Tik Tak Toe) | [`games/tiktak.html`](games/tiktak.html) |
-| محاكي تطور الحضارة (Civilization Evo Sim) | [`games/civilization/index.html`](games/civilization/index.html) |
+| حقيقة أم جرأة | [`games/truda.html`](games/truda.html) |
+| بطاقات الشطرنج | [`games/chard.html`](games/chard.html) |
+| الممر النفسي | [`games/horror.html`](games/horror.html) |
+| محطم الفراغ | [`games/voidbreaker.html`](games/voidbreaker.html) |
+| لعبة الحساب | [`games/calc-chall.html`](games/calc-chall.html) |
+| نقرة القط | [`games/purr-clicker.html`](games/purr-clicker.html) |
+| صعود الظلال | [`games/notavailable.html`](games/notavailable.html) |
+| ممالك الصراع | [`games/clash.html`](games/clash.html) |
+| أمسك القطة | [`games/purch.html`](games/purch.html) |
+| إكس-أوه | [`games/tiktak.html`](games/tiktak.html) |
+| محاكي تطور الحضارة | [`games/civilization/index.html`](games/civilization/index.html) |
 | الساحر الناجي | [`games/survivor-ar.html`](games/survivor-ar.html) |
-| محاكي الاختراق الإلكتروني (CyberHack Sim) | [`games/cack.html`](games/cack.html) |
-| الروليت الروسية (Russian Roulette) | [`games/revolver.html`](games/revolver.html) |
+| محاكي الاختراق الإلكتروني | [`games/cack.html`](games/cack.html) |
+| الروليت الروسية | [`games/revolver.html`](games/revolver.html) |
 | ٢٠٤٨ | [`games/2048.html`](games/2048.html) |
-| مونوبولي نيون إكس (Neon Monopoly X) | [`games/monopoly.html`](games/monopoly.html) |
-| Keyboar | [`games/keyboar.html`](games/keyboar.html) |
-| رسام الخرائط الصدوي (Echo Cartographer) | [`games/echo.html`](games/echo.html) |
+| مونوبولي نيون إكس | [`games/monopoly.html`](games/monopoly.html) |
+| اختبار سرعة الكتابة | [`games/keyboar.html`](games/keyboar.html) |
+| رسام خرائط الصدى | [`games/echo.html`](games/echo.html) |
 
 ### أضف لعبة
 
