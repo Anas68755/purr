@@ -33,7 +33,7 @@ export const CONFIG = {
   migrantThreshold: 15, migrantBatch: 8,
   warChance: 0.10, eventChance: 0.04, researchChance: 0.20,
   allianceChance: 0.08, allianceDurationMin: 30, allianceDurationMax: 80,
-  allianceTradeBonus: 15, chronicleMax: 100,
+  allianceTradeBonus: 15, chronicleMax: 200,
   initialPopPerKingdom: 12, initialTilesPerKingdom: 25
 };
 
@@ -213,7 +213,8 @@ export class World {
   }
   chronicle(text, type='generic') {
     this.chronicleLog.unshift({ year: this.year, text, type });
-    if (this.chronicleLog.length > CONFIG.chronicleMax) this.chronicleLog.length = CONFIG.chronicleMax;
+    // عند الوصول إلى الحد يُحذف السجل بالكامل ويبدأ من جديد (يبقى أحدث حدث فقط)
+    if (this.chronicleLog.length >= CONFIG.chronicleMax) this.chronicleLog.length = 1;
   }
   getKingdom(id) { return this.kingdoms.find(k=>k.id===id); }
   totalAlive() { return this.npcs.filter(n=>n.alive).length; }
@@ -487,7 +488,7 @@ export function serializeWorld(world) {
     totalDeaths: world.totalDeaths,
     totalTechs: world.totalTechs,
     usedColors: [...world.usedColors],
-    chronicleLog: world.chronicleLog.slice(0, 80),
+    chronicleLog: world.chronicleLog.slice(0, CONFIG.chronicleMax),
     alliances: world.alliances.slice(),
     npcs: world.npcs.filter(n=>n.alive).map(n => ({
       id: n.id, name: n.name, sex: n.sex, genes: rdGenes(n.genes),
