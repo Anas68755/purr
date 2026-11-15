@@ -1,4 +1,3 @@
-
 // ============================================================
 //  منطق المحاكاة الخالص — يعمل في Node.js وفي المتصفح
 // ============================================================
@@ -472,6 +471,10 @@ export class World {
 // ============================================================
 export const SAVE_VERSION = 3;
 
+// تقريب الأعداد العشرية لتقليل حجم الملف المحفوظ (لا يغيّر بنية البيانات ولا SAVE_VERSION)
+const rd = (v, d = 2) => { const m = 10 ** d; return Math.round(v * m) / m; };
+const rdGenes = g => { const o = {}; for (const k in g) o[k] = rd(g[k], 2); return o; };
+
 export function serializeWorld(world) {
   return {
     version: SAVE_VERSION,
@@ -487,15 +490,15 @@ export function serializeWorld(world) {
     chronicleLog: world.chronicleLog.slice(0, 80),
     alliances: world.alliances.slice(),
     npcs: world.npcs.filter(n=>n.alive).map(n => ({
-      id: n.id, name: n.name, sex: n.sex, genes: n.genes,
-      kingdomId: n.kingdomId, age: n.age, health: n.health,
-      generation: n.generation, legacy: n.legacy,
-      x: n.x, y: n.y, tx: n.tx, ty: n.ty,
+      id: n.id, name: n.name, sex: n.sex, genes: rdGenes(n.genes),
+      kingdomId: n.kingdomId, age: n.age, health: rd(n.health, 1),
+      generation: n.generation, legacy: rd(n.legacy, 3),
+      x: rd(n.x, 1), y: rd(n.y, 1), tx: rd(n.tx, 1), ty: rd(n.ty, 1),
       parentIds: n.parentIds, childIds: n.childIds
     })),
     kingdoms: world.kingdoms.map(k => ({
       id: k.id, name: k.name, region: k.region, color: k.color,
-      food: k.food, stability: k.stability,
+      food: rd(k.food, 1), stability: rd(k.stability, 1),
       foundedYear: k.foundedYear, collapsed: k.collapsed,
       dynastyCount: k.dynastyCount, techs: k.techs.slice(),
       rulerId: k.ruler ? k.ruler.id : null,
