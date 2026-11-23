@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>2048 نيون - 8×8 مع أصوات</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="game-wrapper">
+        <!-- الرأس -->
+        <div class="header">
+            <span class="title">2048 نيون</span>
+            <div class="scores">
+                <div class="score-box">
+                    <div class="label">النقاط</div>
+                    <div class="value" id="scoreDisplay">0</div>
+                </div>
+                <div class="score-box best">
+                    <div class="label">الأفضل</div>
+                    <div class="value" id="bestDisplay">0</div>
+                </div>
+                <button class="btn-restart" id="undoBtn" title="تراجع (Z)" aria-label="تراجع">↶</button>
+                <button class="btn-restart" id="restartBtn" title="إعادة تشغيل" aria-label="إعادة تشغيل">↻</button>
+            </div>
+        </div>
+
+        <!-- الشبكة -->
+        <div class="grid-container" id="gridContainer">
+            <div class="grid" id="grid"></div>
+            <div class="overlay" id="overlay">
+                <div class="msg" id="overlayMsg"></div>
+                <button class="btn-retry" id="retryBtn">↻ العب مجدداً</button>
+            </div>
+        </div>
+
+        <!-- شريط الحالة -->
+        <div class="status-bar">
+            <span class="hint">🡑 🡓 معكوسة الجانبية</span>
+            <button class="sound-toggle" id="soundToggle">🔊 صوت</button>
+        </div>
+    </div>
+<script src="js/game.js"></script>
+</body>
+</html>
