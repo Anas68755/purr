@@ -1,0 +1,88 @@
+VOID BREAKER // NEON ASCENSION — third-party components
+=========================================================
+
+1. Howler.js
+------------
+File: vendor/howler.min.js
+Version: 2.2.4
+Author: James Simpson & Goldfire Studios
+License: MIT (reproduced below)
+
+  The MIT License (MIT)
+
+  Copyright (c) 2013-2024 James Simpson and GoldFire Studios, Inc.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
+
+2. Fonts (SIL Open Font License 1.1)
+-------------------------------------
+Files: assets/fonts/orbitron-var.woff2      (Orbitron, variable, weights 400-900)
+       assets/fonts/share-tech-mono.woff2   (Share Tech Mono)
+Author: Matt McInerney / The Orbitron and Share Tech Mono Project Authors
+License: SIL Open Font License, Version 1.1
+
+  Copyright (c) 2011, Matt McInerney (matt@widgets.cc) and the project authors,
+  with Reserved Font Name "Orbitron" / "Share Tech Mono".
+
+  This Font Software is licensed under the SIL Open Font License, Version 1.1.
+  This license is copied below, and is also available with a FAQ at:
+  http://scripts.sil.org/OFL
+
+  SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+
+  PREAMBLE: The goals for the Open Font License (OFL) are to stimulate
+  worldwide development of collaborative font projects, to support the font
+  creation efforts of academic and linguistic communities, and to provide a
+  large and free model for the community to use, modify and redistribute
+  fonts.
+
+  DEFINITIONS: "Font Software" refers to the set of files released by the
+  Copyright Holder(s) under this license and clearly marked as such. "Modified
+  Version" refers to any derivative made by adding to, deleting, or
+  substituting — in part or in whole, any of the components of the Original
+  Version. "Reserved Font Name" refers to any names specified after this
+  notice.
+
+  PERMISSION & CONDITIONS: The Font Software may be used, studied, copied,
+  merged, embedded in documents, modified and redistributed, subject to the
+  reservation of Reserved Font Names and the requirement that Modified
+  Versions not use reserved font names (unless explicit permission is
+  granted). The Font Software and derivatives must be released under this
+  license. Neither the Font Software nor any of its individual components may
+  be sold by itself.
+
+  TERMINATION: This license becomes null and void if any of the above
+  conditions are not met.
+
+  DISCLAIMER: THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+  KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
+  COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
+
+3. Game audio
+--------------
+All music and sound effects in assets/audio/ were procedurally synthesized
+for this project (numpy-based synthesis, no third-party samples) and are
+provided with the game without restriction.
+
+4. Game code
+-------------
+Original game concept and code: the user's uploaded voidbreaker.html.
+The deluxe rebuild is provided as-is for personal, non-commercial use.
