@@ -141,7 +141,7 @@ VB.Audio = (function () {
 
   /** Music director: pick track for game context.
    *  v5.0: bossCount replaces the boolean — dual fights get the finale
-n   *  theme, Boss Rush gets its own gauntlet track, and deep classic
+   *  theme, Boss Rush gets its own gauntlet track, and deep classic
    *  waves (26+) descend into the abyss theme. */
   function director(state, wave, bossN) {
     if (state === 'menu') return 'menu_theme';
