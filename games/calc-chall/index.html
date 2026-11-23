@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>🔥 Math Challenge · 5 Lives 🔥</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+  <div class="lives-area" id="livesArea">❤️ ❤️ ❤️ ❤️ ❤️</div>
+  <div class="question-card">
+    <div class="question-text" id="questionText">0 + 0 = ?</div>
+    <div class="timer-area">
+      <div class="timer-bar-bg"><div class="timer-bar-fill" id="timerFill"></div></div>
+      <div class="timer-text" id="timerText">10.0</div>
+    </div>
+    <div class="combo-area" id="comboDisplay">🔥 Combo: x1</div>
+  </div>
+
+  <div class="stats-board">
+    <div class="stat">⭐ SCORE <span id="score">0</span></div>
+    <div class="stat">📊 LEVEL <span id="level">1</span></div>
+    <div class="stat">✅ CORRECT <span id="correctCount">0</span></div>
+    <div class="stat">🏆 HIGHEST <span id="highScore">0</span></div>
+  </div>
+
+  <div class="calculator">
+    <div class="display" id="calcDisplay">0</div>
+    <div class="button-grid">
+      <button class="calc-btn" data-value="7">7</button>
+      <button class="calc-btn" data-value="8">8</button>
+      <button class="calc-btn" data-value="9">9</button>
+      <button class="calc-btn operator" data-op="+">+</button>
+      <button class="calc-btn clear-btn" id="clearBtn">C</button>
+
+      <button class="calc-btn" data-value="4">4</button>
+      <button class="calc-btn" data-value="5">5</button>
+      <button class="calc-btn" data-value="6">6</button>
+      <button class="calc-btn operator" data-op="-">-</button>
+      <button class="calc-btn" data-value="0">0</button>
+
+      <button class="calc-btn" data-value="1">1</button>
+      <button class="calc-btn" data-value="2">2</button>
+      <button class="calc-btn" data-value="3">3</button>
+      <button class="calc-btn operator" data-op="*">×</button>
+      <button class="calc-btn operator" data-op="/">÷</button>
+
+      <button class="calc-btn special" id="clearAllBtn">AC</button>
+      <button class="calc-btn special" id="backspaceBtn">⌫</button>
+      <button class="calc-btn equals" id="equalsBtn">=</button>
+      <button class="calc-btn special" id="negativeBtn">+/−</button>
+    </div>
+    <div class="message-area" id="messageArea">
+      ⏱️ You have 5 lives! Answer quickly.
+    </div>
+  </div>
+
+  <div class="leaderboard-section">
+    <div class="leaderboard-title">🏆 Leaderboard</div>
+    <div class="leaderboard-list" id="leaderboardList">
+      <div class="leaderboard-item">✨ Loading scores... ✨</div>
+    </div>
+  </div>
+</div>
+<script src="js/game.js"></script>
+</body>
+</html>
