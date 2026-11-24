@@ -1904,7 +1904,7 @@ VB.Render = (function () {
 
   // --------------------------------------------- nebula fog (v5.2) ----
   /** NEBULA FOG curse: creeping purple haze that swallows the edges of
-n   *  the arena. Breathing alpha keeps it alive without stealing contrast
+   *  the arena. Breathing alpha keeps it alive without stealing contrast
    *  from enemy fire. */
   function drawFog(ctx, W, H, t) {
     const breathe = 0.5 + 0.12 * Math.sin(t * 0.8);
