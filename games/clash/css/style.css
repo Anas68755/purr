@@ -1,0 +1,42 @@
+/* Clash of Kingdoms - styles */
+:root{--bg:#16210f;--pn:#2a1b0e;--gold:#f2c14e;--ink:#f1e6c8;--line:#7a5a2a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px system-ui,sans-serif;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+#hud,#bar,#st{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;background:var(--pn);padding:6px;border-color:var(--line);border-style:solid;border-width:0}
+#hud{border-bottom-width:2px}#bar{border-top-width:2px}#st{display:none;color:var(--gold);font-weight:700}
+#w{flex:1;display:flex;justify-content:center;align-items:center;min-height:0;position:relative}
+#c{width:min(100vw,calc(100dvh - 150px));aspect-ratio:1;touch-action:none;border:2px solid var(--line)}
+button{background:#b9812a;color:#1b1005;border:0;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px;cursor:pointer}
+button:disabled{opacity:.4}button.on{outline:3px solid var(--gold)}
+#pn{display:none;position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:min(94vw,440px);max-height:70%;overflow:auto;background:var(--pn);border:2px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 6px 30px #000a}
+#pn h3{margin:0 0 6px;color:var(--gold)}#pn p{margin:4px 0;font-size:12px}
+.r{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #fff1}
+#ts{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9;pointer-events:none}
+#ts div{background:#000c;border:1px solid var(--line);border-radius:14px;padding:5px 12px;margin-top:4px;color:var(--gold);font-weight:700}
+body,button,h3{font-family:'Lilita One',system-ui,sans-serif;letter-spacing:.3px}
+body{background:radial-gradient(#243d17,#0d1608)}
+#hud{background:linear-gradient(#4a3018,#241407);box-shadow:0 2px 10px #000a}
+#hud span{background:#0007;border:1px solid #fff2;border-radius:16px;padding:3px 10px}
+button{background:linear-gradient(#ffd36b,#c4821c);box-shadow:0 2px 0 #6b4310,inset 0 1px #fff8}
+button:active{transform:translateY(2px)}
+#pn{background:linear-gradient(#3a2614,#241407);border-radius:14px}
+#pn h3{font-size:20px}
+#c{border-radius:10px;box-shadow:0 0 0 3px #3a2614,0 8px 30px #000b}
+.ic{width:1.5em;height:1.5em;vertical-align:-.4em;image-rendering:auto}
+#hud .ic{width:1.3em;height:1.3em}
+.mt{display:inline-block;width:34px;height:6px;background:#0009;border-radius:4px;vertical-align:middle;margin-left:5px;overflow:hidden}.mt u{display:block;height:100%;width:0;background:#f2c14e;transition:width .3s}.mt u.e{background:#d65aeb}
+/* ---- v6 */
+button.sm{padding:8px 9px}button.ab{background:linear-gradient(#ff9fd0,#c43c86);color:#fff;animation:pl 1s infinite alternate}
+@keyframes pl{to{filter:brightness(1.25)}}
+#hud{position:relative}#hud button{padding:4px 8px}#trs{cursor:pointer}
+#w.zm{overflow:hidden}#c{transform-origin:center center}
+#zc{position:absolute;right:6px;top:6px;display:flex;flex-direction:column;gap:4px;z-index:3}#zc button{padding:2px 9px;font-size:16px;opacity:.75}
+.pb{height:7px;background:#0009;border-radius:4px;margin:3px 0;overflow:hidden;min-width:110px}.pb u{display:block;height:100%;background:linear-gradient(#8f8,#3a3);width:0;transition:width .25s}
+.lg{max-height:260px;overflow:auto;font-size:12px}.lg div{padding:3px 0;border-bottom:1px solid #fff1}.lg b{color:var(--gold);margin-right:4px}
+#bn{position:fixed;top:60px;left:50%;transform:translate(-50%,-140%);background:linear-gradient(#ffd36b,#c4821c);color:#2a1707;font-family:'Lilita One',system-ui,sans-serif;font-size:18px;padding:8px 18px;border-radius:20px;box-shadow:0 4px 18px #000b;z-index:12;transition:transform .45s cubic-bezier(.2,1.4,.4,1);pointer-events:none;text-align:center}
+#bn.on{transform:translate(-50%,0)}
+input[type=range]{width:120px;accent-color:#f2c14e;vertical-align:middle}
+#pn small{opacity:.8}
+.r>span:first-child{flex:1;min-width:0}.r .pb{min-width:0;width:100%}
+
+#c{background:#35561f}

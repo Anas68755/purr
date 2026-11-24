@@ -1,0 +1,11 @@
+# Free Supabase projects pause after 1 week without activity. This pings the database every 3 days.
+# Add repository secrets SUPABASE_URL and SUPABASE_ANON_KEY (Settings > Secrets and variables > Actions).
+name: keepalive
+on:
+  schedule: [{cron: '0 6 */3 * *'}]
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS "${{ secrets.SUPABASE_URL }}/rest/v1/saves?select=user_id&limit=1" -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"

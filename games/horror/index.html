@@ -1,20 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Psychotic Corridor</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="horror.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+  <title>Psychotic Corridor</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="horror.html">Open the game directly</a>.</p></noscript>
+  <div id="vignette"></div><div id="grain"></div><div id="scan"></div><div id="gore"></div><canvas id="tear"></canvas>
+  <div id="blood-flash"></div>
+  <div id="blackout"></div><div id="flash-msg"></div><div id="note"></div>
+
+  <div id="hud" class="hidden">
+    <button id="gear" title="Settings">⚙</button><button id="pausebtn" title="Pause (P / Esc)">❚❚</button>
+    <div id="sanity-wrap">
+      <div id="sanity-label">SANITY</div>
+      <div id="sanity-bar-bg"><div id="sanity-bar"></div></div>
+      <div id="stamina-label">STAMINA</div>
+      <div id="stamina-bar-bg"><div id="stamina-bar"></div></div>
+      <div id="noise-label">NOISE</div>
+      <div id="noise-bar-bg"><div id="noise-bar"></div></div>
+    </div>
+    <div id="stats">
+      <div>DISTANCE <span class="val" id="distance">0</span>m</div>
+      <div>SURVIVED <span class="val" id="time">0</span>s</div>
+    </div>
+  </div>
+
+  <div id="joystick-container" class="hidden">
+    <div id="joystick-knob"></div>
+  </div>
+
+  <div id="start-overlay" class="overlay">
+    <h1>◈ PSYCHOTIC CORRIDOR ◈</h1>
+    <p>An endless hallway. Flickering lights. Something stalks the dark behind you — it moves when you're not watching.</p>
+    <p style="font-size:0.8rem;">
+      <b>Desktop:</b> click to lock mouse · WASD to walk · mouse to look · F to toggle flashlight · <b>SHIFT</b> to sprint · <b>P / Esc</b> pause<br>
+      <b>Mobile:</b> left joystick to walk · drag right side to look · double-tap right side then push the stick to sprint<br>
+      <b>Survive:</b> turn around to keep the monster at bay. Don't let your sanity hit zero. Noise draws it: running, slamming doors and bumping props. Rest in the amber safe lights — they burn out.
+    </p>
+    <div class="enter">— TAP / CLICK TO ENTER —</div>
+    <button class="btn" id="open-settings">⚙ SETTINGS</button>
+    <div class="credits">headphones recommended · volume warning</div>
+  </div>
+
+  <div id="pause" class="overlay hidden" style="z-index:650"><h1>— PAUSED —</h1><p id="pause-stats"></p><button class="btn" id="p-resume">RESUME</button><button class="btn" id="p-set">⚙ SETTINGS</button><button class="btn" id="p-restart">RESTART RUN</button></div>
+  <div id="settings" class="overlay hidden"><div class="panel" id="settings-panel"></div></div>
+
+  <div id="death-overlay" class="overlay hidden">
+    <h2>IT FOUND YOU</h2>
+    <p id="death-stats">You survived 0 seconds and traveled 0 meters.</p>
+    <button class="btn" id="restart-btn">TRY AGAIN</button>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="js/sfx-data.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
