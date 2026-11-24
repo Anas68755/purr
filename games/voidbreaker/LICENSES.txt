@@ -55,9 +55,9 @@ License: SIL Open Font License, Version 1.1
   DEFINITIONS: "Font Software" refers to the set of files released by the
   Copyright Holder(s) under this license and clearly marked as such. "Modified
   Version" refers to any derivative made by adding to, deleting, or
-  substituting — in part or in whole, any of the components of the Original
-  Version. "Reserved Font Name" refers to any names specified after this
-  notice.
+  substituting — in part or in whole — any of the components of the Original
+  Version. "Reserved Font Name" refers to any names specified as such after
+  the copyright statement(s).
 
   PERMISSION & CONDITIONS: The Font Software may be used, studied, copied,
   merged, embedded in documents, modified and redistributed, subject to the

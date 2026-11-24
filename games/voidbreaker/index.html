@@ -1,20 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#04070d">
+<meta name="description" content="VOID BREAKER: NEON ASCENSION — deep-space arcade bullet-storm. v5.3.1 HORIZON: 13 pilotable hulls (one classified), 12 boss archetypes, 48 upgrade cards with golden evolutions, 13 enemy classes, 10 nightmare curses, seeded challenge codes, the Daily Void, sortie debrief timelines, the persistent Salvage Vault, elite affixes, Boss Rush gauntlet, commendations, swappable touch layout and the HOLO-ARC presentation layer.">
 <title>VOID BREAKER // NEON ASCENSION</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="voidbreaker.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,2 29,9 29,23 16,30 3,23 3,9' fill='none' stroke='%2358f6ff' stroke-width='2'/%3E%3Cpolygon points='16,10 23,16 16,22 9,16' fill='%23ff8a3d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<!-- Remote font fallback (local font files are bundled in assets/fonts and normally take precedence) -->
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="voidbreaker.html">Open the game directly</a>.</p></noscript>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- CRT scanline / vignette overlay (toggleable in settings) -->
+<div id="scanlines"></div>
+
+<!-- ============================ HUD ============================ -->
+<div id="hud" style="display:none;">
+
+  <div class="hud-cluster">
+    <div class="hud-panel">
+      <div class="hud-label">Score</div>
+      <div class="hud-value" id="hudScore">0</div>
+    </div>
+    <div class="hud-panel">
+      <div class="hud-label">Combo</div>
+      <div class="hud-value cyan" id="hudCombo">x1</div>
+      <div class="bar-wrap"><div class="bar-fill combo-fill" id="comboBar" style="width:0%"></div></div>
+    </div>
+    <div class="hud-block" id="fpsBlock" style="display:none;">
+      <div class="hud-label">FPS</div>
+      <div class="hud-value dim" id="hudFps">60</div>
+    </div>
+  </div>
+
+  <div id="bossBar" style="display:none;">
+    <div class="boss-bar-name" id="bossName">DREADNOUGHT</div>
+    <div class="boss-bar-track"><div class="boss-bar-fill" id="bossBarFill"></div></div>
+  </div>
+
+  <div class="hud-cluster right">
+    <div class="hud-panel">
+      <div class="hud-label">Wave</div>
+      <div class="hud-value pink" id="hudWave">1</div>
+    </div>
+    <div class="hud-panel">
+      <div class="hud-label">Shield</div>
+      <div class="bar-wrap"><div class="bar-fill shield-fill" id="shieldBar" style="width:0%"></div></div>
+      <div class="hud-label" style="margin-top:5px;">Dash</div>
+      <div class="bar-wrap"><div class="bar-fill dash-fill" id="dashBar" style="width:100%"></div></div>
+      <div class="hud-label" style="margin-top:5px;"><span id="powerName">POWER</span></div>
+      <div class="bar-wrap"><div class="bar-fill power-fill" id="powerFill" style="width:100%"></div></div>
+    </div>
+    <div class="hud-panel">
+      <div class="hud-label">Lives</div>
+      <div class="lives-bar" id="livesBar"></div>
+    </div>
+  </div>
+</div>
+
+<div id="comboPopup"></div>
+<div id="waveAnnounce"></div>
+<div id="bossAnnounce"><span>WARNING</span></div>
+<div id="toastContainer"></div>
+
+<div id="powerupIndicator">
+  <div class="pu-icon pu-rapid" id="puRapid">R</div>
+  <div class="pu-icon pu-spread" id="puSpread">S</div>
+  <div class="pu-icon pu-shield" id="puShield">D</div>
+  <div class="pu-icon pu-pierce" id="puPierce">P</div>
+  <div class="pu-icon pu-time" id="puTime">T</div>
+</div>
+
+<!-- ======================= UPGRADE CHOICE ======================= -->
+<div id="upgradeScreen">
+  <div class="upgrade-head">
+    <div class="upgrade-title">UPGRADE</div>
+    <div class="upgrade-sub" id="upgradeSub">Choose your enhancement &mdash; click or press 1 / 2 / 3</div>
+  </div>
+  <div class="upgrade-cards" id="upgradeCards"></div>
+</div>
+
+<!-- ========================== START ============================ -->
+<div class="screen-overlay" id="startScreen">
+  <div class="screen-frame" aria-hidden="true"></div>
+  <div class="game-title"><span class="t-solid">VOID</span><span class="t-holo">BREAKER</span></div>
+  <div class="game-subtitle">Neon Ascension &mdash; Deluxe Edition</div>
+  <div class="best-line" id="startBest">BEST 0</div>
+  <div class="lb-title" id="hullTitle">SELECT HULL</div>
+  <div class="ship-select" id="shipSelect"></div>
+  <div class="lb-title" id="boardTitle">TOP SORTIES</div>
+  <ol class="leaderboard" id="startLeaderboard"></ol>
+  <div class="btn-row">
+    <button class="btn" id="startBtn" aria-label="Start Game">Launch</button>
+    <button class="btn rush" id="bossRushBtn" aria-label="Start Boss Rush">Boss Rush</button>
+    <button class="btn daily" id="dailyBtn" aria-label="Fly the Daily Void">Daily Void</button>
+    <button class="btn secondary" id="vaultBtn" aria-label="Open Salvage Vault">Vault</button>
+    <button class="btn secondary" id="settingsBtn" aria-label="Open Settings">Settings</button>
+  </div>
+  <div class="daily-status" id="dailyStatus">&mdash;</div>
+  <div class="lb-title" id="curseTitle">NIGHTMARE CURSES <span id="curseMult" class="curse-state"></span></div>
+  <div class="curse-row" id="curseRow"></div>
+  <div class="code-row">
+    <input id="codeInput" type="text" placeholder="ENTER CHALLENGE CODE (SEED.CCC.M)"
+      maxlength="24" autocomplete="off" spellcheck="false" aria-label="Challenge code">
+    <button class="btn small" id="codeApply" aria-label="Load challenge code">Load</button>
+    <button class="btn small secondary" id="codeCopy" aria-label="Copy a fresh challenge code">Copy Code</button>
+  </div>
+  <div class="code-hint">Every sortie is seeded. Load a code to replay its exact gauntlet &mdash; same foes, same waves, same luck.</div>
+  <div class="controls-info">
+    <div class="control-item"><span class="control-key">WASD / Arrows</span>Move</div>
+    <div class="control-item"><span class="control-key">Space / Click</span>Fire</div>
+    <div class="control-item"><span class="control-key">E</span>Dash</div>
+    <div class="control-item"><span class="control-key">Q</span>Ship Power</div>
+    <div class="control-item"><span class="control-key">Shift</span>Shield</div>
+    <div class="control-item"><span class="control-key">P</span>Pause</div>
+    <div class="control-item"><span class="control-key">M</span>Mute</div>
+  </div>
+  <div class="version-tag">v5.3.1 &mdash; HORIZON &middot; 13 pilotable hulls (one classified) &middot; 12 boss archetypes &middot; 48 upgrades + 6 evolutions &middot; 13 enemy classes &middot; 10 nightmare curses &middot; seeded challenge codes &middot; Daily Void &middot; sortie debrief timelines &middot; salvage vault &middot; elite affixes &middot; Boss Rush gauntlet &middot; commendations &middot; swappable touch layout</div>
+  <div class="lb-title" id="achvTitle">COMMENDATIONS</div>
+  <div class="achv-grid" id="achvGrid"></div>
+</div>
+
+<!-- ========================= GAME OVER ========================= -->
+<div class="screen-overlay hidden" id="gameOverScreen">
+  <div class="screen-frame" aria-hidden="true"></div>
+  <div class="game-subtitle">Mission Failed</div>
+  <div class="mode-tag" id="overModeTag">CLASSIC ASCENSION</div>
+  <div class="new-best hidden" id="newBestBanner">NEW BEST SCORE</div>
+  <div class="final-score" id="finalScore">0</div>
+  <div class="final-label">Final Score</div>
+  <div class="stats-row">
+    <div class="stat-item"><div class="stat-val" id="statWave">1</div><div class="stat-lbl">Wave</div></div>
+    <div class="stat-item"><div class="stat-val" id="statKills">0</div><div class="stat-lbl">Kills</div></div>
+    <div class="stat-item"><div class="stat-val" id="statMaxCombo">0</div><div class="stat-lbl">Max Combo</div></div>
+    <div class="stat-item"><div class="stat-val" id="statAccuracy">0%</div><div class="stat-lbl">Accuracy</div></div>
+    <div class="stat-item"><div class="stat-val" id="statTime">0:00</div><div class="stat-lbl">Survived</div></div>
+    <div class="stat-item"><div class="stat-val" id="statElites">0</div><div class="stat-lbl">Elites</div></div>
+    <div class="stat-item"><div class="stat-val" id="statBosses">0</div><div class="stat-lbl">Bosses</div></div>
+    <div class="stat-item"><div class="stat-val" id="statSalvage">+0</div><div class="stat-lbl">Salvage</div></div>
+    <div class="stat-item"><div class="stat-val" id="statHighScore">0</div><div class="stat-lbl">Best</div></div>
+  </div>
+  <div class="vault-line" id="vaultLine">SALVAGE BANKED +0</div>
+  <div class="lb-title">SORTIE TIMELINE</div>
+  <div class="debrief-chart" id="debriefChart"></div>
+  <div class="run-code" id="runCodeLine"></div>
+  <div class="lb-title">TOP SORTIES</div>
+  <ol class="leaderboard" id="overLeaderboard"></ol>
+  <div class="btn-row">
+    <button class="btn" id="restartBtn" aria-label="Restart Game">Retry</button>
+    <button class="btn secondary" id="menuBtn" aria-label="Back to Menu">Menu</button>
+  </div>
+</div>
+
+<!-- =========================== PAUSE =========================== -->
+<div class="screen-overlay hidden" id="pauseScreen">
+  <div class="game-title" style="font-size:34px;"><span class="t-solid">PAUSED</span></div>
+  <div class="game-subtitle" style="margin-bottom:28px;">Press P to resume</div>
+  <div class="btn-row">
+    <button class="btn" id="resumeBtn" aria-label="Resume Game">Resume</button>
+    <button class="btn secondary" id="pauseSettingsBtn" aria-label="Open Settings">Settings</button>
+    <button class="btn secondary" id="quitBtn" aria-label="Quit to Menu">Abort</button>
+  </div>
+</div>
+
+<!-- ========================== SETTINGS ========================= -->
+<div class="screen-overlay hidden" id="settingsScreen">
+  <div class="upgrade-title">SETTINGS</div>
+  <div class="upgrade-sub">Changes apply instantly and are saved locally</div>
+  <div class="settings-grid">
+    <label class="setting-row">
+      <span class="setting-name">Music volume</span>
+      <input type="range" id="setMusic" min="0" max="100" value="70">
+      <span class="setting-val" id="setMusicVal">70</span>
+    </label>
+    <label class="setting-row">
+      <span class="setting-name">SFX volume</span>
+      <input type="range" id="setSfx" min="0" max="100" value="80">
+      <span class="setting-val" id="setSfxVal">80</span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">Screen shake</span>
+      <input type="checkbox" id="setShake" checked>
+      <span class="checkmark"></span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">CRT scanlines</span>
+      <input type="checkbox" id="setScan" checked>
+      <span class="checkmark"></span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">Show FPS</span>
+      <input type="checkbox" id="setFps">
+      <span class="checkmark"></span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">Reduced effects</span>
+      <input type="checkbox" id="setReduced">
+      <span class="checkmark"></span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">Swap joystick / buttons</span>
+      <input type="checkbox" id="setSwap">
+      <span class="checkmark"></span>
+    </label>
+    <label class="setting-row toggle">
+      <span class="setting-name">Haptic feedback</span>
+      <input type="checkbox" id="setHaptics">
+      <span class="checkmark"></span>
+    </label>
+    <div class="setting-hint">Touch layout: moves the joypad to the right edge and the action buttons to the left (left-handed mode).</div>
+  </div>
+  <button class="btn" id="settingsCloseBtn" aria-label="Close Settings">Back</button>
+</div>
+
+<!-- ====================== SALVAGE VAULT ======================== -->
+<div class="screen-overlay hidden" id="vaultScreen">
+  <div class="upgrade-title">SALVAGE VAULT</div>
+  <div class="upgrade-sub">Permanent fleet upgrades &mdash; salvage persists between runs</div>
+  <div class="vault-bank">BANK <span id="vaultBank">0</span> SALVAGE</div>
+  <div class="vault-list" id="vaultList"></div>
+  <button class="btn" id="vaultCloseBtn" aria-label="Close Vault">Back</button>
+</div>
+
+<!-- ======================= TOUCH CONTROLS ====================== -->
+<div id="touchUI">
+  <div id="joyBase"><div id="joyKnob"></div></div>
+  <div id="touchBtns">
+    <button id="btnShieldT" aria-label="Shield">SHD</button>
+    <button id="btnDashT" aria-label="Dash">DSH</button>
+    <button id="btnPowerT" class="pwr" aria-label="Ship Power">PWR</button>
+  </div>
+</div>
+
+<!-- hidden runtime error sink (kept tiny, used for QA diagnostics) -->
+<div id="errlog" style="display:none"></div>
+
+<!-- ====================== THIRD-PARTY / MODULES ================= -->
+<script src="vendor/howler.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ships.js"></script>
+<script src="js/render.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/player.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/bullets.js"></script>
+<script src="js/powerups.js"></script>
+<script src="js/waves.js"></script>
+<script src="js/upgrades.js"></script>
+<script src="js/vault.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
