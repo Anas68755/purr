@@ -31,13 +31,12 @@ games/
   ...             15 games as real css/js folders (2048, calc-chall, keyboar,
                   echo, purch, purr-clicker, revolver, monopoly, tiktak,
                   bat-in-the-shadows, chard, truda, cack, survivor, survivor-ar)
-  clash/          folder shells that still load their single-file source
-  horror/         via the shared runtime splitter
+  clash/          already a modular css/js game (left untouched)
+  horror/         already a modular css/js game (left untouched)
   civilization/   the cloud-backed evolution sim (untouched core scripts)
-  _runtime/       shared split-loader used by clash/ and horror/
 ```
 
-The classic single-file versions (`games/<name>.html`) are now tiny redirect stubs pointing to their new folders, so every old URL keeps working. Only `games/clash.html` and `games/horror.html` remain real single-file sources, still loaded by the shared runtime splitter.
+The classic single-file versions (`games/<name>.html`) are now tiny redirect stubs pointing to their new folders, so every old URL keeps working. `clash/` and `horror/` were already modular multi-file games and were left untouched; the old shared runtime splitter (`games/_runtime/`) is no longer referenced by any page and has been removed.
 
 ---
 
@@ -72,10 +71,9 @@ games/
   2048/           index.html · css/style.css · js/game.js
   survivor-ar/    index.html · css/style.css · js/game-01..03.js
   ...             ١٥ لعبة كمجلدات حقيقية بملفات css/js
-  clash/          واجهات مجلدات ما زالت تحمّل مصدرها أحادي الملف
-  horror/         عبر مُحمّل الفصل المشترك
+  clash/          لعبة ملفات متعددة (css/js) منذ البداية (بدون تعديل)
+  horror/         لعبة ملفات متعددة (css/js) منذ البداية (بدون تعديل)
   civilization/   محاكي الحضارة المدعوم بالسحابة (بدون تعديل)
-  _runtime/       مُحمّل الفصل المشترك المستخدم في clash و horror
 ```
 
-النسخ أحادية الملف القديمة (`games/<name>.html`) أصبحت الآن صفحات تحويل صغيرة تشير إلى المجلدات الجديدة، لذا كل الروابط القديمة تعمل. يبقى الملفان `games/clash.html` و `games/horror.html` مصدرين حقيقيين ما زالا يُحمَّلان عبر مُحمّل الفصل المشترك.
+النسخ أحادية الملف القديمة (`games/<name>.html`) أصبحت الآن صفحات تحويل صغيرة تشير إلى المجلدات الجديدة، لذا كل الروابط القديمة تعمل. كانت `clash/` و `horror/` منذ البداية لعبتين متعددتَي الملفات ولم تُلمس؛ ولم يعد أي صفحة تشير إلى مُحمّل الفصل المشترك القديم (`games/_runtime/`) وقد حُذف.
