@@ -1,20 +1,113 @@
 <!DOCTYPE html>
 <html lang="ar" dir="ltr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🐗Keyboar🐗</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="keyboar.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+
+<link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="keyboar.html">Open the game directly</a>.</p></noscript>
+
+<div class="container">
+
+    <h1>🐗KEYBOAR🐗</h1>
+    <div class="sub">اضغط على الزر المضيء بأسرع وقت</div>
+
+    <!-- ===== الإحصائيات ===== -->
+    <div class="stats-grid">
+        <div class="stat-item">🎯 النقاط <span class="val cyan" id="scoreDisplay">0</span></div>
+        <div class="stat-item">🔥 السلسلة <span class="val gold" id="comboDisplay">0</span></div>
+        <div class="stat-item">🎯 الدقة <span class="val green" id="accuracyDisplay">0%</span></div>
+        <div class="stat-item">⏱️ الوقت <span class="val pink" id="timerDisplay">30</span>s</div>
+    </div>
+
+    <!-- ===== شريط الوقت ===== -->
+    <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar"></div>
+    </div>
+
+    <!-- ===== مستويات الصعوبة ===== -->
+    <div class="difficulty" id="difficultyGroup">
+        <button class="diff-btn" data-diff="easy">🟢 سهل</button>
+        <button class="diff-btn active" data-diff="medium">🟡 متوسط</button>
+        <button class="diff-btn" data-diff="hard">🔴 صعب</button>
+        <button class="diff-btn" data-diff="expert">💀 خبير</button>
+    </div>
+
+    <!-- ===== أنماط الإضاءة ===== -->
+    <div class="light-style" id="styleGroup">
+        <button class="style-btn active" data-style="glow">✨ توهج</button>
+        <button class="style-btn" data-style="neon">💜 نيون</button>
+        <button class="style-btn" data-style="rainbow">🌈 قوس قزح</button>
+    </div>
+
+    <!-- ===== رسالة الحالة ===== -->
+    <div id="statusMsg">✨ اضغط "بدء" للعب</div>
+
+    <!-- ===== الكيبورد ===== -->
+    <div class="keyboard" id="keyboard">
+        <div class="row">
+            <div class="key" data-key="Q">Q</div>
+            <div class="key" data-key="W">W</div>
+            <div class="key" data-key="E">E</div>
+            <div class="key" data-key="R">R</div>
+            <div class="key" data-key="T">T</div>
+            <div class="key" data-key="Y">Y</div>
+            <div class="key" data-key="U">U</div>
+            <div class="key" data-key="I">I</div>
+            <div class="key" data-key="O">O</div>
+            <div class="key" data-key="P">P</div>
+        </div>
+        <div class="row">
+            <div class="key" data-key="A">A</div>
+            <div class="key" data-key="S">S</div>
+            <div class="key" data-key="D">D</div>
+            <div class="key" data-key="F">F</div>
+            <div class="key" data-key="G">G</div>
+            <div class="key" data-key="H">H</div>
+            <div class="key" data-key="J">J</div>
+            <div class="key" data-key="K">K</div>
+            <div class="key" data-key="L">L</div>
+        </div>
+        <div class="row">
+            <div class="key" data-key="Z">Z</div>
+            <div class="key" data-key="X">X</div>
+            <div class="key" data-key="C">C</div>
+            <div class="key" data-key="V">V</div>
+            <div class="key" data-key="B">B</div>
+            <div class="key" data-key="N">N</div>
+            <div class="key" data-key="M">M</div>
+        </div>
+    </div>
+
+    <!-- ===== الأزرار ===== -->
+    <div class="btn-group">
+        <button class="btn-primary" id="startBtn">🚀 بدء اللعبة</button>
+        <button class="btn-secondary" id="resetBtn">🔄 إعادة تعيين</button>
+    </div>
+
+    <!-- ===== نجوم التقييم ===== -->
+    <div class="stars" id="starsDisplay">
+        <span class="off">★</span>
+        <span class="off">★</span>
+        <span class="off">★</span>
+    </div>
+
+    <!-- ===== لوحة الشرف ===== -->
+    <div class="hall-of-fame">
+        <div class="hall-title">🏆 لوحة الشرف</div>
+        <div class="hall-list" id="hallList">
+            <span>🥇 <span id="hall1">--</span></span>
+            <span>🥈 <span id="hall2">--</span></span>
+            <span>🥉 <span id="hall3">--</span></span>
+        </div>
+    </div>
+
+</div>
+
+<!-- ============================================================ -->
+<script src="js/game.js"></script>
 </body>
 </html>
