@@ -1,20 +1,69 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>🔥 الحقيقة أو الجرأة · متعدد اللاعبين</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="truda.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🔥 الحقيقة أو الجرأة · متعدد اللاعبين</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="truda.html">Open the game directly</a>.</p></noscript>
+
+<div class="game-container" role="main">
+    <h1 class="title" id="titleMain">⚡ الحقيقة · الجرأة</h1>
+    <div class="sub">
+        <span id="subBadge">🔥 300+ سؤال · جماعي</span>
+    </div>
+
+    <div class="controls-row">
+        <div class="lang-toggle">
+            <button type="button" class="lang-btn active" id="langAr">🇸🇦 عربي</button>
+            <button type="button" class="lang-btn" id="langEn">🇬🇧 English</button>
+        </div>
+        <div class="mp-toggle">
+            <button type="button" class="mp-btn active" id="mpSolo">👤 فردي</button>
+            <button type="button" class="mp-btn" id="mpMulti">👥 جماعي</button>
+        </div>
+    </div>
+
+    <div class="mp-setup" id="mpSetup">
+        <div class="mp-input-group">
+            <input type="text" id="nickInput" class="mp-input" placeholder="اسمك المستعار" maxlength="12">
+            <input type="text" id="roomInput" class="mp-input" placeholder="رمز الغرفة" maxlength="12">
+            <button type="button" class="mp-connect-btn" id="connectBtn">اتصال</button>
+            <button type="button" class="mp-leave-btn" id="leaveBtn" style="display:none;">مغادرة</button>
+        </div>
+        <div class="mp-info" id="mpInfo">أدخل اسمك ورمز غرفة (أو اترك الرمز فارغًا لإنشاء غرفة جديدة).</div>
+    </div>
+
+    <div class="prompt-card" id="promptCard">
+        <div class="prompt-type-badge" id="typeBadge">✦ جاهز</div>
+        <div class="prompt-text" id="promptText">اختر <strong style="color:#f5c542;">الحقيقة</strong> أو <strong style="color:#ff8a9e;">الجرأة</strong></div>
+        <div class="prompt-number" id="promptNumber"># —</div>
+    </div>
+
+    <div class="action-grid">
+        <button type="button" class="btn btn-truth" id="truthBtn">🔮 الحقيقة</button>
+        <button type="button" class="btn btn-dare" id="dareBtn">⚡ الجرأة</button>
+        <button type="button" class="btn btn-random" id="randomBtn">🎲 عشوائي</button>
+    </div>
+
+    <div class="footer-actions">
+        <span class="counter" id="counterDisplay"><strong>0</strong> مستخدم · 0ح 0ج</span>
+        <button type="button" class="btn-small" id="resetBtn">⟳ إعادة تعيين</button>
+    </div>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header" id="chatHeader">💬 دردشة الغرفة</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="chat-input" placeholder="اكتب رسالة...">
+            <button type="button" class="chat-send-btn" id="chatSendBtn">إرسال</button>
+        </div>
+    </div>
+</div>
+
+<!-- Using jsDelivr CDN for better global availability -->
+<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
