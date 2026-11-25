@@ -1,20 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Strata: Card Chess vs Bot</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="chard.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Strata: Card Chess vs Bot</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="chard.html">Open the game directly</a>.</p></noscript>
+<body class="flex flex-col h-screen" dir="ltr">
+
+    <!-- Top Bar -->
+    <div class="glass-panel p-2 flex justify-between items-center z-10">
+        <div>
+            <h1 class="text-lg font-bold text-white" style="font-family: 'Cinzel', serif;" id="titleText">STRATA</h1>
+            <p class="text-xs text-gray-400" id="subtitleText">vs Smart Bot</p>
+        </div>
+
+        <div id="turnIndicator" class="glass-panel rounded-lg px-3 py-1 animate-pulse-glow">
+            <div class="text-center">
+                <div class="text-xs text-gray-400 uppercase" id="turnLabel">Turn</div>
+                <div class="text-base font-bold text-blue-400" id="turnText">YOU</div>
+            </div>
+        </div>
+
+        <div class="flex gap-1 items-center">
+            <select id="difficulty" class="bg-gray-700 text-white text-xs px-2 py-1 rounded border-none outline-none">
+                <option value="1" data-key="easy">Easy</option>
+                <option value="2" selected data-key="normal">Normal</option>
+                <option value="3" data-key="hard">Hard</option>
+            </select>
+            <button onclick="toggleLanguage()" class="lang-btn" id="langToggle">EN</button>
+            <button onclick="resetGame()" class="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs">
+                ↻
+            </button>
+        </div>
+    </div>
+
+    <!-- Score Bar -->
+    <div class="px-3 py-1">
+        <div class="flex justify-between text-xs text-gray-400 mb-1">
+            <span id="scoreBotLabel">Bot (Black)</span>
+            <span id="evalText">0.0</span>
+            <span id="scoreYouLabel">You (White)</span>
+        </div>
+        <div class="score-bar">
+            <div class="score-fill" id="scoreFill" style="width: 50%;"></div>
+        </div>
+    </div>
+
+    <!-- Game Board -->
+    <div class="flex-1 flex items-center justify-center p-2 overflow-hidden">
+        <div id="board" dir="ltr"></div>
+    </div>
+
+    <!-- Message Area -->
+    <div id="messageArea" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+        <div id="gameMessage" class="glass-panel rounded-lg px-6 py-3 text-center opacity-0 transition-opacity duration-500">
+            <div class="text-xl font-bold text-white" style="font-family: 'Cinzel', serif;" id="messageText"></div>
+            <div class="text-xs text-gray-400 mt-1" id="messageSub"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel -->
+    <div class="glass-panel p-2 z-10">
+        <!-- Selected Card Info -->
+        <div id="selectedCardInfo" class="mb-2 hidden">
+            <div class="flex justify-between items-center gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs text-gray-400 uppercase" id="selectedLabel">Selected</div>
+                    <div class="text-sm font-bold text-yellow-400 truncate" id="selectedCardName"></div>
+                    <div class="text-xs text-gray-300 truncate" id="selectedCardDesc"></div>
+                </div>
+                <button onclick="clearSelectedCard()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm" id="cancelBtn">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Card Hand -->
+        <div class="mb-2">
+            <div class="flex justify-between items-center mb-1">
+                <div class="text-xs text-gray-400" id="yourCardsLabel">Your Cards (<span id="cardCount">0</span>/2)</div>
+                <div class="flex gap-2 text-xs">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-500 rounded"></span><span id="legendMove">Move</span></span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 bg-purple-500 rounded"></span><span id="legendAlter">Alter</span></span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 bg-yellow-500 rounded"></span><span id="legendSpecial">Special</span></span>
+                </div>
+            </div>
+            <div id="cardHand" class="flex gap-2 overflow-x-auto pb-1 card-hand-scroll" dir="ltr"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2">
+            <button id="endTurnBtn" onclick="endTurn()" class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2 rounded-lg font-bold active:scale-95 transition">
+                End Turn
+            </button>
+            <button id="botStatusBtn" disabled class="flex-1 bg-gray-700 text-gray-400 py-2 rounded-lg font-bold">
+                <span id="botStatusText">Waiting...</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="js/game.js"></script>
+
 </body>
 </html>
