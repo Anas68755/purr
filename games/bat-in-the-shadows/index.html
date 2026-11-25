@@ -1,20 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Bat in the Shadows — Key Look</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="bat-in-the-shadows.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Bat in the Shadows — Key Look</title>
+    <link rel="stylesheet" href="css/style.css">
+<base target="_blank">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="bat-in-the-shadows.html">Open the game directly</a>.</p></noscript>
+
+    <div id="hud">
+        <div id="hud-left">
+            <div class="hud-panel">🦇 Score: <span id="scoreVal">0</span></div>
+            <div class="hud-panel" id="healthBar">
+                <div class="heart"></div><div class="heart"></div><div class="heart"></div>
+            </div>
+        </div>
+        <div id="hud-right">
+            <div class="badge" id="controlsHint">WASD move · Mouse look · Q/E look · Scroll fly · ESC pause</div>
+            <div class="badge">Best: <span id="highScoreVal">0</span></div>
+            <div class="badge" id="comboBadge">🔥 Combo x<span id="comboVal">0</span></div>
+        </div>
+    </div>
+
+    <div id="vignette"></div>
+
+    <div id="startScreen" class="screen show">
+        <h1>🦇 Bat in the Shadows</h1>
+        <p>Explore a vast luminous cavern. Avoid sunbeams. Collect treasures.</p>
+        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Mouse to look · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · ESC pause</p>
+        <button class="btn" id="startBtn">Enter the World</button>
+    </div>
+
+    <div id="gameoverScreen" class="screen">
+        <h1>💀 Game Over</h1>
+        <p>The light found you...</p>
+        <div class="big-score" id="finalScore">0</div>
+        <p>Best: <span id="finalBest">0</span></p>
+        <button class="btn" id="restartBtn">Try Again</button>
+        <button class="btn btn-secondary" id="menuBtn">Main Menu</button>
+    </div>
+
+    <div id="pauseOverlay" class="pause-overlay">
+        <div class="pause-title">⏸ Paused</div>
+        <div class="pause-nav">
+            <button class="pause-tab active" data-tab="main">Main</button>
+            <button class="pause-tab" data-tab="settings">Settings</button>
+            <button class="pause-tab" data-tab="controls">Controls</button>
+        </div>
+
+        <!-- Main Panel -->
+        <div class="pause-panel active" id="panel-main">
+            <button class="neon-btn primary" id="resumeBtn">▶ Resume</button>
+            <button class="neon-btn" id="quitBtn">✕ Quit to Menu</button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="pause-panel" id="panel-settings">
+            <div class="setting-row">
+                <span class="setting-label">🔊 Master Volume</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="volVal">80%</span>
+                    <input type="range" class="neon-slider" id="volSlider" min="0" max="100" value="80">
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🎵 Music</span>
+                <div class="neon-toggle on" id="musicToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🔔 Sound Effects</span>
+                <div class="neon-toggle on" id="sfxToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🖱️ Mouse Sensitivity</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="sensVal">1.0x</span>
+                    <input type="range" class="neon-slider" id="sensSlider" min="50" max="200" value="100">
+                </div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">✨ Particle Effects</span>
+                <div class="neon-toggle on" id="particleToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🖱️ Mouse Look</span>
+                <div class="neon-toggle on" id="mouseLookToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🔄 Invert Look</span>
+                <div class="neon-toggle" id="invertLookToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">↔️ Invert Side Move</span>
+                <div class="neon-toggle" id="invertSideToggle"></div>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">🌫️ Fog Density</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="setting-value" id="fogVal">Medium</span>
+                    <input type="range" class="neon-slider" id="fogSlider" min="0" max="100" value="50">
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="pause-panel" id="panel-controls">
+            <div class="control-grid">
+                <div class="control-item"><div class="control-key">W</div><div class="control-desc">Move Forward</div></div>
+                <div class="control-item"><div class="control-key">S</div><div class="control-desc">Move Back</div></div>
+                <div class="control-item"><div class="control-key">A</div><div class="control-desc">Move Left</div></div>
+                <div class="control-item"><div class="control-key">D</div><div class="control-desc">Move Right</div></div>
+                <div class="control-item"><div class="control-key">Q</div><div class="control-desc">Look Left</div></div>
+                <div class="control-item"><div class="control-key">E</div><div class="control-desc">Look Right</div></div>
+                <div class="control-item"><div class="control-key">↕</div><div class="control-desc">Scroll Fly</div></div>
+                <div class="control-item"><div class="control-key">Sp</div><div class="control-desc">Fly Up</div></div>
+                <div class="control-item"><div class="control-key">Sh</div><div class="control-desc">Fly Down</div></div>
+                <div class="control-item"><div class="control-key">Esc</div><div class="control-desc">Pause</div></div>
+            </div>
+        </div>
+
+        <div class="pause-footer">Bat in the Shadows v1.0</div>
+    </div>
+
+    <div id="touchControls">
+        <div class="touch-zone" id="joyLeft"></div>
+        <div id="touchRight">
+            <div class="touch-btn" id="btnUp">▲</div>
+            <div class="touch-btn" id="btnDown">▼</div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module" src="js/game.js"></script>
 </body>
 </html>
