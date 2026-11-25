@@ -1,20 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Catch the Cat - Elite Edition</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="purch.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="purch.html">Open the game directly</a>.</p></noscript>
+
+<canvas id="gameCanvas"></canvas>
+<div class="vignette"></div>
+<div id="cursor"></div>
+
+<div class="ui-layer">
+  <div class="hud">
+    <div class="stat-group">
+      <div class="stat-card">
+        <div class="stat-label">Catches</div>
+        <div class="stat-value teal" id="catchStat">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Misses</div>
+        <div class="stat-value" id="missStat">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Speed</div>
+        <div class="stat-value" id="speedStat">1.0x</div>
+      </div>
+    </div>
+    <div class="stat-group">
+      <div class="stat-card">
+        <div class="stat-label">Best Catch</div>
+        <div class="stat-value gold" id="bestTimeStat">--</div>
+      </div>
+      <button class="icon-btn" id="muteBtn" title="Toggle sound">🔊</button>
+      <button class="icon-btn" id="endBtn" title="End hunt">✕</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div id="floatLayer"></div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <h1 class="title" id="startTitle">Catch the Cat</h1>
+  <p class="subtitle" id="startSubtitle">An elite hunter. He will kite, dodge, and dash away from your cursor (or finger). Wait for him to tire out, then strike. Every catch he respawns a little faster — how long can you keep up?</p>
+  <button class="btn" id="startBtn">Begin Hunt</button>
+  <div class="leaderboard" id="startLeaderboard">
+    <div class="leaderboard-title">Fastest Catches</div>
+    <div id="leaderboardList"><div class="leaderboard-empty">Loading...</div></div>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
 </body>
 </html>
