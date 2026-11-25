@@ -1,20 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Shadowrise — The Monster's Path</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="survivor.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="survivor.html">Open the game directly</a>.</p></noscript>
+<canvas id="game"></canvas>
+<canvas id="glcanvas"></canvas>
+
+<div id="hud">
+  <div class="stats-panel"><div class="lvl-badge" id="lvl-badge">1</div><div class="pname">Grimm the Shadowborn</div>
+    <div class="bar-c"><div class="bar-l"><span>HEALTH</span><span id="hp-t">80/80</span></div><div class="bar"><div class="bar-f hp" id="hp-bar" style="width:100%"></div></div></div>
+    <div class="bar-c"><div class="bar-l"><span>MANA</span><span id="mp-t">50/50</span></div><div class="bar"><div class="bar-f mana" id="mp-bar" style="width:100%"></div></div></div>
+    <div class="bar-c"><div class="bar-l"><span>RAGE</span><span id="rg-t">0/100</span></div><div class="bar"><div class="bar-f rage" id="rg-bar" style="width:0%"></div></div></div>
+    <div class="bar-c"><div class="bar-l"><span>EXPERIENCE</span><span id="xp-t">0/100</span></div><div class="bar"><div class="bar-f xp" id="xp-bar" style="width:0%"></div></div></div>
+  </div>
+  <button class="qlog-btn" id="qlog-btn">MENU</button>
+  <div class="coin-d"><div class="coin-i"></div><span class="coin-c" id="coin-c">0</span></div>
+  <button class="mute-btn" id="mute-btn">MUTE</button>
+  <div class="mm-c"><div class="lbl">MAP</div><canvas id="minimap" width="128" height="128"></canvas></div>
+  <div class="q-track"><div class="ttl">Active Quest</div><div class="dsc" id="q-dsc">Speak to the Monster King</div><div class="prg" id="q-prg"></div></div>
+  
+  <div class="boss-bar-c" id="boss-bar-c">
+    <div class="boss-name" id="boss-name">ELITE ENEMY</div>
+    <div class="boss-bar"><div class="boss-bar-f" id="boss-bar-f" style="width:100%"></div></div>
+  </div>
+
+  <div class="dlg-box" id="dlg-box"><div class="dlg-name" id="dlg-name"></div><div class="dlg-text" id="dlg-text"></div><div class="dlg-choices" id="dlg-choices"></div></div>
+  <div class="shop-panel" id="shop-panel"><h2 id="shop-title">TROLL SMITHY</h2><div class="sub" id="shop-sub">Forge your path to power</div><div id="shop-items"></div><button class="shop-close" id="shop-close">LEAVE</button></div>
+  
+  <div class="qlog-panel" id="qlog-panel">
+    <h2>SHADOW MENU</h2>
+    <div class="tab-btns">
+      <button class="tab-btn active" data-tab="quests">QUESTS</button>
+      <button class="tab-btn" data-tab="stats">ATTRIBUTES</button>
+      <button class="tab-btn" data-tab="inv">INVENTORY</button>
+    </div>
+    <div class="tab-content active" id="tab-quests"><div id="qlog-list"></div></div>
+    <div class="tab-content" id="tab-stats">
+      <div class="points-left">Points Available: <span id="attr-points">0</span></div>
+      <div id="attr-list"></div>
+    </div>
+    <div class="tab-content" id="tab-inv"><div class="inv-grid" id="inv-grid"></div></div>
+    <button class="save-btn" id="save-game-btn">SAVE GAME</button>
+    <button class="shop-close" id="qlog-close" style="margin-top:8px">CLOSE</button>
+  </div>
+</div>
+
+<div class="joy-zone l" id="jzl"><div class="joy l" id="joy-l"><div class="joy-base"></div><div class="joy-knob"></div><div class="joy-lbl">MOVE</div></div></div>
+<div class="joy-zone r" id="jzr"><div class="joy r" id="joy-r"><div class="joy-base"></div><div class="joy-knob"></div><div class="joy-lbl">ATTACK</div></div></div>
+
+<div class="act-btns left">
+  <button class="act-btn" id="potion-btn">POTION<span class="cnt" id="pot-c">3</span></button>
+  <button class="act-btn rage" id="rage-btn">RAGE</button>
+  <button class="act-btn dash" id="dash-btn">DASH</button>
+</div>
+<div class="act-btns right">
+  <button class="act-btn" id="interact-btn">ACT</button>
+  <button class="act-btn magic" id="magic-btn">MAGIC</button>
+  <button class="act-btn nova" id="nova-btn">NOVA</button>
+</div>
+
+<div class="title-screen" id="title-screen">
+  <h1>SHADOWRISE</h1>
+  <div class="sub">The Monster's Path</div>
+  <div class="lore">You are Grimm, a shadowborn goblin forged in darkness. The Monster King has sent you forth to train — slay the creatures of the wild, complete tasks for his dark servants, and grow strong enough to crush the King of Humans and his golden knights. The fate of shadow rests upon your claws.</div>
+  <div class="save-slots" id="save-slots">
+    <button class="slot-btn" data-slot="1"><span class="slot-num">SLOT 1</span><span class="slot-info">Empty</span></button>
+    <button class="slot-btn" data-slot="2"><span class="slot-num">SLOT 2</span><span class="slot-info">Empty</span></button>
+    <button class="slot-btn" data-slot="3"><span class="slot-num">SLOT 3</span><span class="slot-info">Empty</span></button>
+  </div>
+  <div class="hint">Left Joystick / WASD — Move · Right Joystick / Mouse — Aim & Attack<br>Q — Potion · E — Interact · Space — Magic · Shift — Dash · R — Rage · V — Nova<br>Day/Night cycle affects enemy strength. Elite enemies drop rare loot.</div>
+</div>
+
+<div class="game-over" id="game-over"><h2 id="go-title">YOU DIED</h2><div class="sm" id="go-stats"></div><button class="rb" id="restart-btn">RETURN TO TITLE</button></div>
+<div class="toast" id="toast"></div>
+
+<script src="js/game.js"></script>
 </body>
 </html>
