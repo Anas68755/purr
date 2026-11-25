@@ -27,14 +27,17 @@ Each game lives in its own folder under `games/<name>/` with a separate `index.h
 ```
 games/
   2048/           index.html · css/style.css · js/game.js
-  calc-chall/     index.html · css/style.css · js/game.js
-  truda/          index.html (loads truda.html via the runtime splitter)
-  ...             one folder per game
+  survivor-ar/    index.html · css/style.css · js/game-01..03.js
+  ...             15 games as real css/js folders (2048, calc-chall, keyboar,
+                  echo, purch, purr-clicker, revolver, monopoly, tiktak,
+                  bat-in-the-shadows, chard, truda, cack, survivor, survivor-ar)
+  clash/          folder shells that still load their single-file source
+  horror/         via the shared runtime splitter
   civilization/   the cloud-backed evolution sim (untouched core scripts)
-  _runtime/       shared split-loader used by the folder shells
+  _runtime/       shared split-loader used by clash/ and horror/
 ```
 
-The classic single-file versions (`games/<name>.html`) are still linked from the folder shells, so every old URL keeps working. `games/2048.html` and `games/calc-chall.html` are now tiny redirect stubs pointing to their new folders.
+The classic single-file versions (`games/<name>.html`) are now tiny redirect stubs pointing to their new folders, so every old URL keeps working. Only `games/clash.html` and `games/horror.html` remain real single-file sources, still loaded by the shared runtime splitter.
 
 ---
 
@@ -67,11 +70,12 @@ The classic single-file versions (`games/<name>.html`) are still linked from the
 ```
 games/
   2048/           index.html · css/style.css · js/game.js
-  calc-chall/     index.html · css/style.css · js/game.js
-  truda/          index.html (يحمّل truda.html عبر الفاصل الزمني)
-  ...             مجلد لكل لعبة
+  survivor-ar/    index.html · css/style.css · js/game-01..03.js
+  ...             ١٥ لعبة كمجلدات حقيقية بملفات css/js
+  clash/          واجهات مجلدات ما زالت تحمّل مصدرها أحادي الملف
+  horror/         عبر مُحمّل الفصل المشترك
   civilization/   محاكي الحضارة المدعوم بالسحابة (بدون تعديل)
-  _runtime/       مُحمّل الفصل المشترك المستخدم في واجهات المجلدات
+  _runtime/       مُحمّل الفصل المشترك المستخدم في clash و horror
 ```
 
-النسخ أحادية الملف القديمة (`games/<name>.html`) ما زالت مرتبطة من واجهات المجلدات، لذا كل الروابط القديمة تعمل. الملفان `games/2048.html` و `games/calc-chall.html` أصبحا الآن صفحات تحويل صغيرة تشير إلى المجلدات الجديدة.
+النسخ أحادية الملف القديمة (`games/<name>.html`) أصبحت الآن صفحات تحويل صغيرة تشير إلى المجلدات الجديدة، لذا كل الروابط القديمة تعمل. يبقى الملفان `games/clash.html` و `games/horror.html` مصدرين حقيقيين ما زالا يُحمَّلان عبر مُحمّل الفصل المشترك.
