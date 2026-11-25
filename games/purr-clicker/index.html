@@ -1,20 +1,50 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Purr Clicker · Infinity Cat</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="purr-clicker.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Purr Clicker · Infinity Cat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="purr-clicker.html">Open the game directly</a>.</p></noscript>
+
+<header>
+  <span class="hdr-cat">🐱</span>
+  <h1>Purr Clicker</h1>
+  <div class="hdr-spacer"></div>
+  <div class="hdr-stats">
+    <div class="hdr-stat">ALL-TIME<span id="hdrTotal">0</span></div>
+    <div class="hdr-stat">PER SEC<span id="hdrCps">0</span></div>
+  </div>
+  <button class="btn-icon" id="btnMusic">🎵</button>
+  <button class="btn-icon" id="btnReset">🔄</button>
+</header>
+
+<div class="tabs-content">
+  <div class="tab-pane active" id="tab-cat">
+    <div class="counter-wrap"><div class="counter-main" id="counterMain">0</div><div class="counter-label">purrs collected</div><div class="counter-cps" id="counterCps">+0/s</div></div>
+    <div class="evo-badge" id="evoBadge">Kitten</div>
+    <div class="den-scene" style="text-align:center;"><div id="catEmoji">🐱</div><div class="den-floor"></div></div>
+    <div class="cat-name-tag" id="catNameTag"></div><div class="cat-trait" id="catTrait"></div>
+    <div class="evo-progress-wrap"><div class="evo-progress-label"><span id="evoCur">0</span><span id="evoStage"></span><span id="evoNext"></span></div><div class="evo-bar-track"><div class="evo-bar-fill" id="evoFill" style="width:0%"></div></div></div>
+    <div class="small-stat" id="activeCompanionMsg"></div>
+  </div>
+  <div class="tab-pane" id="tab-upgrades"><div class="panel-title">✨ One-Time Upgrades (50 total)</div><div id="onceList"></div></div>
+  <div class="tab-pane" id="tab-helpers"><div class="panel-title">🏠 Passive Helpers (25 total)</div><div id="buildingList"></div></div>
+  <div class="tab-pane" id="tab-companions"><div class="panel-title">⭐ Companion Cats (15 unique)</div><div id="companionList"></div><div class="small-stat">✨ Companions boost production for 30 seconds!</div></div>
+</div>
+
+<nav class="tab-bar">
+  <button class="tab-bar-btn active" data-tab="tab-cat"><span class="tab-icon">🐱</span>Cat</button>
+  <button class="tab-bar-btn" data-tab="tab-upgrades"><span class="tab-icon">✨</span>Upgrades<span class="tab-badge" id="badge-upgrades"></span></button>
+  <button class="tab-bar-btn" data-tab="tab-helpers"><span class="tab-icon">🏠</span>Helpers<span class="tab-badge" id="badge-helpers"></span></button>
+  <button class="tab-bar-btn" data-tab="tab-companions"><span class="tab-icon">⭐</span>Companions<span class="tab-badge" id="badge-companions"></span></button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script src="js/game.js"></script>
 </body>
 </html>
