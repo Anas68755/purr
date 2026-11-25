@@ -1,20 +1,133 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Neon Monopoly X</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="monopoly.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Monopoly X</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="monopoly.html">Open the game directly</a>.</p></noscript>
+  <div class="wrap">
+    <div class="titlebar">
+      <div class="brand">
+        <h1>Neon Monopoly X</h1>
+        <p>نسخة HTML متطورة بقواعد نيـون جديدة: اقتصاد ديناميكي، بطاقات تقلب السوق، ترقيات، ومناطق خاصة.</p>
+      </div>
+      <div class="top-actions">
+        <button id="newGameBtn" class="good">بدء/إعادة ضبط</button>
+        <button id="toggleHelpBtn" class="ghost">القواعد الجديدة</button>
+        <button id="fastBtn" class="secondary">وضع سريع: <span id="fastState">مفعّل</span></button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="board-shell">
+        <div class="board-top">
+          <div class="status-chip" id="turnChip">الدور: --</div>
+          <div class="status-chip" id="phaseChip">المرحلة: --</div>
+        </div>
+        <div class="board" id="board">
+          <div class="center-core">
+            <div class="core-badge">NEON ECONOMY</div>
+            <div class="core-title">Monopoly X</div>
+            <div class="core-sub">اختر ذكاءك المالي: احتكار ناعم، هجمات سوقية، حماية، وترقيات متعددة المستويات.</div>
+            <div class="card-row">
+              <div class="mini-card"><div class="label">الرصيد</div><div class="value" id="centerCash">—</div></div>
+              <div class="mini-card"><div class="label">القوة</div><div class="value" id="centerPower">—</div></div>
+              <div class="mini-card"><div class="label">السوق</div><div class="value" id="centerMarket">—</div></div>
+            </div>
+          </div>
+          <div id="tiles"></div>
+          <div class="tokens" id="tokens"></div>
+        </div>
+      </section>
+
+      <aside class="side-shell sidebar">
+        <div class="panel">
+          <h2>إعداد اللعبة</h2>
+          <div class="grid2">
+            <div class="field">
+              <label>عدد اللاعبين</label>
+              <select id="playerCount">
+                <option>2</option><option selected>3</option><option>4</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>الـ Start Money</label>
+              <select id="startMoney">
+                <option>1200</option>
+                <option selected>1500</option>
+                <option>1800</option>
+              </select>
+            </div>
+          </div>
+          <div class="sep"></div>
+          <div id="nameInputs" class="grid2"></div>
+        </div>
+
+        <div class="panel">
+          <h2>اللاعبون</h2>
+          <div class="players" id="playerList"></div>
+        </div>
+
+        <div class="panel">
+          <h2>التحكم</h2>
+          <div class="controls">
+            <button id="rollBtn" class="good">رمي النرد</button>
+            <button id="buyBtn">شراء</button>
+            <button id="upgradeBtn">ترقية</button>
+            <button id="endBtn" class="secondary">إنهاء الدور</button>
+          </div>
+          <div class="sep"></div>
+          <div class="small" id="hintText">ابدأ اللعبة أولاً. القواعد الجديدة ستظهر هنا تلقائيًا.</div>
+        </div>
+
+        <div class="panel">
+          <h2>سجل الأحداث</h2>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div class="panel">
+          <h2>البطاقات النشطة</h2>
+          <div class="deck" id="activeCards"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="rulesModal">
+    <div class="modal">
+      <h3>القواعد الجديدة</h3>
+      <p>
+        هذه النسخة ليست Monopoly الكلاسيكية حرفيًا. أضفنا اقتصادًا ديناميكيًا، ترقيات متعددة المستويات، بطاقات سوق، مناطق حماية، ومؤثرات تمنح اللعبة طابعًا استراتيجيًا أسرع.
+      </p>
+      <div class="auction-list">
+        <div class="auction-item"><div><strong>سوق متذبذب</strong><div class="small">الإيجار يرتفع أو ينخفض تلقائيًا وفق حالة السوق.</div></div><span class="pill">±20%</span><span class="pill">اقتصاد</span></div>
+        <div class="auction-item"><div><strong>تحسينات ذكية</strong><div class="small">ترقية 1→2→3، مع مضاعفة أثر الإيجار والجوائز.</div></div><span class="pill">3 مستويات</span><span class="pill">ترقيات</span></div>
+        <div class="auction-item"><div><strong>بطاقات نيـون</strong><div class="small">هجوم، حماية، سحب نقد، أو نقل فوري.</div></div><span class="pill">بطاقات</span><span class="pill">مفاجآت</span></div>
+        <div class="auction-item"><div><strong>مناطق خاصة</strong><div class="small">ميناء تقني، بوابة نقل، صندوق ضريبة، ومنطقة أمان.</div></div><span class="pill">حركة</span><span class="pill">تكتيك</span></div>
+        <div class="auction-item"><div><strong>زوجي ونرد إضافي</strong><div class="small">رمي زوجي يمنحك دورًا إضافيًا فورًا. ثلاثة أزواج متتالية ترسلك للحجز وتخسر دورك القادم.</div></div><span class="pill">نرد</span><span class="pill">حجز</span></div>
+      </div>
+      <div class="sep"></div>
+      <div class="controls" style="justify-content:flex-end">
+        <button id="closeRules" class="good">فهمت</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="auctionModal">
+    <div class="modal">
+      <h3 id="auctionTitle">مزاد</h3>
+      <p id="auctionDesc">اختر عرضًا لشراء العقار أو اتركه للمزاد العام.</p>
+      <div class="auction-list" id="auctionList"></div>
+      <div class="sep"></div>
+      <div class="controls" style="justify-content:space-between">
+        <button id="skipAuction" class="ghost">تخطي</button>
+        <button id="closeAuction" class="good">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
 </body>
 </html>
