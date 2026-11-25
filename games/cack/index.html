@@ -1,20 +1,138 @@
 <!DOCTYPE html>
 <html lang="ar" dir="ltr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CyberHack PRO - الإصدار المتطور</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="cack.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CyberHack PRO - الإصدار المتطور</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="cack.html">Open the game directly</a>.</p></noscript>
+
+    <div class="scanlines"></div>
+    <div class="glitch-overlay" id="glitchOverlay"></div>
+
+    <!-- Panels -->
+    <div class="panel-overlay" id="missionsOverlay">
+        <div class="panel-box">
+            <h3>📋 المهام اليومية</h3>
+            <div id="missionsList"></div>
+            <button class="close-btn" onclick="closePanel('missionsOverlay')">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="panel-overlay" id="achievementsOverlay">
+        <div class="panel-box">
+            <h3>🏆 الإنجازات</h3>
+            <div id="achievementsList"></div>
+            <button class="close-btn" onclick="closePanel('achievementsOverlay')">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="panel-overlay" id="shopOverlay">
+        <div class="panel-box">
+            <h3>🛒 السوق السوداء</h3>
+            <div id="shopList"></div>
+            <button class="close-btn" onclick="closePanel('shopOverlay')">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="header">
+            <h1>⬢ CYBERHACK <span class="blink-cursor">█</span></h1>
+            <div class="status-indicators">
+                <span><span class="dot green"></span> SYS</span>
+                <span><span class="dot yellow"></span> NET</span>
+                <span><span class="dot red"></span> TGT</span>
+                <span><span class="dot purple"></span> STL</span>
+                <span><span class="dot orange"></span> REP</span>
+                <span id="timerDisplay">⏱ 00:00</span>
+            </div>
+        </div>
+
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <span class="level-display">🏅 Lv.<span id="levelDisplay">1</span></span>
+            <span class="xp-bar"><span class="xp-fill" id="xpFill"></span></span>
+            <span id="xpDisplay">0/100 XP</span>
+            <span class="coins-display">🪙 <span id="coinsDisplay">0</span></span>
+            <span class="reputation-display">⭐ <span id="reputationDisplay">محايد</span></span>
+        </div>
+
+        <!-- MAIN -->
+        <div class="main-area">
+
+            <!-- TERMINAL -->
+            <div class="terminal-wrap">
+                <div class="terminal" id="terminal"></div>
+            </div>
+
+            <!-- NETWORK MAP -->
+            <div class="network-panel">
+                <h3>🌐 MAP</h3>
+                <div class="network-map" id="networkMap"></div>
+            </div>
+
+            <!-- SIDEBAR -->
+            <div class="sidebar" id="sidebar">
+                <div class="stat-item">
+                    <span class="label">المرحلة</span>
+                    <span class="value" id="phaseDisplay">بدء</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">التقدم</span>
+                    <span class="value" id="progressDisplay">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="fill" id="progressFill"></div>
+                </div>
+                <div class="stat-item">
+                    <span class="label">الهدف</span>
+                    <span class="value" id="targetDisplay">GLOBAL</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">الجدار</span>
+                    <span class="value" id="firewallDisplay">نشط</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">التخفي</span>
+                    <span class="value" id="stealthDisplay">100%</span>
+                </div>
+                <div class="stealth-meter" id="stealthMeter">
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                    <div class="bar active"></div>
+                </div>
+                <div class="stat-item">
+                    <span class="label">الأوامر</span>
+                    <span class="value" id="cmdCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMMAND -->
+        <div class="command-area">
+            <span class="prompt">
+                <span class="user">h</span><span class="at">@</span><span class="host">c</span> ❯
+            </span>
+            <div class="input-wrap">
+                <input type="text" id="cmdInput" placeholder="أدخل أمر..." autofocus spellcheck="false" enterkeyhint="send">
+            </div>
+            <button class="send-btn" id="sendBtn">↵</button>
+            <button class="toggle-btn" id="toggleSoundBtn">🔊</button>
+            <button class="theme-btn" id="themeBtn">🎨</button>
+        </div>
+
+    </div>
+
+    <script src="js/game.js"></script>
 </body>
 </html>
