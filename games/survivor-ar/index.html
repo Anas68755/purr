@@ -1,20 +1,361 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- ═══════════ Arcane Survivor 2.0 — لعبة survivor roguelite في ملف واحد ═══════════ -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Arcane Survivor 2.0 — Survive endless hordes, evolve your magic, become the legend. لعبة بقاء سريعة الإيقاع تمزج بين السحر والتطوّر اللانهائي.">
 <title>Arcane Survivor 2.0</title>
-<base href="../">
-<script src="_runtime/split-loader.js" data-src="survivor-ar.html"></script>
-<style>
-  html,body{margin:0;min-height:100%}
-  #purr-loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-    background:#0a0d14;color:#98a0b3;font:16px system-ui,sans-serif}
-</style>
+<link id="manifest-link" rel="manifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="purr-loading">Loading…</div>
-<noscript><p style="color:#eee;font-family:sans-serif;padding:2rem">
-  JavaScript is off. <a style="color:#7ab8ff" href="survivor-ar.html">Open the game directly</a>.</p></noscript>
+<div id="boot"><div class="orb"></div><div style="font-weight:900;color:var(--acc)">ARCANE SURVIVOR 2.0</div><div class="dim" data-i="loading">جارِ التحميل…</div></div>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+<div id="hurt-fx"></div>
+
+<!-- ═══════ HUD أثناء اللعب ═══════ -->
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div id="hud-row1">
+      <div class="bar" id="hpbar"><div class="fill" id="hpfill"></div><span id="hptext">100/100</span></div>
+      <div id="timer">00:00</div>
+      <div class="spacer"></div>
+      <button id="btn-pause" class="icon-btn" aria-label="pause"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>
+    </div>
+    <div class="bar" id="xpwrap"><div class="fill" id="xpfill" style="transform:scaleX(0)"></div></div>
+    <div id="hud-chips">
+      <span class="chip"><i class="dot" style="background:var(--acc)"></i><span data-i="lvl">مستوى</span> <b id="lvl-chip">1</b></span>
+      <span class="chip"><i class="dot" style="background:var(--hp)"></i><b id="kills">0</b></span>
+      <span class="chip gold-txt"><i class="dot" style="background:var(--gold)"></i><b id="gold-run">0</b></span>
+      <span class="chip purple-txt"><i class="dot" style="background:var(--acc2)"></i><b id="shard-run">0</b></span>
+    </div>
+  </div>
+  <div id="bossbar" class="hidden"><div id="bossname"></div><div class="bar"><div class="fill" id="bossfill"></div></div></div>
+  <div id="hud-bottom">
+    <div id="slots"></div>
+    <button id="btn-photo" class="icon-btn" aria-label="photo"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+  </div>
+</div>
+<div id="touch-ui" class="hidden">
+  <div id="joy-base"><div id="joy-knob"></div></div>
+  <button id="btn-dash" aria-label="dash"><svg viewBox="0 0 24 24"><path d="M5 5l7 7-7 7M12 5l7 7-7 7"/></svg></button>
+</div>
+<div id="fps" class="hidden">60</div>
+
+<!-- ═══════ القائمة الرئيسية ═══════ -->
+<section class="screen" id="screen-menu">
+  <div id="top-lang"><button class="btn ghost" id="btn-lang" style="min-height:38px;padding:6px 14px">EN</button></div>
+  <div id="menu-box">
+    <div class="game-title">ARCANE SURVIVOR</div>
+    <p class="game-tagline" data-i18n="game_tagline"></p>
+    <p class="game-desc" data-i18n="game_description"></p>
+    <div id="menu-currency">
+      <span class="chip gold-txt"><i class="dot" style="background:var(--gold)"></i><b id="menu-gold">0</b></span>
+      <span class="chip purple-txt"><i class="dot" style="background:var(--acc2)"></i><b id="menu-shards">0</b></span>
+    </div>
+    <button class="btn primary menu-btn" id="btn-play" data-i="play">ابدأ اللعب</button>
+    <div class="menu-grid">
+      <button class="btn" id="btn-chars" data-i="characters">الشخصيات</button>
+      <button class="btn" id="btn-talents" data-i="talents">المواهب</button>
+      <button class="btn" id="btn-codex" data-i="codex">الموسوعة</button>
+      <button class="btn" id="btn-ach" data-i="achievements">الإنجازات</button>
+      <button class="btn" id="btn-chal" data-i="challenges">التحديات</button>
+      <button class="btn" id="btn-hist" data-i="history">السجل</button>
+      <button class="btn gold" id="btn-shop" data-i="shop">المتجر</button>
+      <button class="btn" id="btn-wardrobe" data-i="wardrobe">الخزانة</button>
+    </div>
+    <button class="btn ghost" id="btn-settings" data-i="settings">الإعدادات</button>
+    <button class="btn gold hidden" id="btn-install" data-i="install">ثبّت كتطبيق</button>
+    <div class="dim" style="font-size:.75em">v2.1.0 — <span data-i="made">لعبة ويب مستقلة بملف واحد</span></div>
+  </div>
+</section>
+
+<!-- ═══════ اختيار المرحلة ═══════ -->
+<section class="screen hidden" id="screen-stages">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="selectStage">اختر المرحلة</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="scroll"><div class="grid-auto" id="stage-list"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ اختيار الشخصية والمرافق ═══════ -->
+<section class="screen hidden" id="screen-chars">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="selectChar">اختر شخصيتك</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="scroll"><div class="grid-auto" id="char-grid"></div></div>
+    <div>
+      <div class="dim" style="margin-bottom:6px" data-i="selectCompanion">المرافق:</div>
+      <div class="row" id="comp-row" style="flex-wrap:wrap"></div>
+    </div>
+    <button class="btn primary" id="btn-to-mods" data-i="next">التالي: التعديلات</button>
+  </div>
+</section>
+
+<!-- ═══════ معدّلات الصعوبة ═══════ -->
+<section class="screen hidden" id="screen-mods">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="modsTitle">معدّلات الصعوبة</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div id="weekly-banner" class="hidden" style="border:1px solid var(--acc2);border-radius:12px;padding:10px;background:rgba(70,30,130,.25);font-weight:800"></div>
+    <div class="scroll"><div id="mods-list" style="display:flex;flex-direction:column;gap:8px"></div></div>
+    <div class="row"><span class="dim" data-i="rewardMult">مضاعف المكافآت:</span><b id="mods-mult" class="gold-txt">×1.0</b><span class="spacer"></span><button class="btn primary" id="btn-start" data-i="startRun">ابدأ الجولة</button></div>
+  </div>
+</section>
+
+<!-- ═══════ شاشة الترقية ═══════ -->
+<section class="screen hidden" id="screen-levelup">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="levelupTitle">ارتقاء! اختر ترقية</div><span class="chip" id="lu-charge"></span></div>
+    <div class="scroll"><div id="lu-cards"></div></div>
+    <div id="lu-foot">
+      <button class="btn danger" id="lu-banish" data-i="banish">نَفِ الخيار</button>
+      <button class="btn gold" id="lu-skip" data-i="skip">تخطَّ (+50 خبرة)</button>
+      <span class="dim" style="font-size:.8em" data-i="banishHint">النَّفْي متاح كل 3 مستويات</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ الصندوق ═══════ -->
+<section class="screen hidden" id="screen-chest">
+  <div class="panel" style="width:min(420px,94vw);align-items:center;text-align:center">
+    <div class="scr-title gold-txt" data-i="chestTitle">صندوق كنز!</div>
+    <div id="chest-body" style="width:100%;display:flex;flex-direction:column;gap:10px"></div>
+    <button class="btn gold" id="btn-chest-ok" data-i="collect">استلم</button>
+  </div>
+</section>
+
+<!-- ═══════ الإيقاف المؤقت ═══════ -->
+<section class="screen hidden" id="screen-pause">
+  <div class="panel" style="width:min(420px,94vw);gap:14px">
+    <div class="scr-title" style="text-align:center" data-i="paused">توقّف مؤقت</div>
+    <button class="btn primary" id="btn-resume" data-i="resume">استئناف</button>
+    <button class="btn" id="btn-photo2" data-i="photoMode">وضع التصوير</button>
+    <button class="btn danger" id="btn-abandon" data-i="abandon">اهجر الجولة</button>
+  </div>
+</section>
+
+<!-- ═══════ ملخص الجولة ═══════ -->
+<section class="screen hidden" id="screen-summary">
+  <div class="panel" style="width:min(640px,94vw)">
+    <div class="scr-title" id="sum-title" style="text-align:center;font-size:1.5em"></div>
+    <div id="sum-stats"></div>
+    <div class="scroll" style="max-height:26vh"><div id="sum-ach" style="display:flex;flex-direction:column;gap:6px"></div></div>
+    <div class="row" style="flex-wrap:wrap;justify-content:center">
+      <button class="btn primary" id="btn-retry" data-i="retry">جولة جديدة</button>
+      <button class="btn" id="btn-share" data-i="share">شارك البطاقة</button>
+      <button class="btn ghost" id="btn-sum-menu" data-i="menu">القائمة</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ الإعدادات ═══════ -->
+<section class="screen hidden" id="screen-settings">
+  <div class="panel" style="width:min(560px,94vw)">
+    <div class="scr-head"><div class="scr-title" data-i="settings">الإعدادات</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="scroll">
+      <div class="set-row"><span data-i="sfxVol">مستوى المؤثرات</span><input type="range" id="set-sfx" min="0" max="100" value="70"></div>
+      <div class="set-row"><span data-i="musicVol">مستوى الموسيقى</span><input type="range" id="set-music" min="0" max="100" value="50"></div>
+      <div class="set-row"><span data-i="perfMode">وضع الأداء (جزيئات أقل)</span><div class="switch" id="set-perf"></div></div>
+      <div class="set-row"><span data-i="showFps">عرض عداد الإطارات</span><div class="switch" id="set-fps"></div></div>
+      <div class="set-row"><span data-i="haptics">الاهتزاز اللمسي</span><div class="switch" id="set-hapt"></div></div>
+      <div class="set-row"><span data-i="screenShake">اهتزاز الشاشة</span><div class="switch" id="set-shake"></div></div>
+      <div class="set-row"><span data-i="autoaim"> التصويب التلقائي</span><div class="switch" id="set-aim"></div></div>
+      <div class="set-row"><span data-i="batterySaver">توفير البطارية تلقائيًا</span><div class="switch" id="set-bat"></div></div>
+      <div class="set-row"><span data-i="uiScale">حجم الواجهة</span><input type="range" id="set-scale" min="80" max="130" value="100"></div>
+      <div class="set-row"><span data-i="deadzone">المنطقة الميتة للعصا</span><input type="range" id="set-dz" min="0" max="40" value="15"></div>
+      <div class="set-row"><span data-i="fullscreen">ملء الشاشة</span><button class="btn ghost" id="btn-full" style="min-height:36px" data-i="toggle">تبديل</button></div>
+      <div class="set-row"><span data-i="debugNote">لوحة التصحيح (زر ~)</span><button class="btn ghost" id="btn-dbg" style="min-height:36px" data-i="toggle">تبديل</button></div>
+      <div class="set-row"><span data-i="exportSave">تصدير الحفظ</span><button class="btn ghost" id="btn-export" style="min-height:36px" data-i="exportB">تصدير</button></div>
+      <div class="set-row"><span data-i="importSave">استيراد الحفظ</span><input type="file" id="file-import" accept=".json" style="max-width:170px;font-size:.8em"></div>
+      <div class="set-row"><span data-i="resetSave">مسح كل التقدم</span><button class="btn danger" id="btn-reset" style="min-height:36px" data-i="resetB">مسح</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ الموسوعة ═══════ -->
+<section class="screen hidden" id="screen-codex">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="codex">الموسوعة</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="tabs" id="codex-tabs">
+      <button class="tab on" data-t="enemies" data-i="codexEnemies">الأعداء</button>
+      <button class="tab" data-t="bosses" data-i="codexBosses">الزعماء</button>
+      <button class="tab" data-t="weapons" data-i="codexWeapons">الأسلحة</button>
+      <button class="tab" data-t="artifacts" data-i="codexArtifacts">القطع</button>
+      <button class="tab" data-t="elements" data-i="elementsTab">العناصر</button>
+      <button class="tab" data-t="fragments" data-i="fragmentsTab">القطع القديمة</button>
+      <button class="tab" data-t="familiars" data-i="codexFamiliars">المرافقون</button>
+    </div>
+    <div class="scroll"><div class="grid-auto" id="codex-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ الإنجازات ═══════ -->
+<section class="screen hidden" id="screen-ach">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="achievements">الإنجازات</div><span class="chip" id="ach-summary"></span><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="scroll"><div id="ach-list" style="display:flex;flex-direction:column;gap:8px"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ التحديات ═══════ -->
+<section class="screen hidden" id="screen-chal">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="challenges">التحديات</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="scroll">
+      <div class="scr-title" style="font-size:1em;color:var(--acc)" data-i="daily">اليومية</div>
+      <div id="daily-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div class="scr-title" style="font-size:1em;color:var(--acc2)" data-i="weekly">الأسبوعية</div>
+      <div id="weekly-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div class="scr-title" style="font-size:1em;color:var(--gold)" data-i="monthly">الموسمية</div>
+      <div id="monthly-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="dim" id="chal-reset" style="margin-top:10px;font-size:.85em"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ السجل ولوحة الصدارة ═══════ -->
+<section class="screen hidden" id="screen-hist">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="history">السجل</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="tabs">
+      <button class="tab on" id="tab-runs" data-i="runsTab">الجولات</button>
+      <button class="tab" id="tab-lb" data-i="lbTab">لوحة الصدارة</button>
+    </div>
+    <div class="scroll"><div id="hist-list" style="display:flex;flex-direction:column;gap:6px"></div><div id="lb-list" class="hidden" style="display:flex;flex-direction:column;gap:6px"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ المواهب ═══════ -->
+<section class="screen hidden" id="screen-talents">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="talents">شجرة المواهب</div><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="tabs" id="talent-chars" style="flex-wrap:wrap"></div>
+    <div class="scroll"><div class="grid-auto" id="talent-tree" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div></div>
+    <div class="row"><span class="chip gold-txt"><i class="dot" style="background:var(--gold)"></i><b id="talent-gold">0</b></span></div>
+  </div>
+</section>
+
+<!-- ═══════ المتجر الدائم ═══════ -->
+<section class="screen hidden" id="screen-shop">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title gold-txt" data-i="permTitle">الترقيات الدائمة</div><span class="chip gold-txt"><i class="dot" style="background:var(--gold)"></i><b id="shop-gold">0</b></span><button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="dim" style="font-size:.82em" data-i="permDesc">ترقيات تُشترى بالذهب وتبقى معك إلى الأبد في كل الجولات.</div>
+    <div class="scroll"><div class="shop-list" style="display:flex;flex-direction:column;gap:8px"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ خزانة السكنات المخصصة v2.2 ═══════ -->
+<section class="screen hidden" id="screen-wardrobe">
+  <div class="panel">
+    <div class="scr-head"><div class="scr-title" data-i="wardrobe">الخزانة</div>
+      <span class="chip gold-txt"><i class="dot" style="background:var(--gold)"></i><b id="ward-gold">0</b></span>
+      <span class="chip purple-txt"><i class="dot" style="background:var(--acc2)"></i><b id="ward-shards">0</b></span>
+      <button class="btn ghost btn-back" data-i="back">رجوع</button></div>
+    <div class="wd-toolbar">
+      <button class="btn gold" id="wd-add" data-i="wdAdd">+ سكن جديد</button>
+      <button class="btn ghost" id="wd-clean" data-i="wdClean">حذف غير المستخدمة</button>
+      <button class="btn ghost" id="wd-reset" data-i="wdReset">إعادة تعيين الكل</button>
+    </div>
+    <div class="wd-store">
+      <span style="font-size:.72em;color:var(--dim);font-weight:800" data-i="wdStore">تخزين</span>
+      <div class="bar" style="flex:1;height:6px"><i id="wd-store-fill" style="background:var(--ok)"></i></div>
+      <span id="wd-store-txt" class="dim" style="font-size:.72em;white-space:nowrap"></span>
+    </div>
+    <div class="tabs" id="wd-tabs">
+      <button class="tab on" data-w="player" data-i="wdTabPlayer">الشخصيات</button>
+      <button class="tab" data-w="weapon" data-i="wdTabWeapons">الأسلحة</button>
+      <button class="tab" data-w="enemy" data-i="wdTabEnemies">الأعداء</button>
+      <button class="tab" data-w="familiar" data-i="wdTabFamiliars">المرافقون</button>
+      <button class="tab" data-w="effect" data-i="wdTabEffects">التأثيرات</button>
+    </div>
+    <div class="scroll"><div class="wd-grid" id="wd-grid"></div></div>
+  </div>
+</section>
+
+<!-- ═══════ نافذة إضافة/تعديل سكن ═══════ -->
+<section class="screen hidden" id="screen-skin" style="z-index:86">
+  <div class="panel" style="width:min(560px,94vw)">
+    <div class="scr-head"><div class="scr-title" id="wdm-title" data-i="wdAdd">+ سكن جديد</div>
+      <button class="btn ghost btn-back" data-i="cancel">إلغاء</button></div>
+    <div class="scroll wdm-body">
+      <label class="wdm-lbl" data-i="wdName">الاسم</label>
+      <input id="wdm-name" class="wdm-in" maxlength="24" placeholder="🧙">
+      <label class="wdm-lbl" data-i="wdKind">المصدر</label>
+      <div class="row" style="gap:8px">
+        <button class="btn ghost seg on" id="wdm-k-emoji" style="flex:1" data-i="wdEmoji">إيموجي</button>
+        <button class="btn ghost seg" id="wdm-k-image" style="flex:1" data-i="wdImage">صورة</button>
+      </div>
+      <div id="wdm-emoji-box">
+        <input id="wdm-emoji" class="wdm-in" maxlength="8" placeholder="🧙">
+        <div class="wdm-quick" id="wdm-quick"></div>
+      </div>
+      <div id="wdm-img-box" class="hidden">
+        <div id="wdm-drop" class="wdm-drop"><span data-i="wdDrop">اسحب صورة هنا أو انقر للاختيار</span><input type="file" id="wdm-file" accept="image/*" class="hidden"></div>
+      </div>
+      <div class="wdm-previews">
+        <div class="wdm-pv"><i id="wdm-pv32"></i><span>32px</span></div>
+        <div class="wdm-pv big"><i id="wdm-pv96"></i><span>96px</span></div>
+      </div>
+      <label class="wdm-lbl" data-i="wdCat">الفئة</label>
+      <select id="wdm-cat" class="wdm-in">
+        <option value="player" data-i="wdTabPlayer">الشخصيات</option>
+        <option value="weapon" data-i="wdTabWeapons">الأسلحة</option>
+        <option value="enemy" data-i="wdTabEnemies">الأعداء</option>
+        <option value="familiar" data-i="wdTabFamiliars">المرافقون</option>
+        <option value="effect" data-i="wdTabEffects">التأثيرات</option>
+      </select>
+      <label class="wdm-lbl" data-i="wdTarget">الهدف</label>
+      <select id="wdm-target" class="wdm-in"></select>
+      <label class="wdm-lbl" data-i="wdUnlock">شرط الفتح</label>
+      <div class="row" style="gap:8px">
+        <select id="wdm-utype" class="wdm-in" style="flex:1">
+          <option value="none" data-i="wdUnNone">مفتوح دائمًا</option>
+          <option value="level" data-i="wdUnLevel">بالمستوى</option>
+          <option value="gold" data-i="wdUnGold">بالذهب</option>
+          <option value="achievement" data-i="wdUnAch">بالإنجاز</option>
+          <option value="streak" data-i="wdUnStreak">بسلسلة انتصارات</option>
+          <option value="runs" data-i="wdUnRuns">بعدد الجولات</option>
+          <option value="secret" data-i="wdUnSecret">سرّي (؟؟؟)</option>
+        </select>
+        <input id="wdm-uval" class="wdm-in" type="text" inputmode="numeric" style="width:130px" placeholder="10">
+        <select id="wdm-uach" class="wdm-in hidden" style="flex:1"></select>
+      </div>
+      <div class="dim" id="wdm-uhint" style="font-size:.78em"></div>
+    </div>
+    <div class="row" style="padding:10px 14px;gap:10px">
+      <button class="btn gold" id="wdm-save" data-i="wdSave" style="flex:1">حفظ</button>
+      <button class="btn ghost btn-back" data-i="cancel" style="flex:1">إلغاء</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ احتفال فتح سكن ═══════ -->
+<div id="wd-celebrate" class="hidden">
+  <div class="wdc-box"><i id="wdc-prev"></i><div id="wdc-name"></div><div class="dim" data-i="newUnlock">فتح جديد!</div></div>
+</div>
+
+<!-- ═══════ تأكيد عام ═══════ -->
+<section class="screen hidden" id="screen-confirm" style="z-index:90">
+  <div class="panel" style="width:min(380px,92vw);gap:14px;text-align:center">
+    <div id="confirm-text" style="font-weight:800"></div>
+    <div class="row" style="justify-content:center"><button class="btn danger" id="confirm-yes" data-i="yes">نعم</button><button class="btn ghost" id="confirm-no" data-i="cancel">إلغاء</button></div>
+  </div>
+</section>
+
+<div id="toasts"></div>
+<div id="debug-panel" class="hidden"></div>
+
+<script src="js/game-01.js"></script>
+<script src="js/game-02.js"></script>
+<script src="js/game-03.js"></script>
 </body>
 </html>
