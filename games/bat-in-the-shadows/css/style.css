@@ -252,5 +252,48 @@
             #touchControls { display: flex; }
             #controlsHint { display: none !important; }
             body { cursor: auto !important; }
+            .touch-zone { width: 150px; height: 150px; }
         }
+
+        /* ===== v2.0 additions ===== */
+
+        /* Power-up HUD */
+        #powerHud { display: flex; flex-direction: column; gap: 6px; }
+        .power-badge {
+            display: none; align-items: center; gap: 8px;
+            background: rgba(20, 20, 50, 0.6); backdrop-filter: blur(12px);
+            border: 1px solid rgba(140, 160, 240, 0.25); border-radius: 12px;
+            padding: 6px 12px; color: #e0e8ff; font-size: 12px; font-weight: 600;
+            width: fit-content;
+        }
+        .power-badge.active { display: flex; }
+        .power-badge.shield.active { border-color: rgba(85, 170, 255, 0.55); box-shadow: 0 0 14px rgba(85, 170, 255, 0.25); }
+        .power-badge.speed.active  { border-color: rgba(0, 229, 255, 0.55); box-shadow: 0 0 14px rgba(0, 229, 255, 0.25); }
+        .power-badge.magnet.active { border-color: rgba(255, 79, 163, 0.55); box-shadow: 0 0 14px rgba(255, 79, 163, 0.25); }
+        .pw-bar { width: 70px; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; }
+        .pw-fill { display: block; height: 100%; width: 100%; border-radius: 3px; transition: width 0.2s linear; }
+        .power-badge.shield .pw-fill { background: #55aaff; }
+        .power-badge.speed  .pw-fill { background: #00e5ff; }
+        .power-badge.magnet .pw-fill { background: #ff4fa3; }
+
+        /* Sonar HUD badge */
+        .sonar-badge { display: flex; align-items: center; gap: 8px; }
+        .sonar-bar { width: 64px; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; display: inline-block; }
+        .sonar-fill { display: block; height: 100%; width: 100%; background: #0ea5e9; border-radius: 3px; }
+        .sonar-badge.ready .sonar-fill { background: #44ffaa; box-shadow: 0 0 8px rgba(68, 255, 170, 0.6); }
+        .sonar-badge.ready { color: #baffdd; border-color: rgba(68, 255, 170, 0.4); }
+        .sonar-text { min-width: 42px; text-align: left; font-weight: 700; }
+
+        /* Touch polish: joystick knob + sonar button */
+        .joy-knob {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(255,255,255,0.28); border: 2px solid rgba(255,255,255,0.45);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 14px rgba(255,255,255,0.15);
+        }
+        .touch-btn.sonar-btn { border-color: rgba(14, 165, 233, 0.45); color: #7fd4ff; font-size: 22px; }
+        body.touch #touchControls { display: flex; }
+        body.touch { cursor: auto !important; }
     

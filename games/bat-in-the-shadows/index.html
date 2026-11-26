@@ -15,10 +15,16 @@
             <div class="hud-panel" id="healthBar">
                 <div class="heart"></div><div class="heart"></div><div class="heart"></div>
             </div>
+            <div id="powerHud">
+                <div class="power-badge shield" id="pwShield"><span>🛡 Shield</span><div class="pw-bar"><div class="pw-fill" id="pwShieldFill"></div></div></div>
+                <div class="power-badge speed" id="pwSpeed"><span>⚡ Boost</span><div class="pw-bar"><div class="pw-fill" id="pwSpeedFill"></div></div></div>
+                <div class="power-badge magnet" id="pwMagnet"><span>🧲 Magnet</span><div class="pw-bar"><div class="pw-fill" id="pwMagnetFill"></div></div></div>
+            </div>
         </div>
         <div id="hud-right">
-            <div class="badge" id="controlsHint">WASD move · Mouse look · Q/E look · Scroll fly · ESC pause</div>
+            <div class="badge" id="controlsHint">WASD move · Mouse look · Q/E look · Scroll fly · F sonar · ESC pause</div>
             <div class="badge">Best: <span id="highScoreVal">0</span></div>
+            <div class="badge sonar-badge" id="sonarBadge"><span>📡</span><span class="sonar-bar"><span class="sonar-fill" id="sonarFill"></span></span><span class="sonar-text" id="sonarText">Ready</span></div>
             <div class="badge" id="comboBadge">🔥 Combo x<span id="comboVal">0</span></div>
         </div>
     </div>
@@ -27,8 +33,9 @@
 
     <div id="startScreen" class="screen show">
         <h1>🦇 Bat in the Shadows</h1>
-        <p>Explore a vast luminous cavern. Avoid sunbeams. Collect treasures.</p>
-        <p style="font-size:14px; color:#64748b; margin-top:12px;">WASD to move · Mouse to look · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · ESC pause</p>
+        <p>Explore a vast luminous cavern. Avoid sunbeams and falling stalactites. Collect treasures.</p>
+        <p style="font-size:14px; color:#7fe7ff; margin-top:10px;">Press <b>F</b> (or tap 📡) to send a sonar pulse that reveals treasure through the fog. Grab 🛡 shields, ⚡ boosts and 🧲 magnets. Amber beams will hunt you.</p>
+        <p style="font-size:14px; color:#64748b; margin-top:10px;">WASD to move · Mouse to look · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · F sonar · ESC pause</p>
         <button class="btn" id="startBtn">Enter the World</button>
     </div>
 
@@ -116,17 +123,19 @@
                 <div class="control-item"><div class="control-key">↕</div><div class="control-desc">Scroll Fly</div></div>
                 <div class="control-item"><div class="control-key">Sp</div><div class="control-desc">Fly Up</div></div>
                 <div class="control-item"><div class="control-key">Sh</div><div class="control-desc">Fly Down</div></div>
+                <div class="control-item"><div class="control-key">F</div><div class="control-desc">Sonar Pulse</div></div>
                 <div class="control-item"><div class="control-key">Esc</div><div class="control-desc">Pause</div></div>
             </div>
         </div>
 
-        <div class="pause-footer">Bat in the Shadows v1.0</div>
+        <div class="pause-footer">Bat in the Shadows v2.0</div>
     </div>
 
     <div id="touchControls">
-        <div class="touch-zone" id="joyLeft"></div>
+        <div class="touch-zone" id="joyLeft"><div class="joy-knob" id="joyKnob"></div></div>
         <div id="touchRight">
             <div class="touch-btn" id="btnUp">▲</div>
+            <div class="touch-btn sonar-btn" id="btnSonar">📡</div>
             <div class="touch-btn" id="btnDown">▼</div>
         </div>
     </div>
