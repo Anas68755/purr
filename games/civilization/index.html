@@ -364,12 +364,68 @@ function idNum(npc) {
 }
 function stageOf(age) { return age < 3 ? 'baby' : age < 14 ? 'child' : age < 55 ? 'adult' : 'elder'; }
 
+// ---- أدوات يدوية (مستوحاة من تصميم Urizen 2-bit) ----
+// كل أداة: rows = رسم بالأحرف، c = عمود القبضة، g = صف القبضة، dx = إزاحة للخارج، ext = تمتد العصا حتى الأرض
+const TOOL_PAL = { w:'#895826', o:'#aa6120', i:'#666666', s:'#c8cdd2', g:'#c69f27', r:'#da0000',
+                   y:'#ffff00', b:'#ded3c3', t:'#a6a5a5', k:'#1a1a1a', f:'#f6a623' };
+const TOOLS = {
+  scepter: { c:1, g:4, rows:['.r.','ggg','.g.','.g.','.g.','.g.','.g.','.g.'] },
+  crook:   { c:1, g:5, ext:1, rows:['.ww.','.w.w','.w..','.w..','.w..','.w..','.w..'] },
+  skull:   { c:1, g:5, ext:1, rows:['bbb','kbk','.b.','.b.','.b.','.b.','.b.'] },
+  fire:    { c:1, g:5, ext:1, rows:['.f.','frf','.f.','.w.','.w.','.w.','.w.'] },
+  heal:    { c:1, g:5, ext:1, rows:['.y.','yyy','.y.','.w.','.w.','.w.','.w.'] },
+  cross:   { c:1, g:5, ext:1, rows:['.g.','ggg','.g.','.w.','.w.','.w.','.w.'] },
+  pick:    { c:2, dx:1, g:4, rows:['.iii.','i.w.i','..w..','..w..','..w..','..w..','..w..'] },
+  rod:     { c:0, g:4, rows:['...ww','..w.b','.w..b','w...b','w....','w....'] },
+  basket:  { c:0, g:1, rows:['.ww.','w..w','oooo','oooo','.oo.'] },
+  fork:    { c:2, dx:1, g:3, ext:1, rows:['i.i.i','iiiii','..w..','..w..','..w..','..w..'] },
+  pot:     { c:0, g:1, rows:['ttttt','iiiii','iiiii','.iii.'] },
+  torch:   { c:1, g:5, rows:['.y.','yry','.r.','.w.','.w.','.w.','.w.'] },
+  hammer:  { c:1, g:4, rows:['iiii','iiii','.w..','.w..','.w..','.w..'] },
+  bag:     { c:1, g:0, rows:['.w.','ooo','ogo','ooo'] },
+  sword:   { c:1, g:6, rows:['.s.','.s.','.s.','.s.','.s.','ggg','.w.','.w.'] },
+  axe:     { c:1, g:5, rows:['.wss','.wss','.ws.','.w..','.w..','.w..','.w..'] },
+  mace:    { c:1, g:5, rows:['.o.','ooo','ooo','.w.','.w.','.w.','.w.'] },
+  spear:   { c:1, g:6, ext:1, rows:['.s.','sss','.w.','.w.','.w.','.w.','.w.','.w.'] },
+  shield:  { c:0, g:1, rows:['iiii','iooi','iooi','.ii.'] },
+  bow:     { c:2, dx:1, g:3, rows:['ww.','b.w','b.w','b.w','b.w','ww.'] }
+};
+const WARRIOR_TOOLS = ['sword','axe','spear','shield','mace','bow'];
+const CIVIL_TOOLS   = ['pick','rod','basket','fork','pot','torch','hammer','bag',''];
+
+// اختيار الأداة: ثابت لكل شخص (يعتمد على الجينات والعمر والمعرّف)
+function toolFor(stage, flags, gn, id) {
+  if (stage === 'baby' || stage === 'child') return '';
+  if (flags.ruler) return 'scepter';
+  if (flags.smart && flags.angry) return 'skull';
+  if (flags.kind && gn.empathy > 76) return 'heal';
+  if (flags.smart) return stage === 'elder' ? 'cross' : 'fire';
+  if (stage === 'elder') return 'crook';
+  if (flags.angry || flags.strong) return WARRIOR_TOOLS[id % WARRIOR_TOOLS.length];
+  return CIVIL_TOOLS[Math.floor(id / 60) % CIVIL_TOOLS.length];
+}
+
+function drawTool(px, name, armX, gy, skin) {
+  const d = TOOLS[name]; if (!d) return;
+  const gx = armX + 1 + (d.dx || 0), y0 = gy - d.g;
+  const n = d.ext ? Math.max(d.rows.length, 19 - y0 + 1) : d.rows.length;
+  for (let r = 0; r < n; r++) {
+    const row = d.rows[Math.min(r, d.rows.length - 1)];
+    for (let cx = 0; cx < row.length; cx++) {
+      const ch = row[cx]; if (ch === '.') continue;
+      px(gx - d.c + cx, y0 + r, 1, 1, TOOL_PAL[ch]);
+    }
+  }
+  px(armX + 1, gy, gx - armX, 1, skin);   // اليد
+}
+
 function buildSprite(o) {
   const S = SPRITE_PX;
   const art = document.createElement('canvas');
-  art.width = 16 * S; art.height = 20 * S;
+  const OX = 3;                       // هامش جانبي لاستيعاب الأدوات
+  art.width = (16 + 2 * OX) * S; art.height = 20 * S;
   const g = art.getContext('2d');
-  const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x*S), Math.round(y*S), Math.round(w*S), Math.round(h*S)); };
+  const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round((x + OX)*S), Math.round(y*S), Math.round(w*S), Math.round(h*S)); };
 
   const st = o.stage, adultish = st === 'adult' || st === 'elder';
   const legH  = { baby:2, child:3, adult:4, elder:4 }[st];
@@ -416,10 +472,7 @@ function buildSprite(o) {
     px(bodyX + bodyW - 1, bodyTop, 2, 2, '#718096');
   }
   if (o.flags.kind) px(bodyX + bodyW - 3, bodyTop + 2, 1, 1, '#fbb6ce'); // دبوس قلب
-  if (st === 'elder') {                                              // عصا
-    px(bodyX + bodyW + 1, bodyTop + 3, 1, 20 - (bodyTop + 3), '#7b5230');
-    px(bodyX + bodyW, bodyTop + 2, 2, 1, '#7b5230');
-  }
+  if (o.tool) drawTool(px, o.tool, bodyX + bodyW, bodyTop + bodyH - 3, skin);   // أداة اليد
 
   // الرأس
   px(headX + 1, headTop, headW - 2, 1, skin);
@@ -467,7 +520,7 @@ function buildSprite(o) {
 
   // إطار خارجي داكن
   const out = document.createElement('canvas');
-  out.width = 18 * S; out.height = 22 * S;
+  out.width = (18 + 2 * OX) * S; out.height = 22 * S;
   const og = out.getContext('2d');
   const sil = document.createElement('canvas');
   sil.width = art.width; sil.height = art.height;
@@ -498,10 +551,10 @@ function spriteFor(npc, k, frame) {
     stage, sex: npc.sex === 'M' ? 'M' : 'F',
     color: (k && k.color) || '#888888',
     skin: id % 4, hair: Math.floor(id / 4) % 5, style: Math.floor(id / 20) % 3,
-    frame, flags
+    frame, flags, tool: toolFor(stage, flags, gn, id)
   };
   const key = [o.stage, o.sex, o.color, o.skin, o.hair, o.style, o.frame,
-    +flags.ruler, +flags.strong, +flags.smart, +flags.angry, +flags.kind].join('|');
+    +flags.ruler, +flags.strong, +flags.smart, +flags.angry, +flags.kind, o.tool].join('|');
   let s = spriteCache.get(key);
   if (!s) { s = buildSprite(o); spriteCache.set(key, s); }
   return s;
@@ -512,7 +565,7 @@ function portrait(npc, width) {
   const k = world ? world.getKingdom(npc.kingdomId) : null;
   const s = spriteFor(npc, k, 2);
   if (!s._url) s._url = s.toDataURL();
-  return `<img class="portrait" src="${s._url}" width="${width}" alt="">`;
+  return `<img class="portrait" src="${s._url}" width="${Math.round(width * 1.2)}" alt="">`;
 }
 
 // ============================================================
