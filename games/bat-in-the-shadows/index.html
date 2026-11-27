@@ -48,6 +48,7 @@
         <p>The light found you...</p>
         <div class="big-score" id="finalScore">0</div>
         <p>Best: <span id="finalBest">0</span></p>
+        <div id="cloudBoard" style="margin:10px auto 0;max-width:260px;text-align:left;font:13px/1.5 sans-serif;color:inherit"></div>
         <button class="btn" id="restartBtn">Try Again</button>
         <button class="btn btn-secondary" id="menuBtn">Main Menu</button>
     </div>
@@ -143,7 +144,7 @@
             </div>
         </div>
 
-        <div class="pause-footer">Bat in the Shadows v2.2</div>
+        <div class="pause-footer">Bat in the Shadows v2.3</div>
     </div>
 
     <div id="touchControls">
@@ -165,6 +166,8 @@
     }
     </script>
 
+    <script src="../_shared/cloud.js"></script>
+    <script src="js/cloud_glue.js"></script>
     <script type="module" src="js/game.js"></script>
 </body>
 </html>
