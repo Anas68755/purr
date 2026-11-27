@@ -1,9 +1,12 @@
 // ============================================================================
-// BAT IN THE SHADOWS — v2.1
-// Touch overhaul: multi-touch-safe joystick (touch-ID tracking, floating
-// centre, dead zone, camera-relative screen-correct axes), drag-to-look
-// camera on touch, touch pause button, refresh-rate-independent movement.
-// Screen-direction fixes: A/D, mouse look, Q/E, bat facing.
+// BAT IN THE SHADOWS — v2.2 (performance build)
+// RAM / lag reduction: adaptive quality tiers (render scale + shadows +
+// light budget), pooled particle bursts with zero runtime allocation,
+// sprite glows instead of ~27 dynamic point lights, reusable math vectors,
+// throttled HUD writes, and paused frames that skip rendering entirely.
+// v2.1: multi-touch-safe joystick (touch-ID tracking, floating centre, dead
+// zone, camera-relative screen-correct axes), drag-to-look camera, touch
+// pause button, refresh-rate-independent movement.
 // v2.0 systems: sonar pulse, power-ups, stalactites & seeker beams, ambient
 // music, settings persistence. Original difficulty curve unchanged.
 // ============================================================================
@@ -21,7 +24,8 @@ const settings = {
     mouseLook: true,
     invertLook: false,
     invertSide: false,
-    fog: 50
+    fog: 50,
+    quality: 'auto'
 };
 function loadSettings() {
     try {
@@ -209,14 +213,55 @@ scene.background = new THREE.Color(0x1e1e3a);
 scene.fog = new THREE.FogExp2(0x2a2a50, 0.006);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 400);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+
+// ===== Quality tiers (v2.2): render scale, shadows and light budget =====
+// tier 2 = high (shadows on, render scale up to 2x) · 1 = medium · 0 = low
+const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const DPR = Math.max(1, window.devicePixelRatio || 1);
+const TIER_PIXEL_RATIO = [1, 1.5, 2];
+const TIER_BEAM_CAP = [6, 10, 12];
+const TIER_MAP = { low: 0, med: 1, high: 2 };
+
+function detectTier() {
+    const mem = navigator.deviceMemory || 8;        // GB (spec caps at 8)
+    const cores = navigator.hardwareConcurrency || 8;
+    let tier = IS_TOUCH ? 1 : 2;
+    if (mem <= 4 || cores <= 4) tier = 0;
+    return tier;
+}
+const autoTierMax = detectTier();
+let qualityTier = settings.quality in TIER_MAP ? TIER_MAP[settings.quality] : autoTierMax;
+let beamCap = TIER_BEAM_CAP[qualityTier];
+
+const renderer = new THREE.WebGLRenderer({
+    // Dense phone screens get smooth edges from the high pixel count alone,
+    // so skip costly MSAA there; desktops keep it.
+    antialias: !(IS_TOUCH && DPR >= 2.5),
+    powerPreference: 'high-performance'
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.4;
 document.body.appendChild(renderer.domElement);
+
+function applyQualityTier(tier) {
+    qualityTier = tier;
+    beamCap = TIER_BEAM_CAP[tier];
+    renderer.setPixelRatio(Math.min(DPR, TIER_PIXEL_RATIO[tier]));
+    const shadows = tier === 2;
+    if (renderer.shadowMap.enabled !== shadows || sun.castShadow !== shadows) {
+        renderer.shadowMap.enabled = shadows;
+        sun.castShadow = shadows;
+        // Toggling shadow maps changes shader programs — force a rebuild
+        scene.traverse(o => {
+            if (o.material) {
+                if (Array.isArray(o.material)) o.material.forEach(m => { m.needsUpdate = true; });
+                else o.material.needsUpdate = true;
+            }
+        });
+    }
+}
 
 // ===== Terrain =====
 const worldSize = 800;
@@ -375,6 +420,9 @@ const fillLight = new THREE.DirectionalLight(0x6688cc, 0.3);
 fillLight.position.set(-40, 20, 40);
 scene.add(fillLight);
 
+// Apply the initial quality tier now that the lights exist
+applyQualityTier(qualityTier);
+
 // ===== Bat =====
 const batGroup = new THREE.Group();
 const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.5, metalness: 0.4 });
@@ -435,6 +483,40 @@ batGroup.add(shieldBubble);
 batGroup.position.set(0, 5, 0);
 scene.add(batGroup);
 
+// ===== Shared glow sprites (v2.2) =====
+// One canvas texture + a few shared materials replace the ~27 dynamic
+// PointLights that used to follow collectables and power-ups. Lights were
+// the single biggest GPU cost in the game: every light multiplies shader
+// work on every pixel of every object.
+const glowTexture = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+})();
+const glowMats = {};
+function addGlow(parent, colorHex, scale) {
+    let mat = glowMats[colorHex];
+    if (!mat) {
+        mat = new THREE.SpriteMaterial({
+            map: glowTexture, color: colorHex, transparent: true, opacity: 0.85,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        glowMats[colorHex] = mat;
+    }
+    const s = new THREE.Sprite(mat);
+    s.scale.setScalar(scale);
+    parent.add(s);
+}
+
 // ===== Collectables =====
 const collectables = [];
 const collectableTypes = {
@@ -466,8 +548,7 @@ function spawnCollectable() {
         THREE.MathUtils.clamp(z, -worldHalf + 5, worldHalf - 5)
     );
 
-    const light = new THREE.PointLight(type.lightColor, 1.5, 10);
-    mesh.add(light);
+    addGlow(mesh, type.lightColor, 2.2 / type.size); // sprite is a child of the scaled mesh
 
     mesh.userData = {
         type: typeKey, value: type.value, baseY: y,
@@ -484,28 +565,42 @@ function spawnCollectable() {
 
 for (let i = 0; i < 25; i++) spawnCollectable();
 
-// Particles
-const particles = [];
+// Particles — pooled bursts (v2.2): zero geometry/material allocation at runtime.
+// Previously every burst built a new BufferGeometry + PointsMaterial and freed
+// them later, which kept the garbage collector busy mid-flight.
+const PARTICLES_PER_BURST = 14;
+const MAX_BURSTS = 12;
+const bursts = [];
+const _fx = new THREE.Vector3();
+function makeBurst() {
+    const geo = new THREE.BufferGeometry();
+    const positions = new Float32Array(PARTICLES_PER_BURST * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.18, transparent: true, opacity: 1 });
+    const pts = new THREE.Points(geo, mat);
+    pts.visible = false;
+    pts.frustumCulled = false;
+    scene.add(pts);
+    return { pts, positions, vel: new Float32Array(PARTICLES_PER_BURST * 4), mat };
+}
+for (let i = 0; i < MAX_BURSTS; i++) bursts.push(makeBurst());
 function spawnParticles(pos, color) {
     if (!particlesEnabled) return;
-    const count = 14;
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const velocities = [];
-    for (let i = 0; i < count; i++) {
-        positions[i*3] = pos.x; positions[i*3+1] = pos.y; positions[i*3+2] = pos.z;
-        velocities.push({
-            x: (Math.random() - 0.5) * 0.2,
-            y: (Math.random() - 0.5) * 0.2,
-            z: (Math.random() - 0.5) * 0.2,
-            life: 1.0
-        });
+    const b = bursts.find(o => !o.pts.visible);
+    if (!b) return; // pool exhausted — skip a purely decorative effect
+    b.mat.color.setHex(color);
+    b.mat.opacity = 1;
+    b.pts.position.copy(pos);
+    const v = b.vel;
+    for (let i = 0; i < PARTICLES_PER_BURST; i++) {
+        b.positions[i*3] = 0; b.positions[i*3+1] = 0; b.positions[i*3+2] = 0;
+        v[i*4]   = (Math.random() - 0.5) * 0.2;
+        v[i*4+1] = (Math.random() - 0.5) * 0.2;
+        v[i*4+2] = (Math.random() - 0.5) * 0.2;
+        v[i*4+3] = 1.0;
     }
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({ color, size: 0.18, transparent: true, opacity: 1 });
-    const pts = new THREE.Points(geo, mat);
-    scene.add(pts);
-    particles.push({ mesh: pts, velocities });
+    b.pts.geometry.attributes.position.needsUpdate = true;
+    b.pts.visible = true;
 }
 
 // ===== Beams =====
@@ -536,8 +631,8 @@ function getBeam() {
     const spot = new THREE.SpotLight(0xffeedd, 0, 50, 0.45, 0.5, 1.0);
     spot.position.set(0, 52, 0);
     spot.target.position.set(0, -5, 0);
-    spot.castShadow = true;
-    spot.shadow.mapSize.set(256, 256);
+    // v2.2: no shadow casting — up to 12 pooled shadow maps was a heavy,
+    // barely visible GPU cost. The additive shaft + glow carry the look.
     group.add(spot);
     group.add(spot.target);
 
@@ -552,7 +647,7 @@ function getBeam() {
 }
 
 function spawnBeam() {
-    if (beams.length >= MAX_BEAMS) return;
+    if (beams.length >= beamCap) return; // beamCap follows the quality tier
     const b = getBeam();
     const angle = Math.random() * Math.PI * 2;
     const dist = 15 + Math.random() * 50;
@@ -669,7 +764,7 @@ function updateStalactites(dt) {
                 s.cone.position.y = s.groundY + 2.25;
                 s.cone.rotation.z = s.tilt;
                 // Impact: dust burst, thud, small shake, damage if close
-                spawnParticles(new THREE.Vector3(s.x, s.groundY + 0.6, s.z), 0x9999aa);
+                spawnParticles(_fx.set(s.x, s.groundY + 0.6, s.z), 0x9999aa);
                 screenShake = Math.max(screenShake, 0.35);
                 AudioSys.play('impact');
                 const dx = batGroup.position.x - s.x;
@@ -720,7 +815,7 @@ function spawnPowerup() {
     }));
     ring.rotation.x = Math.PI / 2;
     group.add(ring);
-    group.add(new THREE.PointLight(spec.color, 1.3, 12));
+    addGlow(group, spec.color, 3);
 
     const angle = Math.random() * Math.PI * 2;
     const dist = 20 + Math.random() * 35;
@@ -797,7 +892,7 @@ function updatePowerups(dt) {
 
         if (dist < 1.3) {
             activatePower(d.kind);
-            spawnParticles(g.position.clone(), powerupTypes[d.kind].color);
+            spawnParticles(g.position, powerupTypes[d.kind].color);
             disposePowerup(g);
             powerups.splice(i, 1);
         }
@@ -847,6 +942,8 @@ function sonarPingObj(o) {
     }
 }
 
+const sonarHud = { lastText: '', lastW: -1, lastReady: null };
+
 function updateSonar(dt) {
     if (sonar.cooldown > 0) sonar.cooldown = Math.max(0, sonar.cooldown - dt);
 
@@ -866,22 +963,24 @@ function updateSonar(dt) {
         }
     }
 
-    // HUD
-    const fill = sonarFillEl, text = sonarTextEl;
+    // HUD — writes only on change (v2.2)
     if (sonar.cooldown > 0) {
-        fill.style.width = ((1 - sonar.cooldown / sonar.maxCooldown) * 100) + '%';
-        text.textContent = sonar.cooldown.toFixed(1) + 's';
-        sonarBadgeEl.classList.remove('ready');
+        const w = Math.round((1 - sonar.cooldown / sonar.maxCooldown) * 100);
+        if (w !== sonarHud.lastW) { sonarHud.lastW = w; sonarFillEl.style.width = w + '%'; }
+        const txt = sonar.cooldown.toFixed(1) + 's';
+        if (txt !== sonarHud.lastText) { sonarHud.lastText = txt; sonarTextEl.textContent = txt; }
+        if (sonarHud.lastReady !== false) { sonarHud.lastReady = false; sonarBadgeEl.classList.remove('ready'); }
     } else {
-        fill.style.width = '100%';
-        text.textContent = 'Ready';
-        sonarBadgeEl.classList.add('ready');
+        if (sonarHud.lastW !== 100) { sonarHud.lastW = 100; sonarFillEl.style.width = '100%'; }
+        if (sonarHud.lastText !== 'Ready') { sonarHud.lastText = 'Ready'; sonarTextEl.textContent = 'Ready'; }
+        if (sonarHud.lastReady !== true) { sonarHud.lastReady = true; sonarBadgeEl.classList.add('ready'); }
     }
 }
 
 // ===== Game State =====
 let gameState = 'menu';
 let particlesEnabled = true;
+let lastScoreShown = -1;
 let score = 0, highScore = 0;
 try { highScore = parseInt(localStorage.getItem('batHighScore') || '0', 10) || 0; } catch (e) {}
 let health = 3, combo = 0, comboTimer = 0;
@@ -922,6 +1021,12 @@ const volValEl = el('volVal');
 const sensValEl = el('sensVal');
 const fogSliderEl = el('fogSlider');
 const fogValEl = el('fogVal');
+const qualitySegEl = el('qualitySeg');
+const powerHudEls = {
+    shield: { badge: el('pwShield'), fill: el('pwShieldFill'), lastW: -1, lastOn: null },
+    speed:  { badge: el('pwSpeed'),  fill: el('pwSpeedFill'),  lastW: -1, lastOn: null },
+    magnet: { badge: el('pwMagnet'), fill: el('pwMagnetFill'), lastW: -1, lastOn: null }
+};
 
 // ===== Input =====
 const keys = {};
@@ -1088,7 +1193,7 @@ window.addEventListener('blur', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
 
 // Touch device detection (extra fallback on top of the CSS media query)
-if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
+if (IS_TOUCH) {
     document.body.classList.add('touch');
 }
 // Suppress long-press context menu on the game surface
@@ -1107,6 +1212,7 @@ function clearWorld() {
     sonar.active = false; sonar.cooldown = 0; sonarRing.visible = false;
     activePowers.shield = 0; activePowers.speed = 0; activePowers.magnet = 0;
     shieldBubble.visible = false;
+    bursts.forEach(b => { b.pts.visible = false; });
 }
 
 function startGame() {
@@ -1120,12 +1226,13 @@ function startGame() {
     batGroup.rotation.set(0, 0, 0);
     velocity.set(0, 0, 0);
     clearWorld();
-    collectables.forEach(c => scene.remove(c)); collectables.length = 0;
+    collectables.forEach(c => { c.material.dispose(); scene.remove(c); }); collectables.length = 0;
     for (let i = 0; i < 25; i++) spawnCollectable();
     powerupTimer = 6;
     stalactiteTimer = 8;
     updateHealthUI();
     updatePowerHud();
+    lastScoreShown = -1;
     scoreValEl.textContent = '0';
     setScreen('startScreen', false);
     setScreen('gameoverScreen', false);
@@ -1207,6 +1314,22 @@ setupToggle('mouseLookToggle', on => { settings.mouseLook = on; mouseLookEnabled
 setupToggle('invertLookToggle', on => { settings.invertLook = on; invertLook = on; saveSettings(); });
 setupToggle('invertSideToggle', on => { settings.invertSide = on; invertSideMovement = on; saveSettings(); });
 
+// Graphics quality selector (v2.2): Auto / High / Med / Low
+qualitySegEl.addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn');
+    if (!btn) return;
+    settings.quality = btn.dataset.q;
+    saveSettings();
+    qualitySegEl.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('on', b === btn));
+    if (settings.quality === 'auto') {
+        perf.tier = autoTierMax;
+        applyQualityTier(autoTierMax);
+    } else {
+        applyQualityTier(TIER_MAP[settings.quality]);
+    }
+    perf.cooldown = 3; perf.goodWindows = 0;
+});
+
 function applySettingsToUI() {
     volSliderEl.value = settings.volume;
     volValEl.textContent = settings.volume + '%';
@@ -1227,6 +1350,7 @@ function applySettingsToUI() {
     invertSideMovement = settings.invertSide;
     AudioSys.sfxEnabled = settings.sfx;
     MusicSys.enabled = settings.music;
+    qualitySegEl.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('on', b.dataset.q === settings.quality));
     if (AudioSys.ctx && AudioSys.masterGain) AudioSys.masterGain.gain.value = settings.volume / 100;
 }
 applySettingsToUI();
@@ -1280,19 +1404,21 @@ function updateComboUI() {
 }
 
 function updatePowerHud() {
-    const specs = [
-        ['shield', 'pwShield', 'pwShieldFill'],
-        ['speed', 'pwSpeed', 'pwSpeedFill'],
-        ['magnet', 'pwMagnet', 'pwMagnetFill']
-    ];
-    for (const [kind, badgeId, fillId] of specs) {
+    // v2.2: cached elements + change detection — no DOM lookup or style
+    // write unless a value actually changed (this ran 60x/s before).
+    for (const kind in powerHudEls) {
+        const h = powerHudEls[kind];
         const v = activePowers[kind];
-        const badge = document.getElementById(badgeId);
-        if (v > 0) {
-            badge.classList.add('active');
-            document.getElementById(fillId).style.width = (v / POWERUP_DURATIONS[kind] * 100) + '%';
-        } else {
-            badge.classList.remove('active');
+        const on = v > 0;
+        if (h.lastOn !== on) {
+            h.lastOn = on;
+            h.badge.classList.toggle('active', on);
+            h.lastW = -1;
+            if (on) h.fill.style.width = '100%';
+        }
+        if (on) {
+            const w = Math.round(v / POWERUP_DURATIONS[kind] * 100);
+            if (w !== h.lastW) { h.lastW = w; h.fill.style.width = w + '%'; }
         }
     }
 }
@@ -1302,13 +1428,17 @@ const velocity = new THREE.Vector3();
 const speed = 0.16;
 const maxSpeed = 0.32;
 const friction = 0.88;
+// Reused per-frame vectors — no allocation inside the update loop (v2.2)
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _input = new THREE.Vector3();
 
 function updateBat(dt) {
     // Camera-relative axes. forward = where the camera looks;
     // right = SCREEN right = cross(forward, up) = (-cos yaw, 0, sin yaw).
     // (The old sin(yaw + PI/2) vector pointed screen-LEFT, so D moved left.)
-    const forward = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
-    const right = new THREE.Vector3(-Math.cos(cameraYaw), 0, Math.sin(cameraYaw));
+    const forward = _fwd.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    const right = _right.set(-Math.cos(cameraYaw), 0, Math.sin(cameraYaw));
 
     let fwdAxis = 0, sideAxis = 0;
     if (keys['KeyW'] || keys['ArrowUp']) fwdAxis += 1;
@@ -1323,7 +1453,7 @@ function updateBat(dt) {
 
     if (invertSideMovement) sideAxis = -sideAxis;
 
-    const input = new THREE.Vector3()
+    const input = _input.set(0, 0, 0)
         .addScaledVector(forward, fwdAxis)
         .addScaledVector(right, sideAxis);
     if (input.lengthSq() > 1) input.normalize();
@@ -1406,7 +1536,7 @@ function updateBat(dt) {
 function updateBeams(dt) {
     beamTimer += dt;
     const spawnRate = Math.max(0.6, 2.2 - difficulty * 0.1);
-    if (beamTimer > nextBeamTime && beams.length < MAX_BEAMS) {
+    if (beamTimer > nextBeamTime && beams.length < beamCap) {
         spawnBeam();
         nextBeamTime = spawnRate * (0.7 + Math.random() * 0.6);
         beamTimer = 0;
@@ -1517,7 +1647,7 @@ function updateCollectables(dt) {
             score += d.value + combo * 3;
             combo++; comboTimer = 3;
             updateComboUI();
-            spawnParticles(c.position.clone(), c.material.color);
+            spawnParticles(c.position, c.material.color);
             AudioSys.play(d.value >= 40 ? 'collect_rare' : 'collect');
             c.material.dispose(); // FIX: free GPU material on collect
             scene.remove(c);
@@ -1529,34 +1659,32 @@ function updateCollectables(dt) {
 
 // ===== Particles =====
 function updateParticles() {
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        const positions = p.mesh.geometry.attributes.position.array;
+    for (const b of bursts) {
+        if (!b.pts.visible) continue;
+        const v = b.vel;
         let alive = false;
-        for (let j = 0; j < p.velocities.length; j++) {
-            const v = p.velocities[j];
-            v.life -= 0.02;
-            if (v.life > 0) {
-                positions[j*3] += v.x;
-                positions[j*3+1] += v.y;
-                positions[j*3+2] += v.z;
+        for (let j = 0; j < PARTICLES_PER_BURST; j++) {
+            const life = v[j*4+3] - 0.02;
+            v[j*4+3] = life;
+            if (life > 0) {
+                b.positions[j*3] += v[j*4];
+                b.positions[j*3+1] += v[j*4+1];
+                b.positions[j*3+2] += v[j*4+2];
                 alive = true;
             }
         }
-        p.mesh.geometry.attributes.position.needsUpdate = true;
-        p.mesh.material.opacity = Math.max(0, p.velocities[0]?.life || 0);
-        if (!alive) {
-            scene.remove(p.mesh);
-            p.mesh.geometry.dispose(); // FIX: free GPU resources
-            p.mesh.material.dispose();
-            particles.splice(i, 1);
-        }
+        b.pts.geometry.attributes.position.needsUpdate = true;
+        b.mat.opacity = Math.max(0, v[3]);
+        if (!alive) b.pts.visible = false;
     }
 }
 
 // ===== Camera =====
 const camDistance = 11;
 const camHeight = 4;
+const _camTarget = new THREE.Vector3();
+const _lookTarget = new THREE.Vector3();
+const MENU_CAM = new THREE.Vector3(0, 8, 16);
 
 function updateCamera(dt) {
     // Key-based camera rotation (Q/E for yaw; arrow keys are movement only)
@@ -1586,7 +1714,7 @@ function updateCamera(dt) {
     const offsetY = sinPitch * effDist + camHeight;
     const offsetZ = cosYaw * cosPitch * effDist;
 
-    let targetPos = new THREE.Vector3(
+    const targetPos = _camTarget.set(
         batGroup.position.x - offsetX,
         batGroup.position.y + offsetY,
         batGroup.position.z - offsetZ
@@ -1601,8 +1729,36 @@ function updateCamera(dt) {
     }
 
     camera.position.lerp(targetPos, 0.1);
-    const lookTarget = batGroup.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-    camera.lookAt(lookTarget);
+    camera.lookAt(_lookTarget.set(batGroup.position.x, batGroup.position.y + 1.5, batGroup.position.z));
+}
+
+// ===== Adaptive quality (v2.2) =====
+// In Auto mode the tier steps down when a device can't hold its frame
+// budget, and back up again (never above the tier hardware detection chose)
+// once it recovers. Manual quality picks bypass this entirely.
+const perf = { emaDt: 1 / 60, window: 0, goodWindows: 0, cooldown: 0, tier: qualityTier };
+function updatePerf(dt) {
+    if (settings.quality !== 'auto') return;
+    perf.emaDt = perf.emaDt * 0.95 + dt * 0.05;
+    perf.window += dt;
+    if (perf.cooldown > 0) { perf.cooldown -= dt; return; }
+    if (perf.window < 1.5) return;
+    perf.window = 0;
+    const fps = 1 / perf.emaDt;
+    if (fps < 42 && perf.tier > 0) {
+        applyQualityTier(perf.tier - 1);
+        perf.tier--;
+        perf.cooldown = 5; perf.goodWindows = 0;
+    } else if (fps > 56 && perf.tier < autoTierMax) {
+        perf.goodWindows++;
+        if (perf.goodWindows >= 2) {
+            applyQualityTier(perf.tier + 1);
+            perf.tier++;
+            perf.cooldown = 8; perf.goodWindows = 0;
+        }
+    } else if (fps < 50) {
+        perf.goodWindows = 0;
+    }
 }
 
 // ===== Main Loop =====
@@ -1621,6 +1777,7 @@ function animate() {
         updateCollectables(dt);
         updateParticles();
         updateCamera(dt);
+        updatePerf(dt);
         dustSystem.rotation.y += 0.0002;
 
         // Power-up timers
@@ -1630,7 +1787,8 @@ function animate() {
         updatePowerHud();
 
         score += dt * (1 + difficulty * 0.2);
-        scoreValEl.textContent = Math.floor(score);
+        const scoreInt = Math.floor(score);
+        if (scoreInt !== lastScoreShown) { lastScoreShown = scoreInt; scoreValEl.textContent = scoreInt; }
         difficulty = 1 + score / 120;
 
         if (combo > 0) {
@@ -1642,11 +1800,13 @@ function animate() {
         leftWing.rotation.z = Math.sin(Date.now() * 0.008) * 0.4;
         rightWing.rotation.z = -Math.sin(Date.now() * 0.008) * 0.4;
         dustSystem.rotation.y += 0.0002;
-        camera.position.lerp(new THREE.Vector3(0, 8, 16), 0.02);
+        camera.position.lerp(MENU_CAM, 0.02);
         camera.lookAt(0, 3, 0);
     }
 
-    renderer.render(scene, camera);
+    // Paused / game-over: keep the last frame on the canvas and skip the
+    // render entirely — the overlay sits on top and the GPU gets a rest.
+    if (gameState === 'playing' || gameState === 'menu') renderer.render(scene, camera);
 }
 
 // ===== Events =====
@@ -1675,6 +1835,7 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.render(scene, camera); // buffer resize clears the canvas — repaint once
 });
 
 // ===== Debug / test hook (harmless, used for automated checks) =====
@@ -1686,6 +1847,9 @@ window.__BAT = {
     get powers() { return { ...activePowers }; },
     get settings() { return { ...settings }; },
     get counts() { return { collectables: collectables.length, powerups: powerups.length, beams: beams.length, stalactites: stalactites.length }; },
+    get tier() { return qualityTier; },
+    get drawInfo() { return { calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; },
+    setTier(t) { applyQualityTier(t); perf.tier = t; },
     get pos() { return batGroup.position.clone(); },
     get camPos() { return camera.position.clone(); },
     get yaw() { return cameraYaw; },
