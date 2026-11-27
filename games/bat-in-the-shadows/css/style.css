@@ -295,5 +295,32 @@
         }
         .touch-btn.sonar-btn { border-color: rgba(14, 165, 233, 0.45); color: #7fd4ff; font-size: 22px; }
         body.touch #touchControls { display: flex; }
+        body.touch #controlsHint { display: none !important; }
         body.touch { cursor: auto !important; }
+
+        /* ===== v2.1 touch control fixes ===== */
+
+        html, body { overscroll-behavior: none; -webkit-touch-callout: none; }
+        canvas { touch-action: none; }
+
+        /* Drag-to-look surface: covers the whole screen but sits UNDER the
+           HUD (z10), touch buttons (z20) and menus (z30), so touches starting
+           on those still go to them. Only enabled on touch devices. */
+        #lookZone {
+            position: fixed; inset: 0; z-index: 5;
+            display: none; touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body.touch #lookZone { display: block; }
+
+        #touchControls, .touch-zone, .touch-btn { touch-action: none; -webkit-tap-highlight-color: transparent; }
+        .touch-btn { -webkit-user-select: none; user-select: none; }
+        body.touch .touch-zone { width: 160px; height: 160px; }
+
+        .touch-btn.pause-btn {
+            width: 46px; height: 46px; font-size: 18px;
+            align-self: flex-end; border-color: rgba(255, 255, 255, 0.28);
+        }
+
+        .joy-knob { will-change: transform; }
     
