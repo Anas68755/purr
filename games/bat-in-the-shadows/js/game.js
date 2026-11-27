@@ -1,9 +1,11 @@
 // ============================================================================
-// BAT IN THE SHADOWS — v2.0
-// Upgrade: sonar pulse, power-ups (shield/speed/magnet), falling stalactites,
-// seeker beams, procedural ambient music, settings persistence, touch polish,
-// and bug fixes (beam lifetime, resource disposal, fog default).
-// Original difficulty curve unchanged.
+// BAT IN THE SHADOWS — v2.1
+// Touch overhaul: multi-touch-safe joystick (touch-ID tracking, floating
+// centre, dead zone, camera-relative screen-correct axes), drag-to-look
+// camera on touch, touch pause button, refresh-rate-independent movement.
+// Screen-direction fixes: A/D, mouse look, Q/E, bat facing.
+// v2.0 systems: sonar pulse, power-ups, stalactites & seeker beams, ambient
+// music, settings persistence. Original difficulty curve unchanged.
 // ============================================================================
 
 import * as THREE from 'three';
@@ -953,38 +955,130 @@ document.addEventListener('wheel', e => {
     scrollVelocity = Math.max(-0.5, Math.min(0.5, scrollVelocity));
 }, { passive: false });
 
+// ===== TOUCH INPUT (v2.1 overhaul) =====
+// Fixes vs v2.0:
+//  - Tracks the steering touch by identifier, so the joystick keeps working
+//    while other fingers hold the altitude / sonar buttons. v2.0 read
+//    e.touches[0], which can be the *other* finger, killing steering mid-game.
+//  - Floating centre: the pad recentres under the thumb wherever it lands.
+//  - Real dead zone + full deflection at the ring edge.
+//  - Output is SCREEN space (+x right, +y down); updateBat converts it with
+//    the same camera-relative vectors as the keyboard. v2.0 added raw world
+//    x/z, which moved the bat opposite to the thumb on screen.
 const touchState = { x: 0, y: 0, up: false, down: false };
 const joyZone = el('joyLeft');
 const joyKnob = el('joyKnob');
-let joyCenter = null;
+const JOY_RADIUS = 55; // px of thumb travel for full speed
+const JOY_DEAD = 9;    // px dead zone
+
+let joyTouchId = null;
+let joyCenter = null;         // floating centre = touch-down point
+let joyBase = { x: 0, y: 0 }; // knob offset from ring centre at touch-down
 
 function setKnob(dx, dy) {
     joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 }
-joyZone.addEventListener('touchstart', e => {
-    e.preventDefault(); const t = e.touches[0];
+function joyStart(x, y) {
     const r = joyZone.getBoundingClientRect();
-    joyCenter = { x: r.left + r.width/2, y: r.top + r.height/2 };
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    joyBase = { x: THREE.MathUtils.clamp(x - cx, -32, 32), y: THREE.MathUtils.clamp(y - cy, -32, 32) };
+    joyCenter = { x, y };
+    setKnob(joyBase.x, joyBase.y);
+}
+function joyMove(x, y) {
+    if (!joyCenter) return;
+    const dx = x - joyCenter.x, dy = y - joyCenter.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < JOY_DEAD) {
+        touchState.x = 0; touchState.y = 0;
+        setKnob(joyBase.x, joyBase.y);
+        return;
+    }
+    const mag = Math.min(len, JOY_RADIUS);
+    const ux = dx / len, uy = dy / len;
+    const k = (mag - JOY_DEAD) / (JOY_RADIUS - JOY_DEAD);
+    touchState.x = ux * k;
+    touchState.y = uy * k;
+    setKnob(joyBase.x + ux * mag, joyBase.y + uy * mag);
+}
+function joyEnd() {
+    joyTouchId = null; joyCenter = null;
+    touchState.x = 0; touchState.y = 0;
     setKnob(0, 0);
-}, {passive:false});
+}
+joyZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (joyTouchId !== null) return; // already steering with another finger
+    const t = e.changedTouches[0];
+    joyTouchId = t.identifier;
+    joyStart(t.clientX, t.clientY);
+}, { passive: false });
 joyZone.addEventListener('touchmove', e => {
-    e.preventDefault(); if (!joyCenter) return;
-    const t = e.touches[0];
-    let dx = t.clientX - joyCenter.x;
-    let dy = t.clientY - joyCenter.y;
-    const len = Math.sqrt(dx*dx + dy*dy);
-    if (len > 45) { dx = dx / len * 45; dy = dy / len * 45; }
-    touchState.x = Math.max(-1, Math.min(1, dx / 50));
-    touchState.y = Math.max(-1, Math.min(1, dy / 50));
-    setKnob(dx, dy);
-}, {passive:false});
-joyZone.addEventListener('touchend', e => {
-    e.preventDefault(); touchState.x = 0; touchState.y = 0; joyCenter = null; setKnob(0, 0);
-}, {passive:false});
-const releaseTouch = () => { touchState.x = 0; touchState.y = 0; touchState.up = false; touchState.down = false; joyCenter = null; setKnob(0, 0); };
-joyZone.addEventListener('touchcancel', releaseTouch);
-el('btnUp').addEventListener('touchcancel', releaseTouch);
-el('btnDown').addEventListener('touchcancel', releaseTouch);
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) joyMove(t.clientX, t.clientY);
+    }
+}, { passive: false });
+const joyFinish = e => {
+    for (const t of e.changedTouches) {
+        if (t.identifier === joyTouchId) joyEnd();
+    }
+};
+joyZone.addEventListener('touchend', joyFinish);
+joyZone.addEventListener('touchcancel', joyFinish);
+
+// Drag-to-look: any empty screen area turns the camera (touch devices only).
+// Drives yaw AND pitch; sensitivity + invert-look settings are respected.
+const lookZone = el('lookZone');
+let lookTouchId = null, lookLast = null;
+lookZone.addEventListener('touchstart', e => {
+    if (gameState !== 'playing') return;
+    e.preventDefault();
+    if (lookTouchId !== null) return;
+    const t = e.changedTouches[0];
+    lookTouchId = t.identifier;
+    lookLast = { x: t.clientX, y: t.clientY };
+}, { passive: false });
+lookZone.addEventListener('touchmove', e => {
+    if (lookTouchId === null || gameState !== 'playing') return;
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+        if (t.identifier !== lookTouchId) continue;
+        const dx = t.clientX - lookLast.x, dy = t.clientY - lookLast.y;
+        lookLast = { x: t.clientX, y: t.clientY };
+        const k = 0.0042 * (settings.sensitivity / 100);
+        const dir = invertLook ? -1 : 1;
+        cameraYaw -= dx * k * dir;  // drag right = look right
+        cameraPitch = THREE.MathUtils.clamp(cameraPitch + dy * k * dir, -0.5, 0.7); // drag up = look up
+    }
+}, { passive: false });
+const lookFinish = e => {
+    for (const t of e.changedTouches) {
+        if (t.identifier === lookTouchId) { lookTouchId = null; lookLast = null; }
+    }
+};
+lookZone.addEventListener('touchend', lookFinish);
+lookZone.addEventListener('touchcancel', lookFinish);
+
+// Altitude buttons (scoped cancels: v2.0 wiped the whole joystick on any cancel)
+el('btnUp').addEventListener('touchstart', e => { e.preventDefault(); touchState.up = true; }, { passive: false });
+el('btnUp').addEventListener('touchend', e => { e.preventDefault(); touchState.up = false; }, { passive: false });
+el('btnUp').addEventListener('touchcancel', () => { touchState.up = false; });
+el('btnDown').addEventListener('touchstart', e => { e.preventDefault(); touchState.down = true; }, { passive: false });
+el('btnDown').addEventListener('touchend', e => { e.preventDefault(); touchState.down = false; }, { passive: false });
+el('btnDown').addEventListener('touchcancel', () => { touchState.down = false; });
+// Sonar button
+el('btnSonar').addEventListener('touchstart', e => { e.preventDefault(); fireSonar(); }, { passive: false });
+// Pause button (there was previously no way to pause on a phone)
+const pauseBtnEl = el('btnPause');
+pauseBtnEl.addEventListener('touchstart', e => { e.preventDefault(); if (gameState === 'playing') setPause(true); }, { passive: false });
+pauseBtnEl.addEventListener('click', () => { if (gameState === 'playing') setPause(true); });
+
+function releaseTouch() {
+    touchState.x = 0; touchState.y = 0; touchState.up = false; touchState.down = false;
+    joyTouchId = null; joyCenter = null; setKnob(0, 0);
+    lookTouchId = null; lookLast = null;
+}
 function releaseAllInput() { for (const k in keys) keys[k] = false; releaseTouch(); mouseDeltaX = 0; }
 function autoPause() {
     releaseAllInput();
@@ -992,17 +1086,13 @@ function autoPause() {
 }
 window.addEventListener('blur', autoPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
-el('btnUp').addEventListener('touchstart', e => { e.preventDefault(); touchState.up = true; });
-el('btnUp').addEventListener('touchend', e => { e.preventDefault(); touchState.up = false; });
-el('btnDown').addEventListener('touchstart', e => { e.preventDefault(); touchState.down = true; });
-el('btnDown').addEventListener('touchend', e => { e.preventDefault(); touchState.down = false; });
-// Touch sonar button
-el('btnSonar').addEventListener('touchstart', e => { e.preventDefault(); fireSonar(); }, {passive:false});
 
 // Touch device detection (extra fallback on top of the CSS media query)
 if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
     document.body.classList.add('touch');
 }
+// Suppress long-press context menu on the game surface
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 
 // ===== UI =====
 function setScreen(id, show) {
@@ -1214,29 +1304,29 @@ const maxSpeed = 0.32;
 const friction = 0.88;
 
 function updateBat(dt) {
-    const forward = new THREE.Vector3();
-    const right = new THREE.Vector3();
+    // Camera-relative axes. forward = where the camera looks;
+    // right = SCREEN right = cross(forward, up) = (-cos yaw, 0, sin yaw).
+    // (The old sin(yaw + PI/2) vector pointed screen-LEFT, so D moved left.)
+    const forward = new THREE.Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    const right = new THREE.Vector3(-Math.cos(cameraYaw), 0, Math.sin(cameraYaw));
 
-    forward.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
-    right.set(Math.sin(cameraYaw + Math.PI/2), 0, Math.cos(cameraYaw + Math.PI/2));
+    let fwdAxis = 0, sideAxis = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) fwdAxis += 1;
+    if (keys['KeyS'] || keys['ArrowDown']) fwdAxis -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) sideAxis += 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) sideAxis -= 1;
 
-    const input = new THREE.Vector3();
-    if (keys['KeyW'] || keys['ArrowUp']) input.add(forward);
-    if (keys['KeyS'] || keys['ArrowDown']) input.sub(forward);
-    if (invertSideMovement) {
-        if (keys['KeyA'] || keys['ArrowLeft']) input.add(right);
-        if (keys['KeyD'] || keys['ArrowRight']) input.sub(right);
-    } else {
-        if (keys['KeyA'] || keys['ArrowLeft']) input.sub(right);
-        if (keys['KeyD'] || keys['ArrowRight']) input.add(right);
-    }
+    // Analog joystick: already dead-zoned, SCREEN space (+x right, +y down).
+    // Same camera-relative path as the keyboard, so the pad matches WASD.
+    sideAxis += touchState.x;
+    fwdAxis += -touchState.y;
 
-    if (Math.abs(touchState.x) > 0.1 || Math.abs(touchState.y) > 0.1) {
-        input.x += touchState.x;
-        input.z += touchState.y;
-    }
+    if (invertSideMovement) sideAxis = -sideAxis;
 
-    if (input.length() > 1) input.normalize();
+    const input = new THREE.Vector3()
+        .addScaledVector(forward, fwdAxis)
+        .addScaledVector(right, sideAxis);
+    if (input.lengthSq() > 1) input.normalize();
 
     // Speed boost power-up multiplier
     const speedMult = activePowers.speed > 0 ? 1.5 : 1;
@@ -1245,15 +1335,16 @@ function updateBat(dt) {
     velocity.z += input.z * accel;
 
     // ===== SCROLL ALTITUDE =====
-    // Apply scroll velocity with decay
-    scrollVelocity *= scrollDecay;
+    // Apply scroll velocity with decay (dt-scaled so 120 Hz devices match 60 Hz)
+    scrollVelocity *= Math.pow(scrollDecay, dt * 60);
     velocity.y += scrollVelocity * dt * 60;
 
     // Touch fallback for mobile
     if (keys['Space'] || touchState.up) velocity.y += accel * 0.7;
     if (keys['ShiftLeft'] || keys['ShiftRight'] || touchState.down) velocity.y -= accel * 0.7;
 
-    velocity.multiplyScalar(friction);
+    // dt-scaled friction: identical movement feel at 60 / 90 / 120 Hz
+    velocity.multiplyScalar(Math.pow(friction, dt * 60));
 
     const hSpeed = Math.sqrt(velocity.x**2 + velocity.z**2);
     const maxSpd = maxSpeed * speedMult;
@@ -1276,7 +1367,9 @@ function updateBat(dt) {
     batGroup.position.z = THREE.MathUtils.clamp(batGroup.position.z, -worldHalf + 2, worldHalf - 2);
 
     if (hSpeed > 0.01) {
-        const targetYaw = Math.atan2(velocity.x, velocity.z);
+        // FIX: the model's nose is -Z, so facing travel needs atan2(-x, -z).
+        // The old atan2(x, z) made the bat visually fly backwards.
+        const targetYaw = Math.atan2(-velocity.x, -velocity.z);
         let yawDiff = targetYaw - batGroup.rotation.y;
         while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
         while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
@@ -1466,28 +1559,32 @@ const camDistance = 11;
 const camHeight = 4;
 
 function updateCamera(dt) {
-    // Key-based camera rotation (Q/E or Arrow Left/Right for yaw)
+    // Key-based camera rotation (Q/E for yaw; arrow keys are movement only)
     if (gameState === 'playing') {
-        if (keys['KeyQ'] || keys['ArrowLeft']) cameraYaw -= keyLookSpeed * dt;
-        if (keys['KeyE'] || keys['ArrowRight']) cameraYaw += keyLookSpeed * dt;
+        if (keys['KeyQ']) cameraYaw += keyLookSpeed * dt; // look left
+        if (keys['KeyE']) cameraYaw -= keyLookSpeed * dt; // look right
 
-        // Mouse look camera rotation
+        // Mouse look camera rotation (FIX: mouse right now turns the view right)
         if (mouseLookEnabled && Math.abs(mouseDeltaX) > 0) {
-            const sensMultiplier = settings.sensitivity / 100; // FIX: no DOM read per frame
+            const sensMultiplier = settings.sensitivity / 100; // no DOM read per frame
             const dir = invertLook ? -1 : 1;
-            cameraYaw += mouseDeltaX * mouseLookSpeed * sensMultiplier * dir;
+            cameraYaw -= mouseDeltaX * mouseLookSpeed * sensMultiplier * dir;
             mouseDeltaX = 0; // consume the delta
         }
     }
+
+    // Pull the camera back on narrow (portrait) screens so the bat doesn't
+    // block the view; standard desktop aspects keep the original distance.
+    const effDist = camDistance * Math.max(1, Math.sqrt(1.7 / camera.aspect));
 
     const sinYaw = Math.sin(cameraYaw);
     const cosYaw = Math.cos(cameraYaw);
     const sinPitch = Math.sin(cameraPitch);
     const cosPitch = Math.cos(cameraPitch);
 
-    const offsetX = sinYaw * cosPitch * camDistance;
-    const offsetY = sinPitch * camDistance + camHeight;
-    const offsetZ = cosYaw * cosPitch * camDistance;
+    const offsetX = sinYaw * cosPitch * effDist;
+    const offsetY = sinPitch * effDist + camHeight;
+    const offsetZ = cosYaw * cosPitch * effDist;
 
     let targetPos = new THREE.Vector3(
         batGroup.position.x - offsetX,
@@ -1589,6 +1686,14 @@ window.__BAT = {
     get powers() { return { ...activePowers }; },
     get settings() { return { ...settings }; },
     get counts() { return { collectables: collectables.length, powerups: powerups.length, beams: beams.length, stalactites: stalactites.length }; },
+    get pos() { return batGroup.position.clone(); },
+    get camPos() { return camera.position.clone(); },
+    get yaw() { return cameraYaw; },
+    get pitch() { return cameraPitch; },
+    get touch() { return { x: touchState.x, y: touchState.y, up: touchState.up, down: touchState.down }; },
+    setYaw(v) { cameraYaw = v; },
+    // Deterministic test helper: advance movement/camera without rAF
+    step(dt) { if (gameState === 'playing') { updateBat(dt); updateCamera(dt); } },
     fireSonar,
     startGame
 };
