@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Bat in the Shadows — Key Look</title>
     <link rel="stylesheet" href="css/style.css">
 <base target="_blank">
@@ -31,11 +31,15 @@
 
     <div id="vignette"></div>
 
+    <!-- Full-screen drag-to-look surface for touch devices (sits under HUD/buttons) -->
+    <div id="lookZone" aria-hidden="true"></div>
+
     <div id="startScreen" class="screen show">
         <h1>🦇 Bat in the Shadows</h1>
         <p>Explore a vast luminous cavern. Avoid sunbeams and falling stalactites. Collect treasures.</p>
         <p style="font-size:14px; color:#7fe7ff; margin-top:10px;">Press <b>F</b> (or tap 📡) to send a sonar pulse that reveals treasure through the fog. Grab 🛡 shields, ⚡ boosts and 🧲 magnets. Amber beams will hunt you.</p>
-        <p style="font-size:14px; color:#64748b; margin-top:10px;">WASD to move · Mouse to look · Q/E or Arrow Left/Right to look · Scroll wheel to fly up/down · F sonar · ESC pause</p>
+        <p style="font-size:14px; color:#64748b; margin-top:10px;">WASD/Arrows to move · Mouse to look · Q/E to turn · Scroll wheel to fly up/down · F sonar · ESC pause</p>
+        <p style="font-size:14px; color:#64748b; margin-top:6px;">On touch: left pad steers · drag anywhere to look around · ▲▼ fly up/down · 📡 sonar · ⏸ pause</p>
         <button class="btn" id="startBtn">Enter the World</button>
     </div>
 
@@ -125,15 +129,18 @@
                 <div class="control-item"><div class="control-key">Sh</div><div class="control-desc">Fly Down</div></div>
                 <div class="control-item"><div class="control-key">F</div><div class="control-desc">Sonar Pulse</div></div>
                 <div class="control-item"><div class="control-key">Esc</div><div class="control-desc">Pause</div></div>
+                <div class="control-item"><div class="control-key">Pad</div><div class="control-desc">Touch: Steer (left)</div></div>
+                <div class="control-item"><div class="control-key">Drag</div><div class="control-desc">Touch: Look Around</div></div>
             </div>
         </div>
 
-        <div class="pause-footer">Bat in the Shadows v2.0</div>
+        <div class="pause-footer">Bat in the Shadows v2.1</div>
     </div>
 
     <div id="touchControls">
         <div class="touch-zone" id="joyLeft"><div class="joy-knob" id="joyKnob"></div></div>
         <div id="touchRight">
+            <div class="touch-btn pause-btn" id="btnPause">⏸</div>
             <div class="touch-btn" id="btnUp">▲</div>
             <div class="touch-btn sonar-btn" id="btnSonar">📡</div>
             <div class="touch-btn" id="btnDown">▼</div>
