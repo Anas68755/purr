@@ -19,9 +19,9 @@ catch(e){if(e.code==400||e.code==401){st={};keep()}throw e}}return st.at}
 // fingerprint of what the player did (ignores values that change every tick: clock, mine stock, resources)
 const fpS=()=>{const c=Object.assign({},S,{last:0,g:0,e:0,b:S.b.map(b=>Object.assign({},b,{st:0}))});const t=JSON.stringify(c);let h=5381;for(let i=0;i<t.length;i++)h=(h*33^t.charCodeAt(i))>>>0;return h+':'+t.length};
 const brief=d=>{const b=(d.b||[]).find(x=>x.t=='th');return`🏰 TH ${b&&b.l||1} · 🏆 ${d.tr||0} · ⭐ Lv ${d.lv||1} · 💰 ${Math.floor(d.g||0)}`};
-async function fetchRow(){const tok=await token();const r=await api('/rest/v1/saves?select=data,updated_at&limit=1',{},tok);return r&&r[0]||null}
-async function push(){const tok=await token();const body={user_id:st.uid,data:S,updated_at:new Date().toISOString()};
-await api('/rest/v1/saves?on_conflict=user_id',{method:'POST',headers:Object.assign(hdr(tok),{Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+async function fetchRow(){const tok=await token();const r=await api('/rest/v1/saves?select=data,updated_at&game=eq.clash&slot=eq.main&limit=1',{},tok);return r&&r[0]||null}
+async function push(){const tok=await token();const body={user_id:st.uid,game:'clash',slot:'main',data:S,updated_at:new Date().toISOString()};
+await api('/rest/v1/saves?on_conflict=user_id,game,slot',{method:'POST',headers:Object.assign(hdr(tok),{Prefer:'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
 st.h=fpS();st.sync=Date.now();st.err='';keep()}
 let busy=0;
 async function sync(force){if(!on()||!st.rt||busy||BT)return;busy=1;

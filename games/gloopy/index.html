@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2a1f3d">
+<title>Gloopy Meadow</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="description" content="Gloopy Meadow — a small, calm ranch game about slimes, gardens and good weather.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+<div id="hud">
+  <div class="col">
+    <div class="stat-box"><img id="coinIco" class="hud-coin" alt="" style="display:none"><span id="coinEmoji">💰</span> <span id="money">50</span></div>
+    <div class="stat-box"><span id="weatherIco">☀️</span> Day <span id="dayNum">1</span> &nbsp;⏰ <span id="time">07:00</span></div>
+    <div id="questBox" class="stat-box" role="button" aria-label="Open orders">📜 <span id="questText">—</span></div>
+  </div>
+  <div class="col right">
+    <div class="stat-box" id="slimeCount">🐙 0</div>
+    <div class="stat-box" id="plortCount">💎 0</div>
+    <div class="stat-box" id="foodCount">🥕 0</div>
+    <div class="row">
+      <button class="mini-btn" id="btnSfx" aria-label="Toggle sound effects">🔊</button>
+      <button class="mini-btn" id="btnMusic" aria-label="Toggle music">🎵</button>
+      <button class="mini-btn" id="btnMenu" aria-label="Menu">☰</button>
+    </div>
+  </div>
+</div>
+
+<div id="survHurt"></div><div id="stormShade"></div>
+<div id="surv">
+  <div class="sbars">
+    <div class="sbar hp" title="Health"><span>❤️</span><div><i id="sbHp"></i></div></div>
+    <div class="sbar food" title="Hunger"><span>🍖</span><div><i id="sbFood"></i></div></div>
+    <div class="sbar water" title="Thirst"><span>💧</span><div><i id="sbWater"></i></div></div>
+    <div class="sbar stam" title="Stamina"><span>⚡</span><div><i id="sbStam"></i></div></div>
+  </div>
+  <div id="survGear"></div>
+</div>
+<div id="survBtns">
+  <button class="action-btn small" id="atkBtn" aria-label="Attack">⚔️</button>
+  <button class="action-btn small" id="eatBtn" aria-label="Eat">🍴</button>
+  <button class="action-btn small" id="drinkBtn" aria-label="Drink">💧</button>
+  <button class="action-btn small" id="healBtn" aria-label="Bandage">🩹</button>
+  <button class="action-btn small" id="craftBtn" aria-label="Craft">🛠️</button>
+</div>
+
+<div id="visitBar"></div>
+<div id="packBar"></div>
+
+<div id="controls">
+  <div id="joystickZone"><div class="joystick-base"><div class="joystick-knob" id="joystickKnob"></div></div></div>
+  <button class="action-btn" id="jumpBtn">↑</button>
+  <button class="action-btn" id="shootBtn">▶</button>
+  <button class="action-btn" id="suckBtn">●</button>
+  <button class="action-btn" id="shopBtn" aria-label="Interact">✋</button>
+</div>
+
+<div id="tutorial">
+  👋 Move with the stick. <b>Hold ●</b> to gulp up slimes, glimmers &amp; food, <b>tap ▶</b> to throw the selected slot.
+  Walk up to things and tap <b>✋</b> to pet, plant, dig or shop. Open <b>☰</b> for orders, codex and settings.
+</div>
+
+<div id="shop">
+  <div class="shop-panel">
+    <h2>🏪 MARKET</h2>
+    <div class="shop-money">💰 Your money: <b id="shopMoney">0</b></div>
+    <div id="shopItems"></div>
+    <button class="shop-close" id="closeShop">Close Shop</button>
+  </div>
+</div>
+
+<div id="photoUI" style="display:none">
+  <div class="prow"><button id="photoExit" aria-label="Leave photo mode">✕</button><span id="photoCount">0/12</span></div>
+  <div class="prow mid">
+    <button id="frameBtn" aria-label="Next frame">🖼️ <span id="photoFrameName">Polaroid</span></button>
+    <button id="stickerBtn" aria-label="Next sticker">✨ <span id="photoStickerName">—</span></button>
+  </div>
+  <button id="shutterBtn" aria-label="Take photo">📸</button>
+</div>
+<div id="flash"></div>
+
+<div id="alert"></div>
+
+<div id="toasts"></div>
+
+<div id="modal" class="hidden">
+  <div class="mpanel">
+    <div class="mhead"><button id="mBack" aria-label="Back">←</button><h2 id="mTitle"></h2></div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<div id="menu">
+  <img id="logoImg" alt="Gloopy Meadow" style="display:none">
+  <h1 id="logoText">🟣 GLOOPY MEADOW</h1>
+  <div class="subtitle">Gulp up slimes • Feed them • Tend the garden • Relax</div>
+  <div id="loader"><div id="loadBar"><div id="loadFill"></div></div><div id="loadLabel">Loading…</div></div>
+  <button class="menu-btn" id="continueBtn" style="display:none" disabled>▶ CONTINUE</button>
+  <button class="menu-btn" id="newBtn" disabled>🎮 NEW GAME</button>
+  <button class="menu-btn survival-btn" id="survBtn" disabled>🏕️ NEW SURVIVAL RANCH</button>
+  <button class="menu-btn together-btn" id="netBtn" disabled>🌐 PLAY TOGETHER</button>
+  <button class="menu-btn together-btn" id="fameBtn" disabled>👑 RANCH FAME</button>
+  <div class="menu-row">
+    <button class="menu-btn small" id="settingsBtn">⚙️ Settings</button>
+    <button class="menu-btn small" id="achBtn">🏆 Achievements</button>
+  </div>
+  <div class="menu-row">
+    <button class="menu-btn small" id="codexBtn">📖 Codex</button>
+    <button class="menu-btn small" id="helpBtn">❓ How to play</button>
+  </div>
+  <div class="menu-help">A small, calm ranch game. No timers, no game over — just slimes, a garden and good weather.</div>
+</div>
+
+<script src="../_shared/cloud.js"></script>
+<script src="js/config.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/ar_data.js"></script>
+<script src="js/ar_story.js"></script>
+<script src="js/ar_ui.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/state.js"></script>
+<script src="js/economy.js"></script>
+<script src="js/areas.js"></script>
+<script src="js/input.js"></script>
+<script src="js/systems.js"></script>
+<script src="js/features.js"></script>
+<script src="js/life.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/story.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/net_supa.js"></script>
+<script src="js/net.js"></script>
+<script src="js/album.js"></script>
+<script src="js/migrate.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/menus.js"></script>
+<script src="js/fame.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
