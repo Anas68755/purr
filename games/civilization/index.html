@@ -331,6 +331,7 @@ const GENE_COLORS = { strength:'#f56565', intelligence:'#4299e1', fertility:'#ed
 
 let world = null;
 let terrainCache = null;
+let terrainLow = null;      // نسخة 1x من التضاريس
 let inspected = null;
 let _lastModified = null;
 
@@ -558,6 +559,32 @@ function spriteFor(npc, k, frame) {
   let s = spriteCache.get(key);
   if (!s) { s = buildSprite(o); spriteCache.set(key, s); }
   return s;
+}
+
+// نسخ مصغّرة مسبقًا من الشخصيات بحسب التكبير، ونسخة معكوسة مخزّنة (أسرع من التصغير كل إطار)
+function spriteLevel(spr) {
+  const cell = SPRITE_WORLD * viewport.scale;
+  const lv = cell <= 1.3 ? 1 : cell <= 2.6 ? 2 : SPRITE_PX;
+  if (lv === SPRITE_PX) return spr;
+  const key = '_l' + lv;
+  let c = spr[key];
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = Math.round(spr.width * lv / SPRITE_PX); c.height = Math.round(spr.height * lv / SPRITE_PX);
+    const cg = c.getContext('2d');
+    cg.imageSmoothingQuality = 'high';
+    cg.drawImage(spr, 0, 0, c.width, c.height);
+    spr[key] = c;
+  }
+  return c;
+}
+function flipOf(c) {
+  if (c._flip) return c._flip;
+  const f = document.createElement('canvas');
+  f.width = c.width; f.height = c.height;
+  const fg = f.getContext('2d');
+  fg.translate(c.width, 0); fg.scale(-1, 1); fg.drawImage(c, 0, 0);
+  return (c._flip = f);
 }
 
 // صورة شخصية للوحات (data URL)
@@ -3242,10 +3269,22 @@ function drawTile(g, x, y, season) {
 
 function drawWaterGlints(nowMs) {
   if (!waterGlints.length || seasonIdx() === 3) return;
+  const B = 6, t = nowMs / 500;
+  const vx0 = -viewport.offsetX / viewport.scale - 4, vy0 = -viewport.offsetY / viewport.scale - 4;
+  const vx1 = vx0 + canvas.width / viewport.scale + 8, vy1 = vy0 + canvas.height / viewport.scale + 8;
   ctx.fillStyle = '#ffffff';
-  for (const w of waterGlints) {
-    ctx.globalAlpha = 0.12 + 0.28 * (0.5 + 0.5 * Math.sin(nowMs / 500 + w.ph));
-    ctx.fillRect(w.x, w.y, 1.6, 0.5);
+  for (let b = 0; b < B; b++) {
+    ctx.beginPath();
+    let any = false;
+    for (const w of waterGlints) {
+      if (w.x < vx0 || w.x > vx1 || w.y < vy0 || w.y > vy1) continue;
+      const a = 0.5 + 0.5 * Math.sin(t + w.ph);
+      if (Math.min(B - 1, Math.floor(a * B)) !== b) continue;
+      ctx.rect(w.x, w.y, 1.6, 0.5); any = true;
+    }
+    if (!any) continue;
+    ctx.globalAlpha = 0.12 + 0.28 * ((b + 0.5) / B);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
@@ -3276,6 +3315,22 @@ function buildTerrainCache() {
       g.restore();
     }
   }
+  // أراضي الممالك تُرسم مرة واحدة هنا بدل كل إطار
+  for (const k of world.kingdoms) {
+    if (!k.tileList || !k.tileList.length) continue;
+    g.globalAlpha = 0.22;
+    g.fillStyle = k.color;
+    g.beginPath();
+    for (const { x, y } of k.tileList) g.rect(x * TILE, y * TILE, TILE, TILE);
+    g.fill();
+    g.globalAlpha = 1;
+  }
+  // نسخة بدقة 1x للعرض العادي (أسرع بكثير من تصغير نسخة 3x كل إطار)
+  terrainLow = document.createElement('canvas');
+  terrainLow.width = W * TILE; terrainLow.height = H * TILE;
+  const lg = terrainLow.getContext('2d');
+  lg.imageSmoothingQuality = 'high';
+  lg.drawImage(terrainCache, 0, 0, terrainLow.width, terrainLow.height);
 }
 
 // ============================================================
@@ -3324,20 +3379,23 @@ function render() {
 
   ctx.setTransform(viewport.scale, 0, 0, viewport.scale, viewport.offsetX, viewport.offsetY);
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(terrainCache, 0, 0, world.W * TILE, world.H * TILE);
+  {
+    const WW = world.W * TILE, HH = world.H * TILE;
+    if (viewport.scale <= 1.05 && terrainLow) {
+      ctx.imageSmoothingQuality = viewport.scale < 0.8 ? 'high' : 'medium';
+      ctx.drawImage(terrainLow, 0, 0, WW, HH);
+      ctx.imageSmoothingQuality = 'high';
+    } else {
+      // مكبّر: ارسم الجزء المرئي فقط من النسخة عالية الدقة
+      const vx = -viewport.offsetX / viewport.scale, vy = -viewport.offsetY / viewport.scale;
+      const x0 = Math.max(0, Math.floor(vx) - 1), y0 = Math.max(0, Math.floor(vy) - 1);
+      const x1 = Math.min(WW, Math.ceil(vx + canvas.width / viewport.scale) + 1);
+      const y1 = Math.min(HH, Math.ceil(vy + canvas.height / viewport.scale) + 1);
+      if (x1 > x0 && y1 > y0) ctx.drawImage(terrainCache, x0 * TC, y0 * TC, (x1 - x0) * TC, (y1 - y0) * TC, x0, y0, x1 - x0, y1 - y0);
+    }
+  }
   drawWaterGlints(performance.now());
   glowQueue.length = 0; labelQueue.length = 0;
-
-  // أراضي الممالك
-  for (const k of world.kingdoms) {
-    if (!k.tileList || !k.tileList.length) continue;
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = k.color;
-    ctx.beginPath();
-    for (const { x, y } of k.tileList) ctx.rect(x*TILE, y*TILE, TILE, TILE);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
 
   // خطوط التحالفات
   for (const a of world.alliances) {
@@ -3389,14 +3447,8 @@ function render() {
     const dw = spr.width / SPRITE_PX * SPRITE_WORLD;
     const dh = spr.height / SPRITE_PX * SPRITE_WORLD;
     const dy = py + 6.5 + hop - dh;
-    if (npc.face === -1) {
-      ctx.save();
-      ctx.translate(px, 0); ctx.scale(-1, 1);
-      ctx.drawImage(spr, -dw/2, dy, dw, dh);
-      ctx.restore();
-    } else {
-      ctx.drawImage(spr, px - dw/2, dy, dw, dh);
-    }
+    const L = spriteLevel(spr);
+    ctx.drawImage(npc.face === -1 ? flipOf(L) : L, px - dw/2, dy, dw, dh);
   }
 
   drawAtmosphere(nowMs);
