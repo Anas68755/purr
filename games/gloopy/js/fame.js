@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   RANCH FAME (0.16) — js/fame.js
+   RANCH FAME (0.17) — js/fame.js
    Global leaderboard for Gloopy Meadow, powered by the shared PURR
    Cloud Kit (games/_shared/cloud.js → the `scores` table).
    The score is lifetime money earned (profile.stats.moneyEarned):
@@ -11,18 +11,19 @@
   const GAME = 'gloopy';
   const kit = () => (typeof window.CloudKit === 'undefined' ? null : window.CloudKit);
 
-  let lastSent = -1, lastTry = 0;
+  let lastSent = -1, lastTry = 0, lastFail = '';
 
   function myScore() { return (typeof getStat === 'function' ? getStat('moneyEarned') : 0) | 0; }
   function myName() { return (profile.settings.playerName || '').trim().slice(0, 16) || 'Rancher'; }
 
   async function submit(force) {
-    const K = kit(); if (!K || !K.online()) return false;
+    const K = kit();
+    if (!K || !K.online()) { lastFail = 'cloud offline'; return false; }
     const s = myScore();
-    if (s <= 0) return false;
-    if (!force && s <= lastSent) return false;
+    if (s <= 0) { lastFail = 'lifetime earnings are $0 — earn some money first'; return false; }
+    if (!force && s <= lastSent) { lastFail = 'this score was already uploaded'; return false; }
     const now = Date.now();
-    if (!force && now - lastTry < 60000) return false;
+    if (!force && now - lastTry < 60000) { lastFail = 'auto-upload runs at most once a minute'; return false; }
     lastTry = now;
     const meta = {
       day: getStat('bestDay') | 0,
@@ -30,7 +31,8 @@
       codex: (typeof codexDonePieces === 'function') ? codexDonePieces() : 0
     };
     const r = await K.submitScore(GAME, myName(), s, meta);
-    if (r && r.ok) { lastSent = Math.max(lastSent, s); return true; }
+    if (r && r.ok) { lastSent = Math.max(lastSent, s); lastFail = ''; return true; }
+    lastFail = (r && r.error) ? ('server said: ' + r.error) : 'the server did not accept the upload';
     return false;
   }
 
@@ -66,7 +68,12 @@
         h += `<div class="mlist">${btn('famesend', '☁️ Send my score now', '', online ? 'primary' : 'disabled')}</div>`;
         return h;
       },
-      after: () => { const el = document.getElementById('fameBoard'); if (el) loadBoard(el); }
+      after: () => {
+        const el = document.getElementById('fameBoard');
+        if (el) loadBoard(el);
+        /* opportunistic upload when the screen opens (respects the throttle) */
+        submit(false).then(ok => { if (ok && el) loadBoard(el); });
+      }
     };
   }
 
@@ -77,8 +84,18 @@
       const b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
       if (!b || b.dataset.act !== 'famesend') return;
       Sound.play('click');
-      submit(true).then(ok => showAlert(
-        ok ? '☁️ Score sent to the board' : (kit() && kit().online() ? 'Nothing to send yet — earn some money first' : 'Cloud offline — try later'), 2200));
+      submit(true).then(ok => {
+        if (ok) {
+          const el = document.getElementById('fameBoard');
+          if (el) loadBoard(el);                       /* show yourself on the board right away */
+          showAlert('☁️ Score sent to the board', 2200);
+        } else {
+          const online = !!(kit() && kit().online());
+          const msg = !online ? 'Cloud offline — try later'
+            : (lastFail || 'could not send — try again');
+          showAlert('⚠️ ' + msg, 2800);
+        }
+      });
     });
     mb.addEventListener('change', e => {
       if (!e.target || e.target.id !== 'fameName') return;
